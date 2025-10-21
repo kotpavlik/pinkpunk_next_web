@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #171717;
+  --foreground: #ededed;
 
   /* Новая цветовая палитра */
   --pink-dark: #c34271;
@@ -27,13 +27,7 @@
   --color-mint-bright: var(--mint-bright);
   --color-mint-dark: var(--mint-dark);
   --color-green: var(--green);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background-dark: var(--background-dark);
 }
 
 body {
