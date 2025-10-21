@@ -3,13 +3,30 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Новая цветовая палитра */
+  --pink-dark: #c34271;
+  --pink-light: #f070a1;
+  --mint-bright: #16ffbd;
+  --mint-dark: #12c998;
+  --green: #439f76;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-cabinet-grotesk);
   --font-mono: var(--font-geist-mono);
+  --font-durik: var(--font-durik);
+  --font-cabinet-grotesk: var(--font-cabinet-grotesk);
+  --font-blauer-nue: var(--font-blauer-nue);
+
+  /* Кастомные цвета */
+  --color-pink-dark: var(--pink-dark);
+  --color-pink-light: var(--pink-light);
+  --color-mint-bright: var(--mint-bright);
+  --color-mint-dark: var(--mint-dark);
+  --color-green: var(--green);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +39,56 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-cabinet-grotesk), system-ui, sans-serif;
+}
+
+/* Tailwind классы для кастомных шрифтов */
+.font-durik {
+  font-family: var(--font-durik);
+}
+
+.font-cabinet-grotesk {
+  font-family: var(--font-cabinet-grotesk);
+}
+
+.font-blauer-nue {
+  font-family: var(--font-blauer-nue);
+}
+
+/* Анимация подчеркивания */
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Анимация бегущей строки */
+@keyframes marquee {
+  0% {
+    transform: translateX(0) rotate(-2deg);
+  }
+  100% {
+    transform: translateX(-50%) rotate(-2deg);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+/* Анимация для SVG текста на кривой */
+@keyframes marquee-svg {
+  0% {
+    startoffset: 0%;
+  }
+  100% {
+    startoffset: 100%;
+  }
+}
+
+.animate-marquee-svg {
+  animation: marquee-svg 30s linear infinite;
 }
