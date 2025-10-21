@@ -37,25 +37,18 @@ export function useScrollBlur() {
         return () => window.removeEventListener('scroll', handleScroll)
     }, [handleScroll])
 
-    // Мемоизируем стили блюра для предотвращения перерендера
-    const blurStyles = useMemo(() => {
-        // Логируем значения скролла
-        console.log('Scroll Values:', {
-            scrollY,
-            blurIntensity: `${blurIntensity.toFixed(2)}%`,
-            scrollDelta: scrollY - lastScrollY.current
-        })
-        
-        // Блюр от 0% до 100% в зависимости от накопленной интенсивности
-        const blurAmount = (blurIntensity / 100) * 20 // От 0px до 20px
-        const opacity = 0.1 + (blurIntensity / 100) * 0.8 // От 0.1 до 0.9
-        
-        return {
-            backdropFilter: `blur(${blurAmount}px)`,
-            WebkitBackdropFilter: `blur(${blurAmount}px)`,
-            opacity
-        }
-    }, [blurIntensity, scrollY])
+            // Мемоизируем стили блюра для предотвращения перерендера
+            const blurStyles = useMemo(() => {
+                // Блюр от 0% до 100% в зависимости от накопленной интенсивности
+                const blurAmount = (blurIntensity / 100) * 20 // От 0px до 20px
+                const opacity = 0.1 + (blurIntensity / 100) * 0.8 // От 0.1 до 0.9
+                
+                return {
+                    backdropFilter: `blur(${blurAmount}px)`,
+                    WebkitBackdropFilter: `blur(${blurAmount}px)`,
+                    opacity
+                }
+            }, [blurIntensity, scrollY])
 
     return { blurStyles }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 
 interface CustomMapMarkerProps {
     title?: string
@@ -53,14 +54,14 @@ export default function CustomMapMarker({
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleClick}
         >
-            <img
+            <Image
                 src="/pnk_for_yandex.svg"
+                width={35}
+                height={35}
+                alt="Pink Punk"
                 style={{
-                    width: '35px',
-                    height: '35px',
                     transition: 'filter 0.3s ease'
                 }}
-                alt="Pink Punk"
             />
 
             {/* Tooltip */}
