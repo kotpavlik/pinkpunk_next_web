@@ -108,7 +108,6 @@ export default function CustomMapMarker({
                         borderRadius: '16px',
                         fontSize: '14px',
                         fontWeight: 'bold',
-                        boxShadow: '0 -20px 1000px 0px var(--mint-bright)',
                         border: '1px solid var(--mint-dark)',
                         animation: 'slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
                         minWidth: '200px',
