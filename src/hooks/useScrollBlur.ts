@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 export function useScrollBlur() {
-    const [scrollY, setScrollY] = useState(0)
     const [blurIntensity, setBlurIntensity] = useState(0) // Новое состояние для интенсивности блюра
     const lastScrollY = useRef(0)
     const ticking = useRef(false)
@@ -23,7 +22,6 @@ export function useScrollBlur() {
                         setBlurIntensity(prev => Math.max(prev - scrollDelta / 5, 0))
                     }
                     
-                    setScrollY(currentScrollY)
                     lastScrollY.current = currentScrollY
                     ticking.current = false
                 })
@@ -48,7 +46,7 @@ export function useScrollBlur() {
                     WebkitBackdropFilter: `blur(${blurAmount}px)`,
                     opacity
                 }
-            }, [blurIntensity, scrollY])
+            }, [blurIntensity])
 
     return { blurStyles }
 }

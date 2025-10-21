@@ -10,18 +10,13 @@ interface CustomMapMarkerProps {
 }
 
 export default function CustomMapMarker({
-    title = 'Пинк Панк',
-    subtitle = 'г.Минск ул.Мясникова 76',
     onClick
 }: CustomMapMarkerProps) {
     const [isHovered, setIsHovered] = useState(false)
-    const [isClicked, setIsClicked] = useState(false)
     const [showSchedule, setShowSchedule] = useState(false)
 
     const handleClick = () => {
-        setIsClicked(true)
         setShowSchedule(!showSchedule)
-        setTimeout(() => setIsClicked(false), 200)
         onClick?.()
     }
 
