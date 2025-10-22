@@ -10,15 +10,11 @@ interface CustomMapMarkerProps {
 }
 
 export default function CustomMapMarker({
-    onClick
+
 }: CustomMapMarkerProps) {
     const [isHovered, setIsHovered] = useState(false)
-    const [showSchedule, setShowSchedule] = useState(false)
 
-    const handleClick = () => {
-        setShowSchedule(!showSchedule)
-        onClick?.()
-    }
+
 
     return (
         <div
@@ -47,7 +43,6 @@ export default function CustomMapMarker({
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={handleClick}
         >
             <Image
                 src="/pnk_for_yandex.svg"
@@ -92,61 +87,61 @@ export default function CustomMapMarker({
             )}
 
             {/* Расписание работы */}
-            {showSchedule && (
-                <div
-                    className="glass-effect"
-                    style={{
-                        position: 'absolute',
-                        top: '70px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: ` var(--mint-dark) `,
-                        backdropFilter: 'blur(20px) saturate(180%)',
-                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                        color: 'white',
-                        padding: '16px 20px',
-                        borderRadius: '16px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        border: '1px solid var(--mint-dark)',
-                        animation: 'slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                        minWidth: '200px',
-                        textAlign: 'center'
-                    }}
-                >
-                    <div style={{
-                        fontSize: '20px',
-                        marginBottom: '8px',
-                        fontWeight: 'extrabold',
-                        fontFamily: 'var(--font-durik)',
-                        color: 'var(--pink-light)',
-                        position: 'relative',
-                        display: 'inline-block',
-                        textShadow: '0 0px 6px rgba(0, 0, 0, 0.2)',
-                    }}>
-                        РЕЖИМ РАБОТЫ
-                        <div
-                            className="underline-animation"
-                            style={{
-                                position: 'absolute',
-                                bottom: '-1px',
-                                left: '0',
-                                width: '100%',
-                                height: '4px',
-                                background: 'var(--pink-light)',
-                                animation: 'slideIn 1s ease-out forwards'
-                            }}
-                        />
-                    </div>
-                    <div style={{ fontSize: '12px', marginBottom: '4px', color: 'rgb(39 28 46)', fontWeight: 'bold' }}>
-                        каждый день: 12:00 - 20:00
-                    </div>
 
-                    <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(39 28 46 / 0.5)', fontWeight: 'bold' }}>
-                        г.Минск ул.Мясникова 76, 1 подъезд,помещение 14,последний этаж
-                    </div>
+            <div
+                className="glass-effect"
+                style={{
+                    position: 'absolute',
+                    top: '70px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: ` var(--mint-dark) `,
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    color: 'white',
+                    padding: '16px 20px',
+                    borderRadius: '16px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    border: '1px solid var(--mint-dark)',
+                    animation: 'slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    minWidth: '200px',
+                    textAlign: 'center'
+                }}
+            >
+                <div style={{
+                    fontSize: '20px',
+                    marginBottom: '8px',
+                    fontWeight: 'extrabold',
+                    fontFamily: 'var(--font-durik)',
+                    color: 'var(--pink-light)',
+                    position: 'relative',
+                    display: 'inline-block',
+                    textShadow: '0 0px 6px rgba(0, 0, 0, 0.2)',
+                }}>
+                    РЕЖИМ РАБОТЫ
+                    <div
+                        className="underline-animation"
+                        style={{
+                            position: 'absolute',
+                            bottom: '-1px',
+                            left: '0',
+                            width: '100%',
+                            height: '4px',
+                            background: 'var(--pink-light)',
+                            animation: 'slideIn 1s ease-out forwards'
+                        }}
+                    />
                 </div>
-            )}
+                <div style={{ fontSize: '12px', marginBottom: '4px', color: 'rgb(39 28 46)', fontWeight: 'bold' }}>
+                    каждый день: 12:00 - 20:00
+                </div>
+
+                <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(39 28 46 / 0.5)', fontWeight: 'bold' }}>
+                    г.Минск ул.Мясникова 76, 1 подъезд,помещение 14,последний этаж
+                </div>
+            </div>
+
 
             <style jsx>{`
                 @keyframes fadeIn {

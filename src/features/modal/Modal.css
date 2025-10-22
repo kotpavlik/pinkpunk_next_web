@@ -1,0 +1,160 @@
+/* Modal Container - только для мобильных */
+.modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 1rem;
+  transition: opacity 500ms ease-out;
+}
+
+/* Скрываем модалку на планшетах и десктопе */
+@media (min-width: 640px) {
+  .modal-container {
+    display: none;
+  }
+}
+
+.modal-container.closed {
+  pointer-events: none;
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  transition: opacity 500ms ease-out;
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+}
+
+.modal-backdrop.closed {
+  opacity: 0;
+}
+
+/* Modal Content */
+.modal-content {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  border-bottom: 1px solid var(--mint-dark);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 28rem;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  transform: translateX(-120%);
+  padding-left: 11%;
+  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content.open {
+  transform: translateX(-10%);
+  box-shadow: 0 -20px 1000px 0px var(--mint-bright);
+  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 400ms ease-out 200ms;
+}
+
+.modal-content.closed {
+  transform: translateX(-120%);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  position: relative;
+}
+
+/* Удлиненная линия под заголовком */
+.modal-header::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: -20%;
+  right: -20%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  width: 200%;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: white;
+  font-family: var(--font-durik);
+}
+
+.modal-close-btn {
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 200ms ease-out;
+  transform: scale(1);
+}
+
+.modal-close-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+/* Close Button Icon */
+.modal-close-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Smooth entrance animation */
+@keyframes modalSlideIn {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(-10%);
+  }
+}
+
+@keyframes modalSlideOut {
+  from {
+    transform: translateX(-10%);
+  }
+  to {
+    transform: translateX(-120%);
+  }
+}
+
+/* Enhanced animations for open state */
+.modal-content.open {
+  animation: modalSlideIn 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content.closed {
+  animation: modalSlideOut 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
