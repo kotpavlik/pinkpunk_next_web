@@ -74,15 +74,13 @@ const InfoBlocks = memo(function InfoBlocks() {
             </div>
 
             {/* Модалка только для маленьких мобильных */}
-            {isMobile && (
-                <Modal
-                    isOpen={isModalOpen}
-                    onClose={closeModal}
-                    title={modalContent?.title || ''}
-                >
-                    <p>{modalContent?.content}</p>
-                </Modal>
-            )}
+            <Modal
+                isOpen={isModalOpen && isMobile}
+                onClose={closeModal}
+                title={modalContent?.title || ''}
+            >
+                <p>{modalContent?.content}</p>
+            </Modal>
         </>
     )
 })

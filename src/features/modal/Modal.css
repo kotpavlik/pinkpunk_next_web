@@ -131,30 +131,4 @@
   stroke-linejoin: round;
 }
 
-/* Smooth entrance animation */
-@keyframes modalSlideIn {
-  from {
-    transform: translateX(-120%);
-  }
-  to {
-    transform: translateX(-10%);
-  }
-}
-
-@keyframes modalSlideOut {
-  from {
-    transform: translateX(-10%);
-  }
-  to {
-    transform: translateX(-120%);
-  }
-}
-
-/* Enhanced animations for open state */
-.modal-content.open {
-  animation: modalSlideIn 600ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.modal-content.closed {
-  animation: modalSlideOut 400ms cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* Убираем keyframes анимации - используем только transition для избежания дублирования */
