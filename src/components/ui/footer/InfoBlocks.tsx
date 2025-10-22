@@ -1,11 +1,17 @@
 'use client'
 
-import React, { memo, useState } from 'react'
+import React, { memo, useState, useEffect } from 'react'
 import Modal from '@/features/modal/Modal'
 
 const InfoBlocks = memo(function InfoBlocks() {
     const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        // Проверяем размер экрана только один раз при монтировании
+        setIsMobile(window.innerWidth < 640)
+    }, [])
 
     const openModal = (title: string, content: string) => {
         setModalContent({ title, content })
@@ -32,7 +38,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                     className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
-                        if (window.innerWidth < 640) {
+                        if (isMobile) {
                             openModal('Покупателям', 'Доставка по Минску и Беларуси, оплата картой или наличными, возврат в течение 14 дней, размерная сетка для каждого товара.')
                         }
                     }}
@@ -45,7 +51,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                     className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
-                        if (window.innerWidth < 640) {
+                        if (isMobile) {
                             openModal('Контакты', 'г.Минск ул.Мясникова 76, 1 подъезд, помещение 14, последний этаж. Работаем каждый день с 12:00 до 20:00.')
                         }
                     }}
@@ -58,7 +64,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                     className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
-                        if (window.innerWidth < 640) {
+                        if (isMobile) {
                             openModal('Мы в соц. сетях', 'Instagram: @pinkpunk_official, Telegram: @pinkpunk_channel, VK: vk.com/pinkpunk')
                         }
                     }}
@@ -68,7 +74,7 @@ const InfoBlocks = memo(function InfoBlocks() {
             </div>
 
             {/* Модалка только для маленьких мобильных */}
-            {typeof window !== 'undefined' && window.innerWidth < 640 && (
+            {isMobile && (
                 <Modal
                     isOpen={isModalOpen}
                     onClose={closeModal}
