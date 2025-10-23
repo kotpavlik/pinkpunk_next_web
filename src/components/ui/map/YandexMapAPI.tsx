@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useMemo } from 'react'
 
 interface YandexMapAPIProps {
     address?: string
