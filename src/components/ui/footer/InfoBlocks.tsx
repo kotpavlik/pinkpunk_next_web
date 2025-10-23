@@ -4,7 +4,7 @@ import React, { memo, useState, useEffect } from 'react'
 import Modal from '@/features/modal/Modal'
 
 const InfoBlocks = memo(function InfoBlocks() {
-    const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
+    const [modalContent, setModalContent] = useState<{ title: string } | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
@@ -13,8 +13,8 @@ const InfoBlocks = memo(function InfoBlocks() {
         setIsMobile(window.innerWidth < 640)
     }, [])
 
-    const openModal = (title: string, content: string) => {
-        setModalContent({ title, content })
+    const openModal = (title: string) => {
+        setModalContent({ title })
         setIsModalOpen(true)
     }
 
@@ -24,22 +24,22 @@ const InfoBlocks = memo(function InfoBlocks() {
 
     return (
         <>
-            <div className="flex-1 h-[50%] w-full flex flex-col md:flex-row items-start font-bold text-lg justify-between gap-2">
+            <div className="flex-1 font-durik h-[50%] w-full flex flex-col md:flex-row items-start text-lg justify-between gap-2">
                 {/* Магазин - редирект в каталог */}
                 <a
                     href="#catalog"
-                    className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-pointer md:hover:bg-gray-50"
+                    className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-pointer md:hover:bg-gray-50"
                 >
                     магазин
                 </a>
 
                 {/* Покупателям - информативная модалка */}
                 <div
-                    className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
+                    className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
                         if (isMobile) {
-                            openModal('Покупателям', 'Доставка по Минску и Беларуси, оплата картой или наличными, возврат в течение 14 дней, размерная сетка для каждого товара.')
+                            openModal('Покупателям')
                         }
                     }}
                 >
@@ -48,11 +48,11 @@ const InfoBlocks = memo(function InfoBlocks() {
 
                 {/* Контакты - информативная модалка */}
                 <div
-                    className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
+                    className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
                         if (isMobile) {
-                            openModal('Контакты', 'г.Минск ул.Мясникова 76, 1 подъезд, помещение 14, последний этаж. Работаем каждый день с 12:00 до 20:00.')
+                            openModal('Контакты')
                         }
                     }}
                 >
@@ -61,11 +61,11 @@ const InfoBlocks = memo(function InfoBlocks() {
 
                 {/* Соц.сети - информативная модалка */}
                 <div
-                    className="text-sm text-gray-500 border border-gray-500 rounded-md p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
+                    className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer hover:bg-gray-50 transition-colors md:cursor-default md:hover:bg-transparent"
                     onClick={() => {
                         // Только на маленьких мобильных устройствах
                         if (isMobile) {
-                            openModal('Мы в соц. сетях', 'Instagram: @pinkpunk_official, Telegram: @pinkpunk_channel, VK: vk.com/pinkpunk')
+                            openModal('Мы в соц. сетях')
                         }
                     }}
                 >
@@ -79,7 +79,12 @@ const InfoBlocks = memo(function InfoBlocks() {
                 onClose={closeModal}
                 title={modalContent?.title || ''}
             >
-                <p>{modalContent?.content}</p>
+                {modalContent?.title === 'Покупателям' && <p>Доставка по Минску и Беларуси, оплата картой или наличными, возврат в течение 14 дней, размерная сетка для каждого товара.</p>}
+                {modalContent?.title === 'Контакты' && <p>г.Минск ул.Мясникова 76, 1 подъезд, помещение 14, последний этаж. Работаем каждый день с 12:00 до 20:00.</p>}
+                {modalContent?.title === 'Мы в соц. сетях' && <p>Instagram: @pinkpunk_official, Telegram: @pinkpunk_channel, VK: vk.com/pinkpunk</p>}
+                {modalContent?.title === '' && <p> Упс, что-то пошло не так</p>}
+
+
             </Modal>
         </>
     )
