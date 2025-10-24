@@ -112,6 +112,7 @@ export default function PhotoSlider() {
                                     alt={photo.alt}
                                     fill
                                     className="object-cover"
+                                    priority={index === 0}
                                 />
 
                             </div>

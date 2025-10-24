@@ -76,7 +76,9 @@ export default function CustomMapMarker({
                     height={35}
                     alt="Pink Punk"
                     style={{
-                        transition: 'filter 0.3s ease'
+                        transition: 'filter 0.3s ease',
+                        width: "auto",
+                        height: "auto"
                     }}
                 />
 

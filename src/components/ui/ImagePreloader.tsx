@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const imagesToPreload = [
     "/images/about_us_img/owners.jpeg",
@@ -17,17 +17,22 @@ const imagesToPreload = [
 ];
 
 export default function ImagePreloader() {
+    const [loadedCount, setLoadedCount] = useState(0);
+    const [errorCount, setErrorCount] = useState(0);
+
     useEffect(() => {
         // Предзагрузка изображений
         const preloadImages = () => {
-            imagesToPreload.forEach((src) => {
+            imagesToPreload.forEach((src, index) => {
                 const img = new Image();
                 img.src = src;
+
                 img.onload = () => {
-                    console.log(`✅ Изображение загружено: ${src}`);
+                    setLoadedCount(prev => prev + 1);
                 };
+
                 img.onerror = () => {
-                    console.warn(`❌ Ошибка загрузки: ${src}`);
+                    setErrorCount(prev => prev + 1);
                 };
             });
         };
@@ -36,7 +41,9 @@ export default function ImagePreloader() {
         preloadImages();
 
         // Дополнительная предзагрузка через небольшую задержку
-        const timeoutId = setTimeout(preloadImages, 100);
+        const timeoutId = setTimeout(() => {
+            preloadImages();
+        }, 100);
 
         return () => {
             clearTimeout(timeoutId);
