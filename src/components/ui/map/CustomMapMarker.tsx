@@ -29,7 +29,6 @@ export default function CustomMapMarker({
                     right: '50%',
                     transform: 'translateX(-50%)',
                     background: ` var(--mint-dark) `,
-                    textShadow: '0 0px 6px rgba(0, 0, 0, 0.2)',
                     padding: '7px 8px',
                     minWidth: '150px',
                     borderRadius: '16px',
@@ -144,7 +143,7 @@ export default function CustomMapMarker({
                         color: 'var(--pink-light)',
                         position: 'relative',
                         display: 'inline-block',
-                        textShadow: '0 0px 6px rgba(0, 0, 0, 0.2)',
+
                     }}>
                         РЕЖИМ РАБОТЫ
                         <div
