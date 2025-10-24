@@ -38,11 +38,9 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
             if (!mapRef.current) return
 
             const apiKey = process.env.NEXT_PUBLIC_YANDEX_API_KEY || ''
-            console.log('Using API Key:', apiKey || 'No API key (public access)')
 
             // Проверяем, не загружен ли уже скрипт
             if (window.ymaps3) {
-                console.log('Yandex Maps 3.0 already loaded')
                 initMapWithAPI()
                 return
             }
@@ -56,14 +54,11 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
             script.async = true
 
             script.onerror = (error) => {
-                console.error('Failed to load Yandex Maps script:', error)
-                console.error('Script URL:', script.src)
+                // Ошибка загрузки скрипта
             }
 
             script.onload = () => {
-                console.log('Yandex Maps 3.0 script loaded')
                 window.ymaps3.ready.then(() => {
-                    console.log('Yandex Maps 3.0 ready')
                     initMapWithAPI()
                 })
             }
@@ -80,16 +75,13 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
 
         const initMapWithAPI = async () => {
             try {
-                console.log('Creating map with coordinates:', coordinates)
 
                 // Проверяем размер контейнера
                 if (mapRef.current) {
                     const rect = mapRef.current.getBoundingClientRect()
-                    console.log('Map container size:', rect.width, 'x', rect.height)
 
                     // Ограничиваем максимальный размер для WebGL
                     if (rect.width > 4096 || rect.height > 4096) {
-                        console.warn('Map container too large, limiting size')
                         mapRef.current.style.maxWidth = '4096px'
                         mapRef.current.style.maxHeight = '4096px'
                     }
@@ -109,8 +101,6 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                 })
 
                 // Используем точные координаты организации
-                console.log('Показываем организацию по координатам:', coordinates)
-                console.log('Map created successfully')
 
                 // Добавляем слои карты с кастомизацией
                 if (mapInstance.current && typeof mapInstance.current === 'object' && 'addChild' in mapInstance.current) {
@@ -175,7 +165,7 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                         root.render(React.createElement(CustomMapMarker, {
                             title: 'Пинк Панк',
                             subtitle: address,
-                            onClick: () => console.log('Маркер кликнут!')
+                            onClick: () => { }
                         }))
                     })
                 })
@@ -183,10 +173,9 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                 // Добавляем метку на карту
                 if (mapInstance.current && typeof mapInstance.current === 'object' && 'addChild' in mapInstance.current) {
                     (mapInstance.current as { addChild: (child: unknown) => void }).addChild(customMarker)
-                    console.log('Marker added to map')
                 }
             } catch (error) {
-                console.error('Error creating map:', error)
+                // Ошибка создания карты
             }
         }
 
