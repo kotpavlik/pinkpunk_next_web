@@ -5,6 +5,7 @@
   --foreground: #ededed;
 
   /* Новая цветовая палитра */
+  --pink-punk: #ff2b9c;
   --pink-dark: #c34271;
   --pink-light: #f070a1;
   --mint-bright: #16ffbd;
@@ -22,6 +23,7 @@
   --font-blauer-nue: var(--font-blauer-nue);
 
   /* Кастомные цвета */
+  --color-pink-original: var(--pink-punk);
   --color-pink-dark: var(--pink-dark);
   --color-pink-light: var(--pink-light);
   --color-mint-bright: var(--mint-bright);

@@ -46,7 +46,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                             </a>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#aboutus">
+                            <a href="/pinkpunkabout">
                                 о пинк панк
                             </a>
                         </p>
@@ -202,7 +202,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                             </a>
                         </p>
                         <p className=' text-gray-500 mt-4'>
-                            <a href="#aboutus">
+                            <a href="/pinkpunkabout">
                                 о пинк панк
                             </a>
                         </p>

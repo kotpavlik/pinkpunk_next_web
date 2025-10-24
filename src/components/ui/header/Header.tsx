@@ -121,7 +121,7 @@ export default function Header() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderBottom: '1px solid var(--mint-dark)',
-                        boxShadow: '0 -20px 1000px 0px var(--mint-bright)'
+
                     }}
                 />
 
