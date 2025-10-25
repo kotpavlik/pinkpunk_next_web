@@ -124,18 +124,16 @@ body {
   }
 }
 
-/* Fix for iOS Safari viewport height - dvh (dynamic viewport height) */
-@supports (height: 100dvh) {
-  .photo-slider-container {
-    height: 80dvh !important;
-    max-height: 80dvh !important;
-  }
-}
+/* Fix for iOS Safari viewport height - using calc() instead of dvh */
+.photo-slider-container {
+  /* Base height: 80% of viewport minus iOS Safari UI bars */
+  height: calc(80vh - 80px);
+  max-height: calc(80vh - 80px);
 
-/* Fallback for older browsers */
-@supports not (height: 100dvh) {
-  .photo-slider-container {
-    height: 80vh;
-    max-height: 80vh;
+  /* iOS Safari specific fix */
+  @supports (-webkit-touch-callout: none) {
+    /* Account for iOS Safari's dynamic UI bars (top + bottom) */
+    height: calc(80 * (var(--vh, 1vh)));
+    max-height: calc(80 * (var(--vh, 1vh)));
   }
 }
