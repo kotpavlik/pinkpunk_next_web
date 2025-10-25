@@ -21,7 +21,7 @@ export default function PinkPunkAbout() {
 
 
                 {/* Text + Photo Slider Section */}
-                <section className="flex-1 mb-20 ">
+                <section className=" mb-20 ">
                     <div className="flex flex-col items-center">
                         {/* Text - Always first */}
                         <div className="w-full">
@@ -35,7 +35,7 @@ export default function PinkPunkAbout() {
                     </div>
                 </section>
 
-                <section className="flex-1 mb-20">
+                <section className="mb-20">
                     <div className="flex flex-col items-center">
                         {/* Text - Always first */}
                         <div className="w-full">
@@ -48,7 +48,7 @@ export default function PinkPunkAbout() {
                         </div>
                     </div>
                 </section>
-                <section className="flex-1 mb-20">
+                <section className="mb-20">
                     <div className="flex flex-col items-center">
                         {/* Text - Always first */}
                         <div className="w-full">
