@@ -231,13 +231,21 @@ export default function PhotoSlider() {
 
             {/* Dots indicator - оптимизированы для iOS */}
             <div
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2"
+                className="absolute left-1/2 -translate-x-1/2 flex space-x-2"
                 style={{
+                    // iOS Safari positioning fix
+                    bottom: '1rem',
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
                     // iOS touch optimization
                     WebkitTouchCallout: 'none',
                     WebkitUserSelect: 'none',
                     userSelect: 'none',
-                    touchAction: 'manipulation'
+                    touchAction: 'manipulation',
+                    // iOS Safari viewport fix
+                    WebkitTransform: 'translateX(-50%)',
+                    zIndex: 10
                 }}
             >
                 {scrollSnaps.map((_, index) => (
