@@ -124,7 +124,7 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed -top-10 left-0 right-0 z-50 w-full flex justify-center px-4 pt-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+            className={`sticky -top-10 left-0 right-0 z-50 w-full flex justify-center px-4 pt-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
