@@ -163,6 +163,7 @@ export default function PhotoSlider4() {
                                     src={photo.src}
                                     alt={photo.alt}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, 50vw"
                                     className="object-cover"
                                     priority={index === 0}
                                     style={{

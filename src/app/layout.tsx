@@ -4,7 +4,6 @@ import "./globals.css";
 import { durikFont, cabinetGroteskFont, blauerNueFont } from "@/fonts/fonts";
 import Header from "@/components/ui/header/Header";
 import Footer from "@/components/ui/footer/Footer";
-import ImagePreloader from "@/components/ui/ImagePreloader";
 
 // CabinetGrotesk - основной шрифт для латиницы
 
@@ -37,23 +36,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-        {/* Preload критически важных изображений */}
-        <link rel="preload" as="image" href="/images/about_us_img/owners.jpeg" />
-        <link rel="preload" as="image" href="/images/about_us_img/owners_2.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/owners_3.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/owners_4.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo1.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo2.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo3.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo4.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo7.jpg" />
-        <link rel="preload" as="image" href="/images/about_us_img/sectionTwo8.jpg" />
       </head>
       <body
         className={`${cabinetGroteskFont.variable} ${geistSans.variable} ${geistMono.variable} ${durikFont.variable} ${blauerNueFont.variable}  antialiased`}
       >
-        <ImagePreloader />
         <Header />
         {children}
         <Footer />
