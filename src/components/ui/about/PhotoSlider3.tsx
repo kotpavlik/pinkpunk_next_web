@@ -6,24 +6,36 @@ import Image from "next/image";
 
 const photos = [
     {
-        src: "/images/about_us_img/owners.jpeg",
+        src: "/images/about_us_img/sectionThree.jpg",
         alt: "Владельцы Pink Punk"
     },
     {
-        src: "/images/about_us_img/owners_2.jpg",
+        src: "/images/about_us_img/sectionThree6.jpeg",
         alt: "Команда Pink Punk"
     },
     {
-        src: "/images/about_us_img/owners_3.jpg",
+        src: "/images/about_us_img/sectionThree1.jpg",
         alt: "Команда Pink Punk"
     },
     {
-        src: "/images/about_us_img/owners_4.jpg",
+        src: "/images/about_us_img/sectionThree2.jpg",
         alt: "Команда Pink Punk"
-    }
+    },
+    {
+        src: "/images/about_us_img/sectionThree3.jpg",
+        alt: "Команда Pink Punk"
+    },
+    {
+        src: "/images/about_us_img/sectionThree4.jpg",
+        alt: "Команда Pink Punk"
+    },
+    {
+        src: "/images/about_us_img/sectionThree5.jpg",
+        alt: "Команда Pink Punk"
+    },
 ];
 
-export default function PhotoSlider() {
+export default function PhotoSlider3() {
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
         // Основные опции скролла:

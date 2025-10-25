@@ -5,10 +5,14 @@ import PhotoSlider from "@/components/ui/about/PhotoSlider";
 import AboutText from "@/components/ui/about/AboutText";
 import AboutText2 from "@/components/ui/about/AboutText2";
 import PhotoSlider2 from "@/components/ui/about/PhotoSlider2";
+import AboutText3 from "@/components/ui/about/AboutText3";
+import PhotoSlider3 from "@/components/ui/about/PhotoSlider3";
+import PhotoSlider4 from "@/components/ui/about/PhotoSlider4";
+import AboutText4 from "@/components/ui/about/AboutText4";
 
 export default function PinkPunkAbout() {
     return (
-        <div className="relative max-w-[80vw] m-auto">
+        <div className="relative md:max-w-[80vw] m-auto">
             {/* Dark Overlay */}
             <div className="absolute inset-0 bg-background/90 z-5"></div>
 
@@ -41,6 +45,32 @@ export default function PinkPunkAbout() {
                         {/* Photo Slider - Always second */}
                         <div className="w-full ">
                             <PhotoSlider2 />
+                        </div>
+                    </div>
+                </section>
+                <section className="flex-1 mb-20">
+                    <div className="flex flex-col items-center">
+                        {/* Text - Always first */}
+                        <div className="w-full">
+                            <AboutText3 />
+                        </div>
+
+                        {/* Photo Slider - Always second */}
+                        <div className="w-full ">
+                            <PhotoSlider3 />
+                        </div>
+                    </div>
+                </section>
+                <section className="flex-1 mb-20">
+                    <div className="flex flex-col items-center">
+                        {/* Text - Always first */}
+                        <div className="w-full">
+                            <AboutText4 />
+                        </div>
+
+                        {/* Photo Slider - Always second */}
+                        <div className="w-full ">
+                            <PhotoSlider4 />
                         </div>
                     </div>
                 </section>
