@@ -157,7 +157,8 @@ export default function PhotoSlider4() {
                                     fill
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     className="object-cover"
-                                    priority={index === 0}
+                                    unoptimized={false}
+                                    priority={index < 2}
                                     style={{
                                         // iOS image optimization
                                         transform: 'translate3d(0,0,0)',
@@ -170,7 +171,7 @@ export default function PhotoSlider4() {
                                         imageRendering: 'auto'
                                     }}
                                     // Preload next/prev images for smoother transitions
-                                    loading={index <= 1 ? 'eager' : 'lazy'}
+                                    loading={index <= 2 ? 'eager' : 'lazy'}
                                 />
                             </div>
                         </div>

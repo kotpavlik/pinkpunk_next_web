@@ -123,7 +123,7 @@ export default function PhotoSlider() {
     }, [emblaApi, onSelect]);
 
     return (
-        <div className="photo-slider-container relative md:w-[80vw] w-full m-auto">
+        <div className="relative md:w-[80vw] w-full m-auto h-[80vh] max-h-[1000px]">
             <div
                 className="overflow-hidden h-full"
                 ref={emblaRef}
@@ -173,7 +173,8 @@ export default function PhotoSlider() {
                                     fill
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     className="object-cover"
-                                    priority={index === 0}
+                                    priority={index < 2}
+                                    unoptimized={false}
                                     style={{
                                         // iOS image optimization
                                         transform: 'translate3d(0,0,0)',
@@ -186,7 +187,7 @@ export default function PhotoSlider() {
                                         imageRendering: 'auto'
                                     }}
                                     // Preload next/prev images for smoother transitions
-                                    loading={index <= 1 ? 'eager' : 'lazy'}
+                                    loading={index <= 2 ? 'eager' : 'lazy'}
                                 />
                             </div>
                         </div>
