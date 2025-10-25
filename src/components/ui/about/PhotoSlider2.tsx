@@ -123,7 +123,7 @@ export default function PhotoSlider() {
     }, [emblaApi, onSelect]);
 
     return (
-        <div className="relative aspect-[9/16] max-h-[80vh] md:w-[80vw] w-full m-auto">
+        <div className="photo-slider-container relative md:w-[80vw] w-full m-auto">
             <div
                 className="overflow-hidden h-full"
                 ref={emblaRef}
