@@ -26,11 +26,11 @@ const photos = [
         alt: "Команда Pink Punk"
     },
     {
-        src: "/images/about_us_img/sectionThree4.jpg",
+        src: "/images/about_us_img/sectionThree4.JPG",
         alt: "Команда Pink Punk"
     },
     {
-        src: "/images/about_us_img/sectionThree5.jpg",
+        src: "/images/about_us_img/sectionThree5.JPG",
         alt: "Команда Pink Punk"
     },
 ];
@@ -167,6 +167,7 @@ export default function PhotoSlider3() {
                                     src={photo.src}
                                     alt={photo.alt}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, 50vw"
                                     className="object-cover"
                                     priority={index === 0}
                                     style={{
