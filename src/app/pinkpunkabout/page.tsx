@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useEffect } from "react";
 import PhotoSlider from "@/components/ui/about/PhotoSlider";
 import AboutText from "@/components/ui/about/AboutText";
 import AboutText2 from "@/components/ui/about/AboutText2";
@@ -12,28 +11,6 @@ import PhotoSlider4 from "@/components/ui/about/PhotoSlider4";
 import AboutText4 from "@/components/ui/about/AboutText4";
 
 export default function PinkPunkAbout() {
-    // Fix for iOS Safari viewport height
-    useEffect(() => {
-        const setVH = () => {
-            // Get actual viewport height
-            const vh = window.innerHeight * 0.01;
-            // Set CSS variable
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
-        };
-
-        // Set on mount
-        setVH();
-
-        // Update on resize (when iOS Safari shows/hides UI bars)
-        window.addEventListener('resize', setVH);
-        window.addEventListener('orientationchange', setVH);
-
-        return () => {
-            window.removeEventListener('resize', setVH);
-            window.removeEventListener('orientationchange', setVH);
-        };
-    }, []);
-
     return (
         <div className="relative md:max-w-[80vw] m-auto">
             {/* Dark Overlay */}
