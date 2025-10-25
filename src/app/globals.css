@@ -125,15 +125,15 @@ body {
 }
 
 /* Fix for iOS Safari viewport height - dvh (dynamic viewport height) */
-@supports (height: 100dvh) {
+@supports (height: 100svh) {
   .photo-slider-container {
-    height: 80dvh !important;
-    max-height: 80dvh !important;
+    height: 80svh !important;
+    max-height: 80svh !important;
   }
 }
 
 /* Fallback for older browsers */
-@supports not (height: 100dvh) {
+@supports not (height: 100svh) {
   .photo-slider-container {
     height: 80vh;
     max-height: 80vh;
