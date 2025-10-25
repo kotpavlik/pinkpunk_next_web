@@ -21,55 +21,77 @@ export default function PinkPunkAbout() {
 
 
                 {/* Text + Photo Slider Section */}
-                <section className="flex-1 mb-20 ">
-                    <div className="flex flex-col items-center">
+                <section className="flex-1 mb-12 md:mb-20" style={{
+                    // iOS Safari margin fix
+                    marginBottom: '3rem'
+                } as React.CSSProperties & {
+                    WebkitMarginAfter?: string;
+                }}>
+                    <div className="flex flex-col items-center space-y-6 md:space-y-8">
                         {/* Text - Always first */}
                         <div className="w-full">
                             <AboutText />
                         </div>
 
                         {/* Photo Slider - Always second */}
-                        <div className="w-full ">
+                        <div className="w-full">
                             <PhotoSlider />
                         </div>
                     </div>
                 </section>
 
-                <section className="flex-1 mb-20">
-                    <div className="flex flex-col items-center">
+                <section className="flex-1 mb-12 md:mb-20" style={{
+                    // iOS Safari margin fix
+                    marginBottom: '3rem'
+                } as React.CSSProperties & {
+                    WebkitMarginAfter?: string;
+                }}>
+                    <div className="flex flex-col items-center space-y-6 md:space-y-8">
                         {/* Text - Always first */}
                         <div className="w-full">
                             <AboutText2 />
                         </div>
 
                         {/* Photo Slider - Always second */}
-                        <div className="w-full ">
+                        <div className="w-full">
                             <PhotoSlider2 />
                         </div>
                     </div>
                 </section>
-                <section className="flex-1 mb-20">
-                    <div className="flex flex-col items-center">
+
+                <section className="flex-1 mb-12 md:mb-20" style={{
+                    // iOS Safari margin fix
+                    marginBottom: '3rem'
+                } as React.CSSProperties & {
+                    WebkitMarginAfter?: string;
+                }}>
+                    <div className="flex flex-col items-center space-y-6 md:space-y-8">
                         {/* Text - Always first */}
                         <div className="w-full">
                             <AboutText3 />
                         </div>
 
                         {/* Photo Slider - Always second */}
-                        <div className="w-full ">
+                        <div className="w-full">
                             <PhotoSlider3 />
                         </div>
                     </div>
                 </section>
-                <section className="flex-1 mb-20">
-                    <div className="flex flex-col items-center">
+
+                <section className="flex-1 mb-12 md:mb-20" style={{
+                    // iOS Safari margin fix
+                    marginBottom: '3rem'
+                } as React.CSSProperties & {
+                    WebkitMarginAfter?: string;
+                }}>
+                    <div className="flex flex-col items-center space-y-6 md:space-y-8">
                         {/* Text - Always first */}
                         <div className="w-full">
                             <AboutText4 />
                         </div>
 
                         {/* Photo Slider - Always second */}
-                        <div className="w-full ">
+                        <div className="w-full">
                             <PhotoSlider4 />
                         </div>
                     </div>
