@@ -3,6 +3,7 @@
 import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback, useEffect, useState } from 'react';
 import Image from "next/image";
+import PhotoSkeleton from './PhotoSkeleton';
 
 const photos = [
     {
@@ -24,6 +25,9 @@ const photos = [
 ];
 
 export default function PhotoSlider() {
+    const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+    const [isLoading, setIsLoading] = useState(true);
+
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
         // Основные опции скролла:
@@ -82,6 +86,20 @@ export default function PhotoSlider() {
         }
     }, [emblaApi]);
 
+    // Handle image loading
+    const handleImageLoad = useCallback((index: number) => {
+        setLoadedImages(prev => {
+            const newSet = new Set([...prev, index]);
+
+            // Check if all images are loaded
+            if (newSet.size >= photos.length) {
+                setIsLoading(false);
+            }
+
+            return newSet;
+        });
+    }, []);
+
 
 
     const onSelect = useCallback(() => {
@@ -100,8 +118,14 @@ export default function PhotoSlider() {
 
     return (
         <div className="relative md:w-[80vw] w-full m-auto h-[80vh] max-h-[1000px]">
+            {/* Show skeleton for entire slider while loading */}
+            {isLoading && (
+                <PhotoSkeleton className="absolute inset-0 z-10" />
+            )}
+
             <div
-                className="overflow-hidden h-full"
+                className={`overflow-hidden h-full transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'
+                    }`}
                 ref={emblaRef}
                 style={{
                     // iOS Safari fixes
@@ -142,15 +166,21 @@ export default function PhotoSlider() {
                                     contain: 'layout style paint'
                                 }}
                             >
+                                {/* Show skeleton while loading */}
+                                {!loadedImages.has(index) && (
+                                    <PhotoSkeleton className="absolute inset-0" />
+                                )}
+
                                 <Image
                                     src={photo.src}
                                     alt={photo.alt}
                                     fill
                                     sizes="(max-width: 768px) 100vw, 50vw"
-                                    className="object-cover"
+                                    className={`object-cover transition-opacity duration-500 ${loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+                                        }`}
                                     priority={index < 2}
-
                                     unoptimized={false}
+                                    onLoad={() => handleImageLoad(index)}
                                     style={{
                                         // iOS image optimization
                                         transform: 'translate3d(0,0,0)',
