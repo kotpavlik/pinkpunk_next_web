@@ -107,7 +107,7 @@ export default function PhotoSlider4() {
     }, [emblaApi, onSelect]);
 
     return (
-        <div className="photo-slider-container relative md:w-[80vw] w-full m-auto">
+        <div className="relative md:w-[80vw] w-full m-auto h-[80vh] max-h-[1000px]">
             <div
                 className="overflow-hidden h-full"
                 ref={emblaRef}
@@ -121,15 +121,7 @@ export default function PhotoSlider4() {
                 }}
             >
                 <div
-                    className="flex h-full gap-1"
-                    style={{
-                        // Hardware acceleration for smooth animations
-                        transform: 'translate3d(0,0,0)',
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        willChange: 'transform'
-                    }}
-                >
+                    className="flex h-full gap-1">
                     {photos.map((photo, index) => (
                         <div
                             key={index}

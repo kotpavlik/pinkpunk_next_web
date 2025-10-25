@@ -125,15 +125,7 @@ export default function PhotoSlider3() {
                 }}
             >
                 <div
-                    className="flex h-full gap-1"
-                    style={{
-                        // Hardware acceleration for smooth animations
-                        transform: 'translate3d(0,0,0)',
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        willChange: 'transform'
-                    }}
-                >
+                    className="flex h-full gap-1">
                     {photos.map((photo, index) => (
                         <div
                             key={index}
