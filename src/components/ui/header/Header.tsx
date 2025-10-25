@@ -83,35 +83,20 @@ export default function Header() {
         }
     }, [isMenuOpen])
 
-    // Обработка скролла для скрытия/показа хедера с debounce для iOS
+    // Обработка скролла для скрытия/показа хедера
     useEffect(() => {
-        let ticking = false
-
         const handleScroll = () => {
-            if (!ticking) {
-                window.requestAnimationFrame(() => {
-                    const currentScrollY = window.scrollY
+            const currentScrollY = window.scrollY
 
-                    // Увеличиваем порог для уменьшения дергания на iOS
-                    const scrollDifference = Math.abs(currentScrollY - lastScrollY)
-
-                    if (scrollDifference > 5) { // Минимальный порог скролла
-                        if (currentScrollY > lastScrollY && currentScrollY > 100) {
-                            // Скролл вниз - скрываем хедер
-                            setIsHeaderVisible(false)
-                        } else if (currentScrollY < lastScrollY) {
-                            // Скролл вверх - показываем хедер
-                            setIsHeaderVisible(true)
-                        }
-
-                        setLastScrollY(currentScrollY)
-                    }
-
-                    ticking = false
-                })
-
-                ticking = true
+            if (currentScrollY > lastScrollY && currentScrollY > 100) {
+                // Скролл вниз - скрываем хедер
+                setIsHeaderVisible(false)
+            } else {
+                // Скролл вверх - показываем хедер
+                setIsHeaderVisible(true)
             }
+
+            setLastScrollY(currentScrollY)
         }
 
         window.addEventListener('scroll', handleScroll, { passive: true })
@@ -124,7 +109,7 @@ export default function Header() {
 
     return (
         <header
-            className={`sticky -top-10 left-0 right-0 z-50 w-full flex justify-center px-4 pt-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+            className={`fixed -top-10 left-0 right-0 z-50 w-full flex justify-center px-4 pt-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
