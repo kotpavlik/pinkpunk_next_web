@@ -2,6 +2,7 @@
 
 import React, { memo, useState, useEffect } from 'react'
 import Modal from '@/features/modal/Modal'
+import Link from 'next/link'
 
 const InfoBlocks = memo(function InfoBlocks() {
     const [modalContent, setModalContent] = useState<{ title: string } | null>(null)
@@ -46,9 +47,9 @@ const InfoBlocks = memo(function InfoBlocks() {
                             </a>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="/pinkpunkabout">
+                            <Link href="/pinkpunkabout">
                                 о пинк панк
-                            </a>
+                            </Link>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                             <a href="#details">

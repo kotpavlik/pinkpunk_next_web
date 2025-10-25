@@ -146,7 +146,7 @@ export default function Header() {
                         {/* Logo - Centered */}
                         <div ref={logoRef} className="absolute left-1/2 transform -translate-x-1/2">
                             <h1 className="md:text-4xl text-2xl cursor-default uppercase font-extrabold font-durik text-[#ff2b9c] drop-shadow-lg relative">
-                                Пинк Панк
+                                <Link href="/">Пинк Панк</Link>
 
                                 {/* Анимированное подчеркивание при рендере */}
                                 <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ff2b9c] animate-[slideIn_1s_ease-out] origin-left" style={{ animation: 'slideIn 1s ease-out forwards' }}></div>
