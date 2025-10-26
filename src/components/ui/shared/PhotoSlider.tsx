@@ -4,34 +4,15 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback, useEffect, useState } from 'react';
 import Image from "next/image";
 
-const photos = [
-    {
-        src: "/images/about_us_img/coat.jpg",
-        alt: "Владельцы Pink Punk"
-    },
-    {
-        src: "/images/about_us_img/coat1.jpg",
-        alt: "Команда Pink Punk"
-    },
-    {
-        src: "/images/about_us_img/coat2.jpg",
-        alt: "Команда Pink Punk"
-    },
-    {
-        src: "/images/about_us_img/coat3.jpg",
-        alt: "Команда Pink Punk"
-    },
-    {
-        src: "/images/about_us_img/coat4.jpg",
-        alt: "Команда Pink Punk"
-    },
-    {
-        src: "/images/about_us_img/coat5.jpg",
-        alt: "Команда Pink Punk"
-    }
-];
+interface PhotoSliderProps {
+    photos: {
+        src: string;
+        alt: string;
+    }[];
+    className?: string;
+}
 
-export default function PhotoSlider4() {
+export default function PhotoSlider({ photos, className }: PhotoSliderProps) {
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
         // Основные опции скролла:
@@ -71,8 +52,6 @@ export default function PhotoSlider4() {
         [emblaApi]
     );
 
-
-
     // Дополнительные методы скролла с микро-задержками для iOS:
     const scrollNext = useCallback(() => {
         if (emblaApi) {
@@ -109,7 +88,7 @@ export default function PhotoSlider4() {
     }, [emblaApi, onSelect]);
 
     return (
-        <div className="relative md:w-[80vw] w-full m-auto h-[80vh] max-h-[1000px]">
+        <div className="relative md:w-[80vw] w-full m-auto h-[80vh] max-h-[1000px] ">
             <div
                 className="overflow-hidden h-full"
                 ref={emblaRef}
@@ -122,8 +101,7 @@ export default function PhotoSlider4() {
                     willChange: 'transform'
                 }}
             >
-                <div
-                    className="flex h-full gap-1">
+                <div className="flex h-full gap-1" >
                     {photos.map((photo, index) => (
                         <div
                             key={index}
@@ -159,8 +137,9 @@ export default function PhotoSlider4() {
                                     fill
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     className="object-cover"
-                                    unoptimized={false}
                                     priority={index < 2}
+
+                                    unoptimized={false}
                                     style={{
                                         // iOS image optimization
                                         transform: 'translate3d(0,0,0)',
@@ -173,7 +152,7 @@ export default function PhotoSlider4() {
                                         imageRendering: 'auto'
                                     }}
                                     // Preload next/prev images for smoother transitions
-                                    loading={index <= 2 ? 'eager' : 'lazy'}
+                                    loading={index < 2 ? "eager" : "lazy"}
                                 />
                             </div>
                         </div>
@@ -235,13 +214,21 @@ export default function PhotoSlider4() {
 
             {/* Dots indicator - оптимизированы для iOS */}
             <div
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2"
+                className="absolute left-1/2 -translate-x-1/2 flex space-x-2"
                 style={{
+                    // iOS Safari positioning fix
+                    bottom: '1rem',
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
                     // iOS touch optimization
                     WebkitTouchCallout: 'none',
                     WebkitUserSelect: 'none',
                     userSelect: 'none',
-                    touchAction: 'manipulation'
+                    touchAction: 'manipulation',
+                    // iOS Safari viewport fix
+                    WebkitTransform: 'translateX(-50%)',
+                    zIndex: 10
                 }}
             >
                 {scrollSnaps.map((_, index) => (
