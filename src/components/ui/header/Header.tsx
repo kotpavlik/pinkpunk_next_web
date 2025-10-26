@@ -181,13 +181,13 @@ export default function Header() {
                             >
                                 Каталог
                             </Link>
-                            <a
-                                href="#about"
+                            <Link
+                                href="/pinkpunkabout"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base  font-medium transition-all duration-200 rounded-lg"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 О нас
-                            </a>
+                            </Link>
 
                             <a
                                 href="#contact"

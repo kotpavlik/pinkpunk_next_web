@@ -3,8 +3,11 @@
 import React, { memo, useState, useEffect } from 'react'
 import Modal from '@/features/modal/Modal'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 const InfoBlocks = memo(function InfoBlocks() {
+
+    const router = useRouter()
     const [modalContent, setModalContent] = useState<{ title: string } | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
@@ -75,9 +78,9 @@ const InfoBlocks = memo(function InfoBlocks() {
                     </div>
                     {!isModalOpen && !isMobile && <div>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#delivery">
+                            <Link href="/delivery">
                                 доставка
-                            </a>
+                            </Link>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                             <a href="#delivery">
@@ -203,9 +206,12 @@ const InfoBlocks = memo(function InfoBlocks() {
                             </a>
                         </p>
                         <p className=' text-gray-500 mt-4'>
-                            <a href="/pinkpunkabout">
+                            <div onClick={() => {
+                                router.push('/pinkpunkabout')
+                                setIsModalOpen(false)
+                            }}>
                                 о пинк панк
-                            </a>
+                            </div>
                         </p>
                         <p className=' text-gray-500 mt-4'>
                             <a href="#details">
@@ -216,9 +222,13 @@ const InfoBlocks = memo(function InfoBlocks() {
                 }
                 {modalContent?.title === 'Покупателям' && <div>
                     <p className=' text-gray-500 mt-4'>
-                        <a href="#delivery">
+                        <div onClick={() => {
+                            router.push('/delivery')
+                            setIsModalOpen(false)
+                        }}>
                             доставка
-                        </a>
+                        </div>
+
                     </p>
                     <p className=' text-gray-500 mt-4'>
                         <a href="#delivery">

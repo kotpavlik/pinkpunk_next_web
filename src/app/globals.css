@@ -9,6 +9,7 @@
   --pink-dark: #c34271;
   --pink-light: #f070a1;
   --mint-bright: #16ffbd;
+  --mint-light: #4dd4a7;
   --mint-dark: #12c998;
   --green: #439f76;
 }
@@ -36,6 +37,24 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-cabinet-grotesk), system-ui, sans-serif;
+  position: relative;
+}
+
+/* Полупрозрачный размытый круг свечения вверху */
+body::before {
+  content: "";
+  position: fixed;
+  top: -300px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--mint-light) 0%, transparent 70%);
+  filter: blur(100px);
+  opacity: 0.3;
+  z-index: 0;
+  pointer-events: none;
+  animation: glow-pulse 8s ease-in-out infinite;
 }
 
 /* Tailwind классы для кастомных шрифтов */
@@ -137,5 +156,18 @@ body {
   .photo-slider-container {
     height: 80vh;
     max-height: 80vh;
+  }
+}
+
+/* Анимация свечения */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translateX(-50%) scale(1.1);
   }
 }

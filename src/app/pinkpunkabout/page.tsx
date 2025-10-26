@@ -14,7 +14,7 @@ export default function PinkPunkAbout() {
     return (
         <div className="relative md:max-w-[80vw] m-auto">
             {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-background/90 z-5"></div>
+            <div className="absolute inset-0  z-5"></div>
 
             {/* Content Overlay */}
             <div className="relative z-10 min-h-screen  py-20">
