@@ -82,15 +82,15 @@ const InfoBlocks = memo(function InfoBlocks() {
                                 доставка
                             </Link>
                         </p>
-                        <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#delivery">
+                        <div className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
+                            <Link href="/exchange_and_return">
                                 обмен и возврат
-                            </a>
-                        </p>
+                            </Link>
+                        </div>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#delivery">
+                            <Link href="/composition_and_care">
                                 состав и уход
-                            </a>
+                            </Link>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                             <a href="#delivery">
@@ -205,14 +205,14 @@ const InfoBlocks = memo(function InfoBlocks() {
                                 каталог
                             </a>
                         </p>
-                        <p className=' text-gray-500 mt-4'>
+                        <div className=' text-gray-500 mt-4'>
                             <div onClick={() => {
                                 router.push('/pinkpunkabout')
                                 setIsModalOpen(false)
                             }}>
                                 о пинк панк
                             </div>
-                        </p>
+                        </div>
                         <p className=' text-gray-500 mt-4'>
                             <a href="#details">
                                 реквизиты
@@ -221,7 +221,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                     </div>
                 }
                 {modalContent?.title === 'Покупателям' && <div>
-                    <p className=' text-gray-500 mt-4'>
+                    <div className=' text-gray-500 mt-4'>
                         <div onClick={() => {
                             router.push('/delivery')
                             setIsModalOpen(false)
@@ -229,16 +229,22 @@ const InfoBlocks = memo(function InfoBlocks() {
                             доставка
                         </div>
 
-                    </p>
-                    <p className=' text-gray-500 mt-4'>
-                        <a href="#delivery">
+                    </div>
+                    <div className=' text-gray-500 mt-4'>
+                        <div onClick={() => {
+                            router.push('/exchange_and_return')
+                            setIsModalOpen(false)
+                        }}>
                             обмен и возврат
-                        </a>
-                    </p>
+                        </div>
+                    </div>
                     <p className=' text-gray-500 mt-4'>
-                        <a href="#delivery">
+                        <div onClick={() => {
+                            router.push('/composition_and_care')
+                            setIsModalOpen(false)
+                        }}>
                             состав и уход
-                        </a>
+                        </div>
                     </p>
                     <p className=' text-gray-500 mt-4'>
                         <a href="#delivery">
