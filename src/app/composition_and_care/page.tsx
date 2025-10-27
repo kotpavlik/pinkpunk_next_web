@@ -280,8 +280,8 @@ export default function CompasitionAndCare() {
                     <div className="space-y-6 md:space-y-8">
                         {ProductCare.map((product: ProductCareType) => (
                             <div key={product.productName} className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-                                <h3 className="text-lg border-b border-white/10 pb-2 mb-2 text-center font-durik font-semibold text-[var(--color-green)] ">{product.productName}</h3>
-                                <h2 className="text-md font-durik font-normal text-[var(--color-green)] ">Состав:
+                                <h3 className="text-lg border-b border-white/10 pb-2 mb-2 text-center font-durik font-normal text-[var(--color-green)] ">{product.productName}</h3>
+                                <h2 className="text-md font-durik font-normal mt-2 text-[var(--color-green)] ">Состав:
                                     <div className="font-light pl-2 font-cabinet-grotesk text-white/50">{product.composition}</div>
                                 </h2>
                                 <h2 className="text-md font-durik font-normal text-[var(--color-green)] mb-4">Уход:
