@@ -238,14 +238,14 @@ const InfoBlocks = memo(function InfoBlocks() {
                             обмен и возврат
                         </div>
                     </div>
-                    <p className=' text-gray-500 mt-4'>
+                    <div className=' text-gray-500 mt-4'>
                         <div onClick={() => {
                             router.push('/composition_and_care')
                             setIsModalOpen(false)
                         }}>
                             состав и уход
                         </div>
-                    </p>
+                    </div>
                     <p className=' text-gray-500 mt-4'>
                         <a href="#delivery">
                             подарочные сертификаты

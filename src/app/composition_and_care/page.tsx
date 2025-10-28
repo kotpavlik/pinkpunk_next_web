@@ -5,7 +5,7 @@ import Image from "next/image"
 
 interface ProductCareType {
     productName: string;
-    composition: string;
+    composition: string[];
     careInstructions: string[];
     careIcons: string[];
 }
@@ -87,7 +87,7 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 17,
         src: "/images/care_icons/ic80-3103A.svg",
-        alt: "влажное изделие необходимо подвешивать в вертикальном положении для сушки. Отжим разрешён"
+        alt: "Влажное изделие необходимо подвешивать в вертикальном положении для сушки. Отжим разрешён"
     }, {
         id: 18,
         src: "/images/care_icons/ic80-3103B.svg",
@@ -115,19 +115,19 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 24,
         src: "/images/care_icons/ic80-3107-line1.svg",
-        alt: "деликатная сушка при температуре не более 60°C"
+        alt: "Деликатная сушка при температуре не более 60°C"
     }, {
         id: 25,
         src: "/images/care_icons/ic80-3107-line2.svg",
-        alt: "очень деликатная сушка при температуре не более 60°C"
+        alt: "Очень деликатная сушка при температуре не более 60°C"
     }, {
         id: 26,
         src: "/images/care_icons/ic80-3107.svg",
-        alt: "сушка в барабане при температуре не выше 60°C"
+        alt: "Сушка в барабане при температуре не выше 60°C"
     }, {
         id: 27,
         src: "/images/care_icons/ic80-3108-line1.svg",
-        alt: "деликатная сушка при температуре не выше 80°C"
+        alt: "Деликатная сушка при температуре не выше 80°C"
     }, {
         id: 28,
         src: "/images/care_icons/ic80-3108-line2.svg",
@@ -135,15 +135,15 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 29,
         src: "/images/care_icons/ic80-3108.svg",
-        alt: "сушка в барабане при температуре не выше 80°C"
+        alt: "Сушка в барабане при температуре не выше 80°C"
     }, {
         id: 30,
         src: "/images/care_icons/ic80-3109.svg",
-        alt: "изделие запрещено сушить в «барабане» стиральной или сушильной машины."
+        alt: "Изделие запрещено сушить в «барабане» стиральной или сушильной машины."
     }, {
         id: 31,
         src: "/images/care_icons/ic80-3110.svg",
-        alt: "Разрешено глажение при температуре подошвы утюга не более 110°C с изнаночной стороны"
+        alt: "Разрешено глажение при температуре подошвы утюга не более 110°C"
     }, {
         id: 32,
         src: "/images/care_icons/ic80-3111.svg",
@@ -155,31 +155,31 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 34,
         src: "/images/care_icons/ic80-3113.svg",
-        alt: "изделие нельзя гладить утюгом"
+        alt: "Изделие нельзя гладить утюгом"
     }, {
         id: 35,
         src: "/images/care_icons/ic80-3114.svg",
-        alt: "химчистка запрещена"
+        alt: "Химчистка запрещена"
     }, {
         id: 36,
         src: "/images/care_icons/ic80-3115.svg",
-        alt: "химчистка возможна только углеводородами или трифтортрихлорэтаном с применением стандартных процессов обработки"
+        alt: "Химчистка возможна только углеводородами или трифтортрихлорэтаном с применением стандартных процессов обработки"
     }, {
         id: 37,
         src: "/images/care_icons/ic80-3116.svg",
-        alt: "деликатная химчистка в углеводородах с ограничением механического воздействия и температуры при сушке. Чистка допускается только с применением углеводородов или трифтортрихлорэтана с ограничением добавления воды."
+        alt: "Деликатная химчистка в углеводородах с ограничением механического воздействия и температуры при сушке. Чистка допускается только с применением углеводородов или трифтортрихлорэтана с ограничением добавления воды."
     }, {
         id: 38,
         src: "/images/care_icons/ic80-3117.svg",
-        alt: "химчистку можно производить с использованием перхлорэтилена (ПХЭ),  трифтортрихлорэтилена, моно-фтортрихлорметана с применением стандартных процессов обработки"
+        alt: "Химчистку можно производить с использованием перхлорэтилена (ПХЭ),  трифтортрихлорэтилена, моно-фтортрихлорметана с применением стандартных процессов обработки"
     }, {
         id: 39,
         src: "/images/care_icons/ic80-3118.svg",
-        alt: "деликатная чистка в указанных  растворителях. Чистка изделия может производиться с применением ПХЭ,  трифтортрихлорэтилена, или моно-фтортрихлорметана с ограничением добавления воды"
+        alt: "Деликатная чистка в указанных  растворителях. Чистка изделия может производиться с применением ПХЭ,  трифтортрихлорэтилена, или моно-фтортрихлорметана с ограничением добавления воды"
     }, {
         id: 40,
         src: "/images/care_icons/ic80-3119.svg",
-        alt: "аквачистка разрешена"
+        alt: "Аквачистка разрешена"
     }, {
         id: 41,
         src: "/images/care_icons/ic80-3120.svg",
@@ -195,7 +195,7 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 44,
         src: "/images/care_icons/ic80-3123.svg",
-        alt: "Замачивание запрещено"
+        alt: "Любая стирка запрещена"
     }, {
         id: 45,
         src: "/images/care_icons/ic80-3124.svg",
@@ -203,47 +203,47 @@ const washingIcons: WashingIconsType[] = [
     }, {
         id: 46,
         src: "/images/care_icons/ic80-3125.svg",
-        alt: "только ручная непродолжительная стирка при температуре не выше 40°C"
+        alt: "Только ручная непродолжительная стирка при температуре не выше 40°C"
     }, {
         id: 47,
         src: "/images/care_icons/ic80-circle-a.svg",
-        alt: "химчистка возможна с применением любых органических растворителей"
+        alt: "Химчистка возможна с применением любых органических растворителей"
     }, {
         id: 48,
         src: "/images/care_icons/ic80-circle-line1.svg",
-        alt: "сухая чистка без отпаривания"
+        alt: "Сухая чистка без отпаривания"
     }, {
         id: 49,
         src: "/images/care_icons/ic80-circle-line2.svg",
-        alt: "сухая чистка при пониженной влажности"
+        alt: "Сухая чистка при пониженной влажности"
     }, {
         id: 50,
         src: "/images/care_icons/ic80-circle-line3.svg",
-        alt: "разрешена сухая чистка с сокращенным циклом"
+        alt: "Разрешена сухая чистка с сокращенным циклом"
     }, {
         id: 51,
         src: "/images/care_icons/ic80-circle-line4.svg",
-        alt: "разрешена сухая чистка при низкой температуре"
+        alt: "Разрешена сухая чистка при низкой температуре"
     }, {
         id: 52,
         src: "/images/care_icons/ic80-not-steaming.svg",
-        alt: "глажение с паром, отпаривание запрещено"
+        alt: "Слажение с паром, отпаривание запрещено"
     }, {
         id: 53,
         src: "/images/care_icons/ic80-not-turfing.svg",
-        alt: "скручивать изделие запрещено"
+        alt: "Скручивать изделие запрещено"
     }, {
         id: 54,
         src: "/images/care_icons/ic80-oxygen.svg",
-        alt: "отбеливать только кислородсодержащим или любым нехлорным агентом"
+        alt: "Отбеливать только кислородсодержащим или любым нехлорным агентом"
     }, {
         id: 55,
         src: "/images/care_icons/ic80-square-circle.svg",
-        alt: "изделие можно сушить в «барабане» стиральной или сушильной машины."
+        alt: "Сзделие можно сушить в «барабане» стиральной или сушильной машины."
     }, {
         id: 56,
         src: "/images/care_icons/ic80-square-circlefill.svg",
-        alt: "сушка обдувом без нагревания"
+        alt: "Сушка обдувом без нагревания"
     }, {
         id: 57,
         src: "/images/care_icons/ic80-square-line1.svg",
@@ -254,10 +254,48 @@ const washingIcons: WashingIconsType[] = [
 const ProductCare: ProductCareType[] = [
     {
         productName: "t-shirt PINK PUNK PATTERN",
-        composition: "100% хлопок",
-        careInstructions: [washingIcons[0].alt, washingIcons[44].alt, washingIcons[45].alt, washingIcons[57].alt, washingIcons[31].alt, washingIcons[5].alt],
-        careIcons: [washingIcons[0].src, washingIcons[44].src, washingIcons[45].src, washingIcons[33].src, washingIcons[4].src, washingIcons[53].src]
+        composition: ["92% хлопок", "2% элостан", "Плотность 280 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[32].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[32].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
     },
+    {
+        productName: "hoodie PINK PUNK PATTERN",
+        composition: ["100% хлопок высшего качества (пенье)", "Плотная диагональная петля", "Плотность 490 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[32].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[32].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
+    },
+    {
+        productName: "hoodie PINK PUNK BASIC (❄️)",
+        composition: ["90% хлопок", "10% полиэстер", "Плотность 330 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[31].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[31].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
+    },
+    {
+        productName: "windbreaker PINK PUNK ATHLETIC",
+        composition: ["100% полиэстер", "OXFORD 220Т", "Плотность 180 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[31].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[31].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
+    },
+    {
+        productName: " pants PINK PUNK ATHLETIC",
+        composition: ["100% полиэстер", "OXFORD 220Т", "Плотность 180 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[31].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[31].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
+    },
+    {
+        productName: "shorts PINK PUNK BASIC (🌞)",
+        composition: ["80% хлопок", "20% элостан", "Плотность 280 г/м2"],
+        careInstructions: [washingIcons[0].alt, washingIcons[45].alt, washingIcons[32].alt, washingIcons[30].alt, washingIcons[13].alt, washingIcons[53].alt],
+        careIcons: [washingIcons[0].src, washingIcons[45].src, washingIcons[32].src, washingIcons[30].src, washingIcons[13].src, washingIcons[53].src]
+    },
+    {
+        productName: "coat PINK PUNK OVERSIZE",
+        composition: ["100% шерсть", "овечья шерсть", "Плотность 315 г/м2"],
+        careInstructions: [washingIcons[44].alt, washingIcons[30].alt, washingIcons[31].alt, washingIcons[30].alt, washingIcons[23].alt, washingIcons[39].alt],
+        careIcons: [washingIcons[44].src, washingIcons[30].src, washingIcons[31].src, washingIcons[30].src, washingIcons[23].src, washingIcons[39].src]
+    },
+
+
 
 ]
 
@@ -282,7 +320,13 @@ export default function CompasitionAndCare() {
                             <div key={product.productName} className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
                                 <h3 className="text-lg border-b border-white/10 pb-2 text-center font-durik font-normal text-[var(--color-green)]" style={{ marginBottom: '0.5rem' }}>{product.productName}</h3>
                                 <h2 className="text-md font-durik font-normal text-[var(--color-green)] ">Состав:
-                                    <div className="font-light pl-2 font-cabinet-grotesk text-white/50">{product.composition}</div>
+                                    <div className="font-light pl-2 font-cabinet-grotesk text-white/50">
+                                        <ol className="list-disc list-inside space-y-1">
+                                            {product.composition.map((composition, index) => (
+                                                <li key={index}>{composition}</li>
+                                            ))}
+                                        </ol>
+                                    </div>
                                 </h2>
                                 <h2 className="text-md font-durik font-normal text-[var(--color-green)] mb-4">Уход:
                                     <div className="font-light pl-2 font-cabinet-grotesk text-white/50">
