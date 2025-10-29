@@ -109,7 +109,7 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed -top-26 left-0 right-0 z-50 w-full flex justify-center px-4 pt-20 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+            className={`fixed -top-26 left-0 right-0 z-50 w-full flex justify-center px-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
@@ -119,19 +119,23 @@ export default function Header() {
                 WebkitBackfaceVisibility: 'hidden',
                 willChange: 'transform',
                 // Prevent layout shift
-                contain: 'layout style paint'
+                contain: 'layout style paint',
+                // Safe area inset for iOS PWA (notch area)
+                paddingTop: 'calc(80px + env(safe-area-inset-top))',
             }}
         >
             <div className="w-full max-w-4xl relative pt-5">
                 {/* Glass Background */}
                 <div
-                    className="absolute inset-0 rounded-b-4xl  overflow-hidden"
+                    className="absolute inset-0 rounded-b-4xl overflow-hidden"
                     style={{
                         background: 'rgba(255, 255, 255, 0.1)',
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderBottom: '1px solid var(--mint-dark)',
-
+                        // Extend background to cover safe area
+                        top: `calc(-1 * env(safe-area-inset-top))`,
+                        paddingTop: 'env(safe-area-inset-top)',
                     }}
                 />
 
