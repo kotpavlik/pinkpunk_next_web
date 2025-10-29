@@ -109,19 +109,25 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed -top-26 left-0 right-0 z-50 w-full flex justify-center px-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+            className={`fixed -top-26 left-0 right-0 z-50 w-full flex justify-center px-4 transition-all duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : ''
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
-                transform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
-                WebkitTransform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, -100%, 0)',
+                transform: isHeaderVisible
+                    ? 'translate3d(0, 0, 0)'
+                    : 'translate3d(0, calc(-100% + 64px), 0)', // Оставляем 64px видимой части снизу
+                WebkitTransform: isHeaderVisible
+                    ? 'translate3d(0, 0, 0)'
+                    : 'translate3d(0, calc(-100% + 64px), 0)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 willChange: 'transform',
                 // Prevent layout shift
                 contain: 'layout style paint',
                 // Safe area inset for iOS PWA (notch area)
-                paddingTop: 'calc(80px + env(safe-area-inset-top))',
+                paddingTop: isHeaderVisible
+                    ? 'calc(80px + env(safe-area-inset-top))'
+                    : 'calc(80px + env(safe-area-inset-top) + 150px)', // Добавляем 150px сверху в закрытом состоянии для увеличения высоты
             }}
         >
             <div className="w-full max-w-4xl relative pt-5">
