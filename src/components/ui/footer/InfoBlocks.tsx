@@ -93,9 +93,9 @@ const InfoBlocks = memo(function InfoBlocks() {
                             </Link>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#delivery">
+                            <Link href="/gift_certificate">
                                 подарочные сертификаты
-                            </a>
+                            </Link>
                         </p>
                     </div>}
                 </div>
@@ -246,11 +246,15 @@ const InfoBlocks = memo(function InfoBlocks() {
                             состав и уход
                         </div>
                     </div>
-                    <p className=' text-gray-500 mt-4'>
-                        <a href="#delivery">
+                    <div className=' text-gray-500 mt-4'>
+
+                        <div onClick={() => {
+                            router.push('/gift_certificate')
+                            setIsModalOpen(false)
+                        }}>
                             подарочные сертификаты
-                        </a>
-                    </p>
+                        </div>
+                    </div>
                 </div>}
                 {modalContent?.title === 'Контакты' && <div>
                     <p className=' text-gray-500 mt-4'>

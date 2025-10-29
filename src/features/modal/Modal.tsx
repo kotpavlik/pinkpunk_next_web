@@ -32,23 +32,28 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
         }
     }, [isOpen, onClose])
 
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Закрываем модалку если клик был по backdrop или контейнеру, но не по содержимому модалки
+        if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('modal-backdrop')) {
+            onClose()
+        }
+    }
+
     return (
         <div
             className={`modal-container ${isOpen ? 'open' : 'closed'}`}
-            onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                    onClose()
-                }
-            }}
+            onClick={handleBackdropClick}
         >
             {/* Backdrop */}
             <div
                 className={`modal-backdrop ${isOpen ? 'open' : 'closed'}`}
+                onClick={onClose}
             />
 
             {/* Modal Content */}
             <div
                 className={`modal-content ${isOpen ? 'open' : 'closed'} ${className}`}
+                onClick={(e) => e.stopPropagation()} // Предотвращаем всплытие клика на контейнер
                 style={{
                     backdropFilter: 'blur(20px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(20px) saturate(180%)',

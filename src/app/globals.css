@@ -171,3 +171,49 @@ body::before {
     transform: translateX(-50%) scale(1.1);
   }
 }
+
+/* Анимация тряски + свечение первые 0.5s каждого 3s цикла */
+@keyframes shake {
+  0%,
+  16.67%,
+  100% {
+    transform: translateX(0) translateY(0) translateZ(0);
+    filter: none;
+  }
+  1.67% {
+    transform: translateX(-2px) translateY(1px) translateZ(0);
+    filter: drop-shadow(0 0 6px var(--pink-punk)) brightness(1.05);
+  }
+  3.33% {
+    transform: translateX(2px) translateY(-1px) translateZ(0);
+    filter: drop-shadow(0 0 10px var(--pink-punk)) brightness(1.08);
+  }
+  5% {
+    transform: translateX(-1px) translateY(2px) translateZ(0);
+    filter: drop-shadow(0 0 12px var(--pink-punk)) brightness(1.1);
+  }
+  6.67% {
+    transform: translateX(1px) translateY(-2px) translateZ(0);
+    filter: drop-shadow(0 0 10px var(--pink-punk)) brightness(1.08);
+  }
+  8.33% {
+    transform: translateX(-2px) translateY(1px) translateZ(0);
+    filter: drop-shadow(0 0 8px var(--pink-punk)) brightness(1.06);
+  }
+  10% {
+    transform: translateX(2px) translateY(-1px) translateZ(0);
+    filter: drop-shadow(0 0 6px var(--pink-punk)) brightness(1.05);
+  }
+  11.67% {
+    transform: translateX(-1px) translateY(2px) translateZ(0);
+    filter: drop-shadow(0 0 5px var(--pink-punk)) brightness(1.04);
+  }
+  13.33% {
+    transform: translateX(1px) translateY(-2px) translateZ(0);
+    filter: drop-shadow(0 0 4px var(--pink-punk)) brightness(1.03);
+  }
+  15% {
+    transform: translateX(-1px) translateY(1px) translateZ(0);
+    filter: drop-shadow(0 0 3px var(--pink-punk)) brightness(1.02);
+  }
+}

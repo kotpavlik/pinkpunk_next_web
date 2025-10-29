@@ -35,9 +35,9 @@ export default function Delivery() {
                     </SectionText>
                 </div>
 
-                <div className="flex-1 flex md:flex-row flex-col">
+                <div className=" flex md:flex-row flex-col">
                     {photos.map((photo, index) => (
-                        <div key={index} className="flex-1  relative m-2 " style={{ borderRadius: '10px', overflow: 'hidden', boxShadow: '0 0 10px 0 var(--mint-dark)', border: '1px solid var(--green)' }}>
+                        <div key={index} className="flex-1  relative m-4 " style={{ borderRadius: '10px', overflow: 'hidden', boxShadow: '0 0 10px 0 var(--mint-dark)' }}>
                             <Image
                                 src={photo.src}
                                 alt={photo.alt}
