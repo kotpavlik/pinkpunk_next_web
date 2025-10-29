@@ -109,39 +109,37 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed -top-26 left-0 right-0 z-50 w-full flex justify-center px-4 transition-all duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : ''
+            className={`fixed left-0 right-0 z-50 w-full flex justify-center px-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : 'translate-y-[calc(-100%+64px)]'
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
-                transform: isHeaderVisible
-                    ? 'translate3d(0, 0, 0)'
-                    : 'translate3d(0, calc(-100% + 64px), 0)', // Оставляем 64px видимой части снизу
-                WebkitTransform: isHeaderVisible
-                    ? 'translate3d(0, 0, 0)'
-                    : 'translate3d(0, calc(-100% + 64px), 0)',
+                transform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)', // Оставляем 64px видимой части
+                WebkitTransform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 willChange: 'transform',
                 // Prevent layout shift
                 contain: 'layout style paint',
-                // Safe area inset for iOS PWA (notch area)
-                paddingTop: isHeaderVisible
-                    ? 'calc(80px + env(safe-area-inset-top))'
-                    : 'calc(80px + env(safe-area-inset-top) + 150px)', // Добавляем 150px сверху в закрытом состоянии для увеличения высоты
+                // Safe area inset for iOS PWA (notch area) - увеличиваем чтобы полностью перекрыть челку
+                paddingTop: 'calc(80px + env(safe-area-inset-top) + 60px)', // Добавляем еще 60px для полного перекрытия челки
+                top: `calc(-104px - env(safe-area-inset-top) - 60px)`, // Сдвигаем header еще выше
             }}
         >
             <div className="w-full max-w-4xl relative pt-5">
                 {/* Glass Background */}
                 <div
-                    className="absolute inset-0 rounded-b-4xl overflow-hidden"
+                    className="absolute rounded-b-4xl overflow-hidden"
                     style={{
                         background: 'rgba(255, 255, 255, 0.1)',
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderBottom: '1px solid var(--mint-dark)',
-                        // Extend background to cover safe area
-                        top: `calc(-1 * env(safe-area-inset-top))`,
-                        paddingTop: 'env(safe-area-inset-top)',
+                        // Extend background to fully cover safe area and notch
+                        top: `calc(-1 * env(safe-area-inset-top) - 60px)`,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        paddingTop: 'calc(env(safe-area-inset-top) + 60px)', // Расширяем еще выше
                     }}
                 />
 
