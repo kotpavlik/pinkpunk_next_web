@@ -20,6 +20,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pink Punk",
   description: "Pink Punk - Your Next Generation Web Experience",
+  icons: {
+    icon: [
+      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [
+      { url: "/favicon/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  manifest: "/favicon/site.webmanifest",
 };
 
 export default function RootLayout({
@@ -35,7 +45,7 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
+        <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
       </head>
       <body
         className={`${cabinetGroteskFont.variable} ${geistSans.variable} ${geistMono.variable} ${durikFont.variable} ${blauerNueFont.variable} antialiased`}
