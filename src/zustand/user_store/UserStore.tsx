@@ -3,9 +3,9 @@ import { AxiosError } from "axios";
 import { immer } from 'zustand/middleware/immer';
 import { useAppStore } from '../app_store/AppStore';
 import { create } from 'zustand';
-import { HandleError } from "@/feauteres/HandleError";
+import { HandleError } from "@/features/HandleError";
 import { UserApi } from "@/api/UserApi";
-import { TokenManager } from "@/utils/tokenManager";
+// import { TokenManager } from "@/utils/tokenManager";
 
 
 export type UserType = {
@@ -152,9 +152,9 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
     },
 
     isAuthenticated: () => {
-        // Check both legacy token and new token system
+        // Check only legacy token
         const { user } = get();
-        return !!(user.token || TokenManager.isAuthenticated());
+        return !!user.token;
     },
 
     setAdminStatus: (isAdmin: boolean) => {
@@ -170,38 +170,9 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
 
     // Проверяем токен при инициализации для установки isAdmin
     checkTokenForAdmin: async () => {
-        const { user } = get();
-        const hasLegacyToken = !!user.token;
-        const hasNewTokens = TokenManager.isAuthenticated();
-
-        if (!hasLegacyToken && !hasNewTokens) {
-            return;
-        }
-
-        try {
-            // Импортируем AdminApi динамически чтобы избежать циклических зависимостей
-            const { AdminApi } = await import('@/api/AdminApi');
-            const response = await AdminApi.validateToken();
-
-            if (response.data.valid) {
-                // Используем isAdmin из ответа бэкенда
-                const userData = response.data.user as { isAdmin?: boolean };
-                const isAdminFromBackend = userData?.isAdmin || false;
-                set(state => { state.user.isAdmin = isAdminFromBackend });
-            } else {
-                set(state => { state.user.isAdmin = false });
-                // Clear tokens if validation failed
-                if (hasNewTokens) {
-                    TokenManager.clearTokens();
-                }
-            }
-
-        } catch {
-            // Clear tokens on validation error
-            if (hasNewTokens) {
-                TokenManager.clearTokens();
-            }
-        }
+        // Admin token system disabled: ensure isAdmin is false
+        set(state => { state.user.isAdmin = false });
+        return;
     }
 }
 )))
