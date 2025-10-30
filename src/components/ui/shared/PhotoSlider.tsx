@@ -214,7 +214,7 @@ export default function PhotoSlider({ photos, className }: PhotoSliderProps) {
 
             {/* Dots indicator - оптимизированы для iOS */}
             <div
-                className="absolute left-1/2 -translate-x-1/2 flex space-x-2"
+                className="   flex space-x-2"
                 style={{
                     // iOS Safari positioning fix
                     bottom: '1rem',
