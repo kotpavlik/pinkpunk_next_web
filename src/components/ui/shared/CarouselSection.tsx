@@ -135,8 +135,8 @@ export default function CarouselSection({
                       quality={95}
                     />
                     <div className="absolute bottom-0 left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
-                      <div className="p-1">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="p-4">
+                        <div className="flex items-center justify-between ">
                           <h3 className="font-blauer-nue text-sm md:text-base font-semibold line-clamp-2">
                             {product.name}
                           </h3>
@@ -145,9 +145,9 @@ export default function CarouselSection({
                           </p>
                         </div>
 
-                        <div className="display md:block hidden">
-                          <p className="font-blauer-nue pb-2 text-xs">
-                            Cейчас в наличии: {product.stockQuantity} шт.
+                        <div className="display md:block hidden text-white/50">
+                          <p className="font-blauer-nue pb-2 text-xs text-white/50">
+                            сейчас в наличии: {product.stockQuantity} шт.
                           </p>
                           <p className="font-blauer-nue text-xs pb-2  line-clamp-2">
                             {product.description}

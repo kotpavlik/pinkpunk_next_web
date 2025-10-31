@@ -5,6 +5,7 @@ import { useProductsStore } from "@/zustand/products_store/ProductsStore"
 
 export default function Home() {
   const [isVisible, setVisible] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
   const { products, getProducts } = useProductsStore()
 
   useEffect(() => {
@@ -15,6 +16,22 @@ export default function Home() {
   useEffect(() => {
     getProducts(false) // Получаем только активные товары
   }, [getProducts])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY
+      const windowHeight = window.innerHeight
+      // Прогресс от 0 до 1, когда скроллим от 0 до высоты экрана
+      const progress = Math.min(scrollY / windowHeight, 1)
+      setScrollProgress(progress)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Вычисляем высоту блока от 50svh до 100vh в зависимости от скролла
+  const blockHeight = 50 + (scrollProgress * 10) // от 50% до 100%
 
   // Фильтруем товары с фотографиями
   const filteredProducts = products.filter(
@@ -46,9 +63,9 @@ export default function Home() {
               WebkitBackdropFilter: 'blur(10px) saturate(250%)',
               padding: '25px 25px 0 25px',
               borderRadius: '25px 25px 0 0',
-              height: '50svh',
+              height: `${blockHeight}svh`,
               transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
-              transition: 'transform 1s ease-in-out',
+              transition: 'transform 1s ease-in-out, height 0.3s ease-out',
             }}>
             БЕЛАРУСКАЯ АУТЕНТИЧНОСТЬ РОЖДАЕТСЯ ЗДЕСЬ
           </div>
