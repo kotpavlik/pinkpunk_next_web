@@ -22,7 +22,6 @@ export const metadata: Metadata = {
   description: "Pink Punk - Your Next Generation Web Experience",
   icons: {
     icon: [
-      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
     ],
     apple: [
