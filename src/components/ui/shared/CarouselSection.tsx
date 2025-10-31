@@ -135,7 +135,7 @@ export default function CarouselSection({
                       quality={95}
                     />
                     <div className="absolute bottom-0 left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
-                      <div className="p-4">
+                      <div className="p-4 pb-8">
                         <div className="flex items-center justify-between ">
                           <h3 className="font-blauer-nue text-sm md:text-base font-semibold line-clamp-2">
                             {product.name}
