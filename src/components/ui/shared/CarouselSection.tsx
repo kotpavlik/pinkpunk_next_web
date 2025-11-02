@@ -102,7 +102,7 @@ export default function CarouselSection({
   return (
     <section className={`relative py-20 md:py-25 ${className}`}>
       <div className="w-[90vw] mx-auto py-2 flex items-center justify-between">
-        <h1 className="text-lg md:text-2xl font-blauer-nue">
+        <h1 className="text-lg md:text-2xl font-blauer-nue cursor-default">
           {title}
         </h1>
         {viewAllLink && (

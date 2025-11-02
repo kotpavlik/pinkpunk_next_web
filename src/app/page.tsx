@@ -40,7 +40,7 @@ export default function Home() {
 
 
   return (
-    <div className="relative">
+    <div className="relative cursor-default">
       {/* Main Section */}
       <section className="relative h-screen w-full">
         <video
@@ -67,14 +67,14 @@ export default function Home() {
               transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
               transition: 'transform 1s ease-in-out, height 0.3s ease-out',
             }}>
-            БЕЛАРУСКАЯ АУТЕНТИЧНОСТЬ РОЖДАЕТСЯ ЗДЕСЬ
+            АУТЕНТИЧНОСТЬ РОЖДАЕТСЯ ЗДЕСЬ
           </div>
         </div>
       </section>
 
       {filteredProducts.length > 0 && (
         <CarouselSection
-          title="ГОРЬКИЙ ШОКОЛАД"
+          title="КАТАЛОГ"
           viewAllLink="/catalog"
           products={filteredProducts}
           loop={true}
