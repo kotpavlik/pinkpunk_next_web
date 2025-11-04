@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -60,11 +60,13 @@ function ProductItemContent() {
     }, [])
 
     // Скрываем Header и Footer на мобильных устройствах и блокируем скролл body
-    useEffect(() => {
+    // Используем useLayoutEffect для установки стилей ДО первого рендера
+    useLayoutEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 768) {
             const header = document.querySelector('header')
             const footer = document.querySelector('footer')
             const body = document.body
+            const html = document.documentElement
 
             if (header) {
                 header.style.display = 'none'
@@ -80,6 +82,9 @@ function ProductItemContent() {
                 body.style.overscrollBehaviorY = 'contain'
                 body.style.setProperty('-webkit-overflow-scrolling', 'touch')
             }
+            if (html) {
+                html.style.overscrollBehaviorY = 'contain'
+            }
 
             return () => {
                 if (header) {
@@ -94,6 +99,9 @@ function ProductItemContent() {
                     body.style.width = ''
                     body.style.overscrollBehaviorY = ''
                     body.style.removeProperty('-webkit-overflow-scrolling')
+                }
+                if (html) {
+                    html.style.overscrollBehaviorY = ''
                 }
             }
         }
@@ -131,7 +139,8 @@ function ProductItemContent() {
     }, [sheetPosition, isDragging])
 
     // Блокируем touch события на уровне document когда bottom sheet активен
-    useEffect(() => {
+    // Используем useLayoutEffect для установки обработчиков ДО первого рендера
+    useLayoutEffect(() => {
         if (typeof window === 'undefined' || window.innerWidth >= 768) return
 
         const preventDefault = (e: TouchEvent) => {
@@ -163,6 +172,7 @@ function ProductItemContent() {
         }
 
         // Используем passive: false чтобы иметь возможность вызывать preventDefault
+        // Устанавливаем обработчики сразу при монтировании
         document.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
         document.body.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
 
@@ -350,7 +360,12 @@ function ProductItemContent() {
     }
 
     return (
-        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0">
+        <div
+            className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0"
+            style={{
+                overscrollBehaviorY: 'contain',
+            } as React.CSSProperties}
+        >
             <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-20 items-start m-0 p-0 md:p-0">
 
                 {currentProduct.photos && currentProduct.photos.length > 0 && (
@@ -558,7 +573,8 @@ function ProductItemContent() {
                     bottom: '-1px',
                     top: `${80 + (1 - sheetPosition) * (windowHeight - 80 - 20 - 120)}px`,
                     transition: isDragging ? 'none' : 'top 0.3s ease-out',
-                }}
+                    overscrollBehaviorY: 'contain',
+                } as React.CSSProperties}
             >
                 <div
                     className="rounded-t-3xl relative overflow-hidden h-full"
