@@ -25,6 +25,7 @@ function ProductItemContent() {
     const [windowHeight, setWindowHeight] = useState(700) // дефолтная высота для SSR
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
     const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
+    const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -216,31 +217,60 @@ function ProductItemContent() {
         const touchY = e.touches[0].clientY
         const deltaY = startY - touchY // Положительное значение = движение вверх (открытие), отрицательное = движение вниз (закрытие)
 
+        // Сохраняем направление движения
+        setLastDeltaY(deltaY)
+
         // Максимальная высота = 70% экрана
         const maxHeight = windowHeight * 0.7
-        // Вычисляем новую позицию на основе движения
-        // deltaY > 0 = свайп вверх (открываем), deltaY < 0 = свайп вниз (закрываем)
-        const newPosition = Math.max(0, Math.min(1, sheetPosition + (deltaY / maxHeight)))
+        // Увеличиваем чувствительность для закрытия (свайп вниз)
+        // При свайпе вниз делаем движение более чувствительным
+        const sensitivity = deltaY < 0 ? 1.5 : 1 // Увеличиваем чувствительность для закрытия
+        const newPosition = Math.max(0, Math.min(1, sheetPosition + (deltaY * sensitivity / maxHeight)))
         setSheetPosition(newPosition)
         setStartY(touchY) // Обновляем начальную позицию для следующего движения
     }
 
     const handleTouchEnd = () => {
         setIsDragging(false)
-        // Если потянули больше чем на 30%, разворачиваем полностью
-        if (sheetPosition > 0.3) {
-            setSheetPosition(1)
+
+        // Определяем направление последнего движения
+        const isSwipeDown = lastDeltaY < 0
+
+        // Если делали свайп вниз, закрываем при меньшем пороге (15%)
+        // Если делали свайп вверх, открываем при большем пороге (25%)
+        if (isSwipeDown) {
+            // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
+            if (sheetPosition < 0.15) {
+                setSheetPosition(0)
+                // Восстанавливаем карусель только если sheet закрыт
+                if (emblaApi) {
+                    emblaApi.reInit({
+                        watchDrag: true,
+                        watchResize: true,
+                    })
+                }
+            } else {
+                // Если не закрыли полностью, возвращаем к открытому состоянию
+                setSheetPosition(1)
+            }
         } else {
-            setSheetPosition(0)
-            // Восстанавливаем карусель только если sheet закрыт
-            if (emblaApi) {
-                emblaApi.reInit({
-                    watchDrag: true,
-                    watchResize: true,
-                })
+            // Свайп вверх - открываем при позиции больше 0.25 (25%)
+            if (sheetPosition > 0.25) {
+                setSheetPosition(1)
+            } else {
+                setSheetPosition(0)
+                // Восстанавливаем карусель только если sheet закрыт
+                if (emblaApi) {
+                    emblaApi.reInit({
+                        watchDrag: true,
+                        watchResize: true,
+                    })
+                }
             }
         }
+
         setStartY(0)
+        setLastDeltaY(0)
     }
 
     if (!productId) {
