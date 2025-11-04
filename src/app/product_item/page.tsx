@@ -23,6 +23,7 @@ function ProductItemContent() {
     const [isDragging, setIsDragging] = useState(false)
     const [startY, setStartY] = useState(0)
     const [windowHeight, setWindowHeight] = useState(700) // дефолтная высота для SSR
+    const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -113,39 +114,37 @@ function ProductItemContent() {
         }
     }, [emblaApi])
 
+    // Обновляем флаг активности bottom sheet
+    useEffect(() => {
+        setIsSheetActive(sheetPosition > 0 || isDragging)
+    }, [sheetPosition, isDragging])
+
     // Отключаем карусель, когда bottom sheet открыт
     useEffect(() => {
         if (!emblaApi) return
 
-        if (sheetPosition > 0 || isDragging) {
+        if (isSheetActive) {
             // Полностью блокируем карусель - синхронно
             try {
                 emblaApi.reInit({
                     watchDrag: false,
                     watchResize: false,
                 })
-                // Дополнительно блокируем через внутренние методы Embla
-                const emblaNode = emblaApi.internalEngine()
-                if (emblaNode && emblaNode.dragHandler) {
-                    emblaNode.dragHandler.pointerDown = () => { }
-                }
-            } catch (error) {
+            } catch {
                 // Если reInit не работает, просто игнорируем
             }
         } else {
             // Восстанавливаем карусель только если sheet полностью закрыт
-            if (sheetPosition === 0 && !isDragging) {
-                try {
-                    emblaApi.reInit({
-                        watchDrag: true,
-                        watchResize: true,
-                    })
-                } catch (error) {
-                    // Если reInit не работает, просто игнорируем
-                }
+            try {
+                emblaApi.reInit({
+                    watchDrag: true,
+                    watchResize: true,
+                })
+            } catch {
+                // Если reInit не работает, просто игнорируем
             }
         }
-    }, [emblaApi, sheetPosition, isDragging])
+    }, [emblaApi, isSheetActive])
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -153,20 +152,21 @@ function ProductItemContent() {
         const touchY = e.touches[0].clientY
         setStartY(touchY)
 
-        // Сначала блокируем карусель, потом устанавливаем isDragging
+        // Сразу устанавливаем флаг активности для немедленной блокировки карусели
+        setIsSheetActive(true)
+        setIsDragging(true)
+
+        // Дополнительно блокируем карусель синхронно
         if (emblaApi) {
             try {
                 emblaApi.reInit({
                     watchDrag: false,
                     watchResize: false,
                 })
-            } catch (error) {
+            } catch {
                 // Игнорируем ошибки
             }
         }
-
-        // Устанавливаем isDragging после блокировки карусели
-        setIsDragging(true)
     }
 
     const handleTouchMove = (e: React.TouchEvent) => {
@@ -227,8 +227,8 @@ function ProductItemContent() {
                         <div
                             className="fixed md:relative inset-0 w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden z-10"
                             style={{
-                                pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                pointerEvents: isSheetActive ? 'none' : 'auto',
+                                touchAction: isSheetActive ? 'none' : 'auto',
                             }}
                         >
                             {/* Back button - Mobile only */}
@@ -259,17 +259,17 @@ function ProductItemContent() {
                                 className="md:hidden relative w-full h-full"
                                 ref={emblaRef}
                                 style={{
-                                    pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                    touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'pan-y',
+                                    pointerEvents: isSheetActive ? 'none' : 'auto',
+                                    touchAction: isSheetActive ? 'none' : 'pan-y',
                                     WebkitTouchCallout: 'none',
                                     WebkitUserSelect: 'none',
                                     userSelect: 'none',
-                                    overflow: (sheetPosition > 0 || isDragging) ? 'hidden' : 'auto',
+                                    overflow: isSheetActive ? 'hidden' : 'auto',
                                     position: 'relative',
                                 }}
                                 onTouchStart={(e) => {
-                                    // Если bottom sheet открыт или перетаскивается, полностью блокируем
-                                    if (sheetPosition > 0 || isDragging) {
+                                    // Если bottom sheet активен, полностью блокируем
+                                    if (isSheetActive) {
                                         e.preventDefault()
                                         e.stopPropagation()
                                         if (e.nativeEvent) {
@@ -278,8 +278,8 @@ function ProductItemContent() {
                                     }
                                 }}
                                 onTouchMove={(e) => {
-                                    // Если bottom sheet открыт или перетаскивается, полностью блокируем
-                                    if (sheetPosition > 0 || isDragging) {
+                                    // Если bottom sheet активен, полностью блокируем
+                                    if (isSheetActive) {
                                         e.preventDefault()
                                         e.stopPropagation()
                                         if (e.nativeEvent) {
@@ -288,8 +288,8 @@ function ProductItemContent() {
                                     }
                                 }}
                                 onTouchEnd={(e) => {
-                                    // Если bottom sheet открыт или перетаскивается, блокируем
-                                    if (sheetPosition > 0 || isDragging) {
+                                    // Если bottom sheet активен, блокируем
+                                    if (isSheetActive) {
                                         e.preventDefault()
                                         e.stopPropagation()
                                         if (e.nativeEvent) {
@@ -301,8 +301,8 @@ function ProductItemContent() {
                                 <div
                                     className="flex flex-col h-full"
                                     style={{
-                                        pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                        touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                        pointerEvents: isSheetActive ? 'none' : 'auto',
+                                        touchAction: isSheetActive ? 'none' : 'auto',
                                     }}
                                 >
                                     {currentProduct.photos.map((photo, idx) => (
@@ -310,8 +310,8 @@ function ProductItemContent() {
                                             key={idx}
                                             className="relative min-h-0 flex-[0_0_100vh] w-full h-screen"
                                             style={{
-                                                pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                                touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                                pointerEvents: isSheetActive ? 'none' : 'auto',
+                                                touchAction: isSheetActive ? 'none' : 'auto',
                                             }}
                                         >
                                             <Image
@@ -323,8 +323,8 @@ function ProductItemContent() {
                                                 priority={idx === 0}
                                                 quality={95}
                                                 style={{
-                                                    pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                                    touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                                    pointerEvents: isSheetActive ? 'none' : 'auto',
+                                                    touchAction: isSheetActive ? 'none' : 'auto',
                                                 }}
                                             />
                                         </div>
