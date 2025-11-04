@@ -37,11 +37,18 @@ export default function Header() {
     // Закрытие меню при клике вне его области
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (isMenuOpen) {
-                const target = event.target as Element
-                if (!target.closest('header')) {
-                    setIsMenuOpen(false)
-                }
+            if (!isMenuOpen) return
+
+            const target = event.target as Element
+
+            // Пропускаем клики по ссылкам - они сами управляют закрытием меню
+            if (target.closest('a[href]')) {
+                return
+            }
+
+            // Если клик вне header, закрываем меню
+            if (!target.closest('header')) {
+                setIsMenuOpen(false)
             }
         }
 
@@ -187,21 +194,30 @@ export default function Header() {
                             <Link
                                 href="/catalog"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base font-medium transition-all duration-200 rounded-lg"
-                                onClick={() => setIsMenuOpen(false)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsMenuOpen(false)
+                                }}
                             >
                                 Каталог
                             </Link>
                             <Link
                                 href="/gift_certificate"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base  font-medium transition-all duration-200 rounded-lg"
-                                onClick={() => setIsMenuOpen(false)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsMenuOpen(false)
+                                }}
                             >
                                 Подарочные сертификаты
                             </Link>
                             <Link
                                 href="/pinkpunkabout"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base  font-medium transition-all duration-200 rounded-lg"
-                                onClick={() => setIsMenuOpen(false)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsMenuOpen(false)
+                                }}
                             >
                                 Что такое Пинк Панк?
                             </Link>
