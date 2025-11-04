@@ -57,25 +57,17 @@ function ProductItemContent() {
         }
     }, [])
 
-    // Скрываем Header и Footer на мобильных устройствах и блокируем скролл body
+    // Скрываем Header и Footer на мобильных устройствах
     useEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 768) {
             const header = document.querySelector('header')
             const footer = document.querySelector('footer')
-            const body = document.body
 
             if (header) {
                 header.style.display = 'none'
             }
             if (footer) {
                 footer.style.display = 'none'
-            }
-            if (body) {
-
-                body.style.overflow = 'hidden'
-                body.style.position = 'fixed'
-                body.style.width = '100%'
-                body.style.overscrollBehaviorY = 'none'
             }
 
             return () => {
@@ -84,13 +76,6 @@ function ProductItemContent() {
                 }
                 if (footer) {
                     footer.style.display = ''
-                }
-                if (body) {
-                    body.style.overscrollBehaviorY = ''
-                    body.style.height = ''
-                    body.style.overflow = ''
-                    body.style.position = ''
-                    body.style.width = ''
                 }
             }
         }
