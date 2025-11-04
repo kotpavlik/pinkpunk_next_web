@@ -33,11 +33,22 @@
   --color-background-dark: var(--background-dark);
 }
 
+/* Предотвращение bounce эффекта и прокрутки страницы в Safari */
+html,
+body {
+  overscroll-behavior-y: none;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-cabinet-grotesk), system-ui, sans-serif;
   position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Полупрозрачный размытый круг свечения вверху */
@@ -140,11 +151,6 @@ body::before {
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior-y: none;
-    height: 100%;
-    overflow: auto;
-    position: fixed;
-    width: 100%;
   }
 }
 

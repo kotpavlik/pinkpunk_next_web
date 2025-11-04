@@ -71,6 +71,7 @@ function ProductItemContent() {
                 footer.style.display = 'none'
             }
             if (body) {
+
                 body.style.overflow = 'hidden'
                 body.style.position = 'fixed'
                 body.style.width = '100%'
