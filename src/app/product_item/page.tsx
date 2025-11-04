@@ -71,12 +71,10 @@ function ProductItemContent() {
                 footer.style.display = 'none'
             }
             if (body) {
-                // Более надежный вариант для предотвращения прокрутки страницы в Safari
-                body.style.overscrollBehaviorY = 'none'
-                body.style.height = '100%'
-                body.style.overflow = 'auto'
+                body.style.overflow = 'hidden'
                 body.style.position = 'fixed'
                 body.style.width = '100%'
+                body.style.overscrollBehaviorY = 'none'
             }
 
             return () => {
@@ -155,6 +153,7 @@ function ProductItemContent() {
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
+        e.preventDefault() // Предотвращаем дефолтное поведение сразу
         e.stopPropagation()
         const touchY = e.touches[0].clientY
         setStartY(touchY)
@@ -510,20 +509,25 @@ function ProductItemContent() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderTop: '1px solid var(--mint-dark)',
-                        touchAction: 'pan-y',
+                        touchAction: isDragging ? 'none' : 'pan-y',
                         WebkitTouchCallout: 'none',
                         WebkitUserSelect: 'none',
                         userSelect: 'none',
                     }}
                     onTouchStart={(e) => {
+                        e.preventDefault()
                         e.stopPropagation()
                         handleTouchStart(e)
                     }}
                     onTouchMove={(e) => {
+                        if (isDragging) {
+                            e.preventDefault()
+                        }
                         e.stopPropagation()
                         handleTouchMove(e)
                     }}
                     onTouchEnd={(e) => {
+                        e.preventDefault()
                         e.stopPropagation()
                         handleTouchEnd()
                     }}
