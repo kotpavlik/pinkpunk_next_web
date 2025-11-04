@@ -137,17 +137,29 @@ const Catalog = () => {
 
                                                 {/* Bottom info slide-up like CarouselSection */}
 
-                                                <div className="absolute -bottom-[5px] left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
-                                                    <div className="p-4 pb-12">
+                                                <div className="absolute bottom-0  left-0 right-0 cursor-default transition-transform duration-300 md:translate-y-[calc(100%-4.5rem)] translate-y-[calc(100%-3.5rem)] group-hover:translate-y-0"
+                                                    style={{
+                                                        background: 'rgba(255, 255, 255, 0.1)',
+                                                        backdropFilter: 'blur(20px) saturate(180%)',
+                                                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                                                        borderTop: '1px solid var(--mint-dark)',
+                                                        touchAction: 'pan-y',
+                                                        WebkitTouchCallout: 'none',
+                                                        WebkitUserSelect: 'none',
+                                                        userSelect: 'none',
+                                                    }}>
+                                                    <div className="p-4 md:pb-2 pb-10">
                                                         <div className="flex items-center justify-between ">
-
+                                                            <h3 className="font-blauer-nue text-sm md:text-base font-semibold line-clamp-2">
+                                                                {product.name}
+                                                            </h3>
                                                             <p className="font-blauer-nue text-base md:text-lg font-bold text-[var(--mint-dark)]">
                                                                 {product.price.toLocaleString('ru-RU')} BYN
                                                             </p>
                                                         </div>
 
                                                         <div className="display md:block hidden text-white/50">
-                                                            <p className="font-blauer-nue pb-2 text-xs text-white/50">
+                                                            <p className="font-blauer-nue pb-4 text-xs text-white/50">
                                                                 сейчас в наличии: {product.stockQuantity} шт.
                                                             </p>
                                                             <p className="font-blauer-nue text-xs pb-2  ">
