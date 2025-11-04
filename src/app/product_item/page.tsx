@@ -54,6 +54,41 @@ function ProductItemContent() {
         }
     }, [])
 
+    // Скрываем Header и Footer на мобильных устройствах и блокируем скролл body
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            const header = document.querySelector('header')
+            const footer = document.querySelector('footer')
+            const body = document.body
+
+            if (header) {
+                header.style.display = 'none'
+            }
+            if (footer) {
+                footer.style.display = 'none'
+            }
+            if (body) {
+                body.style.overflow = 'hidden'
+                body.style.position = 'fixed'
+                body.style.width = '100%'
+            }
+
+            return () => {
+                if (header) {
+                    header.style.display = ''
+                }
+                if (footer) {
+                    footer.style.display = ''
+                }
+                if (body) {
+                    body.style.overflow = ''
+                    body.style.position = ''
+                    body.style.width = ''
+                }
+            }
+        }
+    }, [])
+
     // Сброс индекса при смене товара
     useEffect(() => {
         if (currentProduct?.photos && currentProduct.photos.length > 0) {
@@ -161,14 +196,14 @@ function ProductItemContent() {
     }
 
     return (
-        <div className="relative min-h-screen w-full md:w-[90vw] md:m-auto mb-20 pb-32 md:pb-20">
-            <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-20 items-start">
+        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0">
+            <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-20 items-start m-0 p-0 md:p-0">
 
                 {currentProduct.photos && currentProduct.photos.length > 0 && (
                     <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 md:items-start md:flex-nowrap">
                         {/* Main photo */}
                         <div
-                            className="relative w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden"
+                            className="fixed md:relative inset-0 w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden z-10"
                             style={{
                                 pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
                                 touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
@@ -334,7 +369,8 @@ function ProductItemContent() {
                     </div>
                 )}
 
-                <div className="w-full md:w-1/2">
+                {/* Desktop only content */}
+                <div className="hidden md:block w-full md:w-1/2">
                     <h1 className="text-3xl font-blauer-nue font-bold mb-4">{currentProduct.name}</h1>
                     <p className="text-white/80 mb-4">{currentProduct.description}</p>
                     <p className="text-2xl font-bold text-[var(--mint-dark)] mb-4">
