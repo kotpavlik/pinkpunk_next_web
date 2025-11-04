@@ -140,6 +140,11 @@ body::before {
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+    height: 100%;
+    overflow: auto;
+    position: fixed;
+    width: 100%;
   }
 }
 
