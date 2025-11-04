@@ -131,20 +131,26 @@ function ProductItemContent() {
 
         const preventDefault = (e: TouchEvent) => {
             // Используем ref для доступа к актуальным значениям
-            const shouldBlock = isSheetActiveRef.current || isDraggingRef.current
+            const isDragging = isDraggingRef.current
+            const isSheetActive = isSheetActiveRef.current
 
-            // Если bottom sheet активен или перетаскивается, блокируем touchmove события
-            if (shouldBlock) {
-                // Проверяем, не происходит ли событие внутри bottom sheet или его контента
+            // Если идет перетаскивание, блокируем только события ВНЕ bottom sheet
+            if (isDragging) {
                 const target = e.target as HTMLElement
                 const sheetElement = document.querySelector('[data-bottom-sheet]') as HTMLElement
 
-                // Если событие не внутри bottom sheet, блокируем его
-                if (sheetElement && !sheetElement.contains(target)) {
+                // Если событие не внутри bottom sheet, блокируем его - это предотвращает прокрутку страницы
+                if (!sheetElement || !sheetElement.contains(target)) {
                     e.preventDefault()
                     e.stopPropagation()
-                } else if (!sheetElement) {
-                    // Если bottom sheet еще не смонтирован, но флаги активны, блокируем все
+                }
+                // Если событие внутри bottom sheet, НЕ блокируем - это позволяет работать самому sheet
+            } else if (isSheetActive) {
+                // Если bottom sheet открыт, но не перетаскивается, блокируем только события вне sheet
+                const target = e.target as HTMLElement
+                const sheetElement = document.querySelector('[data-bottom-sheet]') as HTMLElement
+
+                if (!sheetElement || !sheetElement.contains(target)) {
                     e.preventDefault()
                     e.stopPropagation()
                 }
@@ -152,12 +158,12 @@ function ProductItemContent() {
         }
 
         // Используем passive: false чтобы иметь возможность вызывать preventDefault
-        document.addEventListener('touchmove', preventDefault, { passive: false })
-        document.body.addEventListener('touchmove', preventDefault, { passive: false })
+        document.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
+        document.body.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
 
         return () => {
-            document.removeEventListener('touchmove', preventDefault)
-            document.body.removeEventListener('touchmove', preventDefault)
+            document.removeEventListener('touchmove', preventDefault, { capture: true })
+            document.body.removeEventListener('touchmove', preventDefault, { capture: true })
         }
     }, []) // Зависимостей нет, так как используем refs
 
@@ -190,17 +196,18 @@ function ProductItemContent() {
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
+        // ВАЖНО: Сначала обновляем refs синхронно, чтобы глобальный обработчик сразу работал
+        isSheetActiveRef.current = true
+        isDraggingRef.current = true
+
         e.stopPropagation()
         e.preventDefault() // Предотвращаем дефолтное поведение сразу
         const touchY = e.touches[0].clientY
         setStartY(touchY)
 
-        // Сразу устанавливаем флаг активности для немедленной блокировки карусели
+        // Затем обновляем состояния
         setIsSheetActive(true)
         setIsDragging(true)
-        // Обновляем refs синхронно для немедленного эффекта в глобальном обработчике
-        isSheetActiveRef.current = true
-        isDraggingRef.current = true
 
         // Дополнительно блокируем карусель синхронно
         if (emblaApi) {
@@ -555,7 +562,7 @@ function ProductItemContent() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderTop: '1px solid var(--mint-dark)',
-                        touchAction: 'pan-y',
+                        touchAction: isDragging ? 'none' : 'pan-y',
                         WebkitTouchCallout: 'none',
                         WebkitUserSelect: 'none',
                         userSelect: 'none',
