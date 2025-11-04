@@ -78,6 +78,17 @@ function ProductItemContent() {
         }
     }, [emblaApi])
 
+    // Отключаем карусель, когда bottom sheet открыт
+    useEffect(() => {
+        if (!emblaApi) return
+
+        if (sheetPosition > 0 || isDragging) {
+            emblaApi.reInit({ watchDrag: false, watchResize: false })
+        } else {
+            emblaApi.reInit({ watchDrag: true, watchResize: true })
+        }
+    }, [emblaApi, sheetPosition, isDragging])
+
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
         setIsDragging(true)
@@ -87,6 +98,7 @@ function ProductItemContent() {
     const handleTouchMove = (e: React.TouchEvent) => {
         if (!isDragging) return
         e.preventDefault()
+        e.stopPropagation()
         const touchY = e.touches[0].clientY
         const deltaY = startY - touchY // Положительное значение = движение вверх
 
@@ -162,7 +174,14 @@ function ProductItemContent() {
                             </button>
 
                             {/* Mobile: vertical swipe carousel */}
-                            <div className="md:hidden relative w-full h-full" ref={emblaRef}>
+                            <div
+                                className="md:hidden relative w-full h-full"
+                                ref={emblaRef}
+                                style={{
+                                    pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                    touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'pan-y',
+                                }}
+                            >
                                 <div className="flex flex-col h-full">
                                     {currentProduct.photos.map((photo, idx) => (
                                         <div key={idx} className="relative min-h-0 flex-[0_0_100vh] w-full h-screen">
@@ -281,10 +300,23 @@ function ProductItemContent() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderTop: '1px solid var(--mint-dark)',
+                        touchAction: 'pan-y',
+                        WebkitTouchCallout: 'none',
+                        WebkitUserSelect: 'none',
+                        userSelect: 'none',
                     }}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
+                    onTouchStart={(e) => {
+                        e.stopPropagation()
+                        handleTouchStart(e)
+                    }}
+                    onTouchMove={(e) => {
+                        e.stopPropagation()
+                        handleTouchMove(e)
+                    }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation()
+                        handleTouchEnd()
+                    }}
                 >
                     {/* Drag handle */}
                     <div className="sticky top-0   w-full flex items-center justify-center z-10 pt-2 pb-2">
