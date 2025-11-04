@@ -101,7 +101,7 @@ const Catalog = () => {
                                 const firstPhoto = product.photos?.[0]
                                 const secondPhoto = product.photos && product.photos.length > 1 ? product.photos[1] : null
                                 return (
-                                    <div key={product._id} className="group relative bg-white/5 backdrop-blur-sm border border-white/10 overflow-hidden">
+                                    <div key={product._id} className="group relative overflow-hidden">
                                         <Link href={`/product_item?id=${product._id}`} className="block">
                                             <div className="relative w-full aspect-[4/6]  bg-white/3">
                                                 {/* default image */}
@@ -130,7 +130,7 @@ const Catalog = () => {
 
                                                 {/* Add to cart button (always visible on mobile, hover on md+) */}
                                                 <div className="absolute top-3 right-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
-                                                    <button className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70  hover:bg-[var(--green)]/80 font-bold text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 font-blauer-nue">
+                                                    <button className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70  hover:bg-[var(--green)]/80 font-bold text-white text-xs md:text-sm backdrop-blur-sm border border-white/10  font-blauer-nue">
                                                         в корзину
                                                     </button>
                                                 </div>
