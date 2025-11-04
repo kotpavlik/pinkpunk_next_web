@@ -24,6 +24,7 @@ function ProductItemContent() {
     const [startY, setStartY] = useState(0)
     const [windowHeight, setWindowHeight] = useState(700) // дефолтная высота для SSR
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
+    const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -169,16 +170,56 @@ function ProductItemContent() {
         }
     }
 
+    // Обработчик для свайпа вниз в области контента
+    const handleContentTouchStart = (e: React.TouchEvent) => {
+        const target = e.currentTarget as HTMLElement
+        const scrollTop = target.scrollTop
+        setContentScrollTop(scrollTop)
+
+        // Если контент в самом верху и bottom sheet открыт, разрешаем закрытие
+        if (scrollTop === 0 && sheetPosition > 0) {
+            e.stopPropagation()
+            handleTouchStart(e)
+        }
+    }
+
+    const handleContentTouchMove = (e: React.TouchEvent) => {
+        const target = e.currentTarget as HTMLElement
+        const scrollTop = target.scrollTop
+
+        // Если контент в самом верху и делаем свайп вниз, закрываем bottom sheet
+        if (scrollTop === 0 && contentScrollTop === 0 && isDragging) {
+            const touchY = e.touches[0].clientY
+            const deltaY = startY - touchY
+
+            // Если свайп вниз (deltaY < 0), закрываем bottom sheet
+            if (deltaY < 0) {
+                e.preventDefault()
+                e.stopPropagation()
+                handleTouchMove(e)
+            }
+        }
+    }
+
+    const handleContentTouchEnd = (e: React.TouchEvent) => {
+        // Если мы перетаскивали bottom sheet из области контента, завершаем перетаскивание
+        if (isDragging && contentScrollTop === 0 && sheetPosition > 0) {
+            e.stopPropagation()
+            handleTouchEnd()
+        }
+    }
+
     const handleTouchMove = (e: React.TouchEvent) => {
         if (!isDragging) return
         e.preventDefault()
         e.stopPropagation()
         const touchY = e.touches[0].clientY
-        const deltaY = startY - touchY // Положительное значение = движение вверх
+        const deltaY = startY - touchY // Положительное значение = движение вверх (открытие), отрицательное = движение вниз (закрытие)
 
         // Максимальная высота = 70% экрана
         const maxHeight = windowHeight * 0.7
         // Вычисляем новую позицию на основе движения
+        // deltaY > 0 = свайп вверх (открываем), deltaY < 0 = свайп вниз (закрываем)
         const newPosition = Math.max(0, Math.min(1, sheetPosition + (deltaY / maxHeight)))
         setSheetPosition(newPosition)
         setStartY(touchY) // Обновляем начальную позицию для следующего движения
@@ -465,6 +506,13 @@ function ProductItemContent() {
                             maxHeight: 'calc(100% - 0px)',
                             maskImage: 'linear-gradient(to bottom, transparent 0px, transparent 200px, black 200px, black calc(100% - 80px), transparent calc(100% - 80px))',
                             WebkitMaskImage: 'linear-gradient(to bottom,   black calc(100% - 90px), transparent calc(100% - 90px))',
+                        }}
+                        onTouchStart={handleContentTouchStart}
+                        onTouchMove={handleContentTouchMove}
+                        onTouchEnd={handleContentTouchEnd}
+                        onScroll={(e) => {
+                            const target = e.currentTarget as HTMLElement
+                            setContentScrollTop(target.scrollTop)
                         }}
                     >
                         {/* Content */}
