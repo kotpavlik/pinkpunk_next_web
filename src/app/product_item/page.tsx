@@ -118,33 +118,55 @@ function ProductItemContent() {
         if (!emblaApi) return
 
         if (sheetPosition > 0 || isDragging) {
-            // Полностью блокируем карусель
-            emblaApi.reInit({
-                watchDrag: false,
-                watchResize: false,
-            })
+            // Полностью блокируем карусель - синхронно
+            try {
+                emblaApi.reInit({
+                    watchDrag: false,
+                    watchResize: false,
+                })
+                // Дополнительно блокируем через внутренние методы Embla
+                const emblaNode = emblaApi.internalEngine()
+                if (emblaNode && emblaNode.dragHandler) {
+                    emblaNode.dragHandler.pointerDown = () => { }
+                }
+            } catch (error) {
+                // Если reInit не работает, просто игнорируем
+            }
         } else {
-            // Восстанавливаем карусель
-            emblaApi.reInit({
-                watchDrag: true,
-                watchResize: true,
-            })
+            // Восстанавливаем карусель только если sheet полностью закрыт
+            if (sheetPosition === 0 && !isDragging) {
+                try {
+                    emblaApi.reInit({
+                        watchDrag: true,
+                        watchResize: true,
+                    })
+                } catch (error) {
+                    // Если reInit не работает, просто игнорируем
+                }
+            }
         }
     }, [emblaApi, sheetPosition, isDragging])
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
         e.stopPropagation()
-        setIsDragging(true)
-        setStartY(e.touches[0].clientY)
+        const touchY = e.touches[0].clientY
+        setStartY(touchY)
 
-        // Сразу блокируем карусель при начале перетаскивания
+        // Сначала блокируем карусель, потом устанавливаем isDragging
         if (emblaApi) {
-            emblaApi.reInit({
-                watchDrag: false,
-                watchResize: false,
-            })
+            try {
+                emblaApi.reInit({
+                    watchDrag: false,
+                    watchResize: false,
+                })
+            } catch (error) {
+                // Игнорируем ошибки
+            }
         }
+
+        // Устанавливаем isDragging после блокировки карусели
+        setIsDragging(true)
     }
 
     const handleTouchMove = (e: React.TouchEvent) => {
@@ -212,7 +234,7 @@ function ProductItemContent() {
                             {/* Back button - Mobile only */}
                             <button
                                 onClick={() => router.back()}
-                                className="md:hidden absolute top-20 left-4 z-30 w-10 h-10 rounded-full flex items-center justify-center bg-black/30 backdrop-blur-sm border border-white/20 hover:bg-black/50 transition-colors"
+                                className="md:hidden absolute top-4 left-4 z-30 w-10 h-10 rounded-full flex items-center justify-center bg-black/30 backdrop-blur-sm border border-white/20 hover:bg-black/50 transition-colors"
                                 style={{
                                     WebkitTouchCallout: 'none',
                                     WebkitUserSelect: 'none',
