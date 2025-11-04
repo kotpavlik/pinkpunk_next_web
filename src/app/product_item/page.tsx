@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
 import { useProductsStore } from '@/zustand/products_store/ProductsStore'
+import Loader from '@/components/ui/shared/Loader'
 
-export default function ProductItem() {
+function ProductItemContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const productId = searchParams.get('id')
@@ -364,5 +365,13 @@ export default function ProductItem() {
             </div>
 
         </div >
+    )
+}
+
+export default function ProductItem() {
+    return (
+        <Suspense fallback={<Loader fullScreen showText />}>
+            <ProductItemContent />
+        </Suspense>
     )
 }
