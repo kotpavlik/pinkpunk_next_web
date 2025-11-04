@@ -204,36 +204,71 @@ function ProductItemContent() {
                                 style={{
                                     pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
                                     touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'pan-y',
-                                    WebkitTouchCallout: (sheetPosition > 0 || isDragging) ? 'none' : 'default',
-                                    WebkitUserSelect: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
-                                    userSelect: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                    WebkitTouchCallout: 'none',
+                                    WebkitUserSelect: 'none',
+                                    userSelect: 'none',
+                                    overflow: (sheetPosition > 0 || isDragging) ? 'hidden' : 'auto',
+                                    position: 'relative',
                                 }}
                                 onTouchStart={(e) => {
-                                    // Если bottom sheet открыт или перетаскивается, блокируем события карусели
+                                    // Если bottom sheet открыт или перетаскивается, полностью блокируем
                                     if (sheetPosition > 0 || isDragging) {
                                         e.preventDefault()
                                         e.stopPropagation()
+                                        if (e.nativeEvent) {
+                                            e.nativeEvent.stopImmediatePropagation?.()
+                                        }
                                     }
                                 }}
                                 onTouchMove={(e) => {
-                                    // Если bottom sheet открыт или перетаскивается, блокируем события карусели
+                                    // Если bottom sheet открыт или перетаскивается, полностью блокируем
                                     if (sheetPosition > 0 || isDragging) {
                                         e.preventDefault()
                                         e.stopPropagation()
+                                        if (e.nativeEvent) {
+                                            e.nativeEvent.stopImmediatePropagation?.()
+                                        }
+                                    }
+                                }}
+                                onTouchEnd={(e) => {
+                                    // Если bottom sheet открыт или перетаскивается, блокируем
+                                    if (sheetPosition > 0 || isDragging) {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        if (e.nativeEvent) {
+                                            e.nativeEvent.stopImmediatePropagation?.()
+                                        }
                                     }
                                 }}
                             >
-                                <div className="flex flex-col h-full">
+                                <div
+                                    className="flex flex-col h-full"
+                                    style={{
+                                        pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                        touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                    }}
+                                >
                                     {currentProduct.photos.map((photo, idx) => (
-                                        <div key={idx} className="relative min-h-0 flex-[0_0_100vh] w-full h-screen">
+                                        <div
+                                            key={idx}
+                                            className="relative min-h-0 flex-[0_0_100vh] w-full h-screen"
+                                            style={{
+                                                pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                                touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                            }}
+                                        >
                                             <Image
                                                 src={getImageUrl(photo)}
                                                 alt={`${currentProduct.name} ${idx + 1}`}
                                                 fill
-                                                sizes="100vw"
+                                                sizes="(max-width: 768px) 100vw, 50vw"
                                                 className="object-cover w-full h-full"
                                                 priority={idx === 0}
                                                 quality={95}
+                                                style={{
+                                                    pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                                    touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                                }}
                                             />
                                         </div>
                                     ))}

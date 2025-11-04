@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 
 interface LoaderProps {
@@ -23,6 +24,24 @@ export default function Loader({
     loop = true,
     autoplay = true,
 }: LoaderProps) {
+    const [hasError, setHasError] = useState(false)
+
+    useEffect(() => {
+        // Проверяем доступность файла
+        const checkFile = async () => {
+            try {
+                const response = await fetch(src, { method: 'HEAD' })
+                if (!response.ok) {
+                    setHasError(true)
+                }
+            } catch (error) {
+                console.error('Error loading animation:', error)
+                setHasError(true)
+            }
+        }
+        checkFile()
+    }, [src])
+
     const sizeClasses = {
         sm: 'max-w-xs h-32',
         md: 'max-w-md h-64',
@@ -34,17 +53,52 @@ export default function Loader({
         ? 'relative min-h-screen w-full flex items-center justify-center'
         : 'relative w-full flex items-center justify-center'
 
+    // Fallback spinner если анимация не загрузилась
+    if (hasError) {
+        return (
+            <div className={`${containerClass} ${className}`}>
+                <div className="flex flex-col items-center justify-center gap-6 w-full">
+                    <div className={`relative w-full ${sizeClasses[size]} flex items-center justify-center`}>
+                        <div className="relative w-20 h-20">
+                            <div className="absolute inset-0 border-4 border-[var(--mint-dark)]/30 rounded-full"></div>
+                            <div
+                                className="absolute inset-0 border-4 border-transparent border-t-[var(--mint-bright)] rounded-full animate-spin"
+                                style={{ animationDuration: '1s' }}
+                            ></div>
+                            <div className="absolute inset-3 border-3 border-[var(--pink-punk)]/30 rounded-full"></div>
+                            <div
+                                className="absolute inset-3 border-3 border-transparent border-r-[var(--pink-punk)] rounded-full animate-spin"
+                                style={{ animationDuration: '1.2s', animationDirection: 'reverse' }}
+                            ></div>
+                        </div>
+                    </div>
+                    {showText && (
+                        <p className="text-white/70 text-base font-blauer-nue animate-pulse mt-4">
+                            {text}
+                        </p>
+                    )}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className={`${containerClass} ${className}`}>
             <div className="flex flex-col items-center justify-center gap-6 w-full">
                 {/* Lottie loader */}
-                <div className={`relative w-full ${sizeClasses[size]} flex items-center justify-center`}>
-                    <DotLottieReact
-                        src={src}
-                        loop={loop}
-                        autoplay={autoplay}
-                        className="w-full h-full"
-                    />
+                <div className={`relative w-full ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px' }}>
+                    <div style={{ width: '100%', height: '100%', minWidth: '200px', minHeight: '200px' }}>
+                        <DotLottieReact
+                            src={src}
+                            loop={loop}
+                            autoplay={autoplay}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'block',
+                            }}
+                        />
+                    </div>
                 </div>
                 {showText && (
                     <p className="text-white/70 text-base font-blauer-nue animate-pulse mt-4">

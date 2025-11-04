@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from 'next/image'
 import Link from 'next/link'
 import { useProductsStore } from "@/zustand/products_store/ProductsStore";
@@ -12,24 +12,58 @@ const Catalog = () => {
     const { products, getProducts } = useProductsStore()
     const isAdmin = useUserStore((state) => state.user.isAdmin)
     const status = useAppStore((state) => state.status)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
 
     // notifications removed in this page version; handled elsewhere if needed
 
     // no-op placeholders removed
 
     useEffect(() => {
-        try {
-            // Админы видят все товары (включая неактивные), клиенты - только активные
-            getProducts(isAdmin)
-        } catch {
-            // no-op
+        const loadProducts = async () => {
+            try {
+                setIsLoading(true)
+                setIsInitialLoad(true)
+                // Админы видят все товары (включая неактивные), клиенты - только активные
+                await getProducts(isAdmin)
+            } catch {
+                // no-op
+            } finally {
+                setIsLoading(false)
+                // Добавляем небольшую задержку для отображения loader при первой загрузке
+                setTimeout(() => {
+                    setIsInitialLoad(false)
+                }, 300)
+            }
         }
+        loadProducts()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdmin])
 
     const safeProducts = useMemo(() => products || [], [products])
 
-    if (status === 'loading') {
+    const handleRefresh = async () => {
+        try {
+            setIsLoading(true)
+            await getProducts(isAdmin)
+        } catch {
+            // no-op
+        } finally {
+            // Добавляем небольшую задержку, чтобы loader был виден
+            setTimeout(() => {
+                setIsLoading(false)
+            }, 500)
+        }
+    }
+
+    // Показываем loader если:
+    // 1. Статус загрузки в AppStore
+    // 2. Локальная загрузка активна
+    // 3. Первоначальная загрузка
+    // 4. Нет продуктов и статус не failed (значит еще загружается)
+    const shouldShowLoader = status === 'loading' || isLoading || isInitialLoad || (safeProducts.length === 0 && status !== 'failed')
+
+    if (shouldShowLoader) {
         return <Loader fullScreen showText />
     }
 
@@ -52,8 +86,9 @@ const Catalog = () => {
                             <div className="text-center">
                                 <div className="text-white text-lg  mb-4">Каталог пуст</div>
                                 <button
-                                    onClick={() => getProducts(isAdmin)}
+                                    onClick={handleRefresh}
                                     className="px-4 py-2 rounded-lg bg-[var(--mint-bright)]/90 hover:bg-[var(--mint-bright)] text-black font-blauer-nue transition-colors"
+                                    disabled={isLoading}
                                 >
                                     Обновить каталог
                                 </button><data value=""></data>

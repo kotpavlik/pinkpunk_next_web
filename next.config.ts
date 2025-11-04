@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    qualities: [75, 80, 95, 100],
   },
   webpack(config) {
     config.module.rules.push({
