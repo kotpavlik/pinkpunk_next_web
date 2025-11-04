@@ -76,6 +76,9 @@ function ProductItemContent() {
                 body.style.overflow = 'hidden'
                 body.style.position = 'fixed'
                 body.style.width = '100%'
+                // Предотвращаем bounce эффект и прокрутку страницы при достижении границ в Safari
+                body.style.overscrollBehaviorY = 'contain'
+                body.style.setProperty('-webkit-overflow-scrolling', 'touch')
             }
 
             return () => {
@@ -89,6 +92,8 @@ function ProductItemContent() {
                     body.style.overflow = ''
                     body.style.position = ''
                     body.style.width = ''
+                    body.style.overscrollBehaviorY = ''
+                    body.style.removeProperty('-webkit-overflow-scrolling')
                 }
             }
         }
