@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -26,6 +26,8 @@ function ProductItemContent() {
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
     const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
     const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
+    const isSheetActiveRef = useRef(false) // Ref для доступа к актуальному значению в обработчиках
+    const isDraggingRef = useRef(false) // Ref для доступа к актуальному значению в обработчиках
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -119,7 +121,45 @@ function ProductItemContent() {
     // Обновляем флаг активности bottom sheet
     useEffect(() => {
         setIsSheetActive(sheetPosition > 0 || isDragging)
+        isSheetActiveRef.current = sheetPosition > 0 || isDragging
+        isDraggingRef.current = isDragging
     }, [sheetPosition, isDragging])
+
+    // Блокируем touch события на уровне document когда bottom sheet активен
+    useEffect(() => {
+        if (typeof window === 'undefined' || window.innerWidth >= 768) return
+
+        const preventDefault = (e: TouchEvent) => {
+            // Используем ref для доступа к актуальным значениям
+            const shouldBlock = isSheetActiveRef.current || isDraggingRef.current
+
+            // Если bottom sheet активен или перетаскивается, блокируем touchmove события
+            if (shouldBlock) {
+                // Проверяем, не происходит ли событие внутри bottom sheet или его контента
+                const target = e.target as HTMLElement
+                const sheetElement = document.querySelector('[data-bottom-sheet]') as HTMLElement
+
+                // Если событие не внутри bottom sheet, блокируем его
+                if (sheetElement && !sheetElement.contains(target)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                } else if (!sheetElement) {
+                    // Если bottom sheet еще не смонтирован, но флаги активны, блокируем все
+                    e.preventDefault()
+                    e.stopPropagation()
+                }
+            }
+        }
+
+        // Используем passive: false чтобы иметь возможность вызывать preventDefault
+        document.addEventListener('touchmove', preventDefault, { passive: false })
+        document.body.addEventListener('touchmove', preventDefault, { passive: false })
+
+        return () => {
+            document.removeEventListener('touchmove', preventDefault)
+            document.body.removeEventListener('touchmove', preventDefault)
+        }
+    }, []) // Зависимостей нет, так как используем refs
 
     // Отключаем карусель, когда bottom sheet открыт
     useEffect(() => {
@@ -151,12 +191,16 @@ function ProductItemContent() {
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
         e.stopPropagation()
+        e.preventDefault() // Предотвращаем дефолтное поведение сразу
         const touchY = e.touches[0].clientY
         setStartY(touchY)
 
         // Сразу устанавливаем флаг активности для немедленной блокировки карусели
         setIsSheetActive(true)
         setIsDragging(true)
+        // Обновляем refs синхронно для немедленного эффекта в глобальном обработчике
+        isSheetActiveRef.current = true
+        isDraggingRef.current = true
 
         // Дополнительно блокируем карусель синхронно
         if (emblaApi) {
@@ -232,6 +276,7 @@ function ProductItemContent() {
 
     const handleTouchEnd = () => {
         setIsDragging(false)
+        isDraggingRef.current = false
 
         // Определяем направление последнего движения
         const isSwipeDown = lastDeltaY < 0
@@ -242,6 +287,7 @@ function ProductItemContent() {
             // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
             if (sheetPosition < 0.15) {
                 setSheetPosition(0)
+                isSheetActiveRef.current = false
                 // Восстанавливаем карусель только если sheet закрыт
                 if (emblaApi) {
                     emblaApi.reInit({
@@ -252,13 +298,16 @@ function ProductItemContent() {
             } else {
                 // Если не закрыли полностью, возвращаем к открытому состоянию
                 setSheetPosition(1)
+                isSheetActiveRef.current = true
             }
         } else {
             // Свайп вверх - открываем при позиции больше 0.25 (25%)
             if (sheetPosition > 0.25) {
                 setSheetPosition(1)
+                isSheetActiveRef.current = true
             } else {
                 setSheetPosition(0)
+                isSheetActiveRef.current = false
                 // Восстанавливаем карусель только если sheet закрыт
                 if (emblaApi) {
                     emblaApi.reInit({
@@ -491,6 +540,7 @@ function ProductItemContent() {
 
             {/* Mobile bottom sheet - pull to expand */}
             <div
+                data-bottom-sheet
                 className="md:hidden fixed left-0 w-full z-40"
                 style={{
                     bottom: '-1px',
