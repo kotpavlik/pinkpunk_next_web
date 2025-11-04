@@ -71,7 +71,10 @@ function ProductItemContent() {
                 footer.style.display = 'none'
             }
             if (body) {
-                body.style.overflow = 'hidden'
+                // Более надежный вариант для предотвращения прокрутки страницы в Safari
+                body.style.overscrollBehaviorY = 'none'
+                body.style.height = '100%'
+                body.style.overflow = 'auto'
                 body.style.position = 'fixed'
                 body.style.width = '100%'
             }
@@ -84,6 +87,8 @@ function ProductItemContent() {
                     footer.style.display = ''
                 }
                 if (body) {
+                    body.style.overscrollBehaviorY = ''
+                    body.style.height = ''
                     body.style.overflow = ''
                     body.style.position = ''
                     body.style.width = ''
