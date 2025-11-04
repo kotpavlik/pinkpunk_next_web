@@ -65,7 +65,11 @@ export default function Cart() {
                 )}
 
                 {cartItems.length === 0 ? (
-                    <div className="text-center py-16 text-white/80">Ваша корзина пуста</div>
+                    <div className="text-center py-4 text-white/80">
+
+                        <Loader src='/animations/empty.lottie' size='md' className='w-full h-full' />
+
+                    </div>
                 ) : (
                     <div className="grid gap-4 mb-6">
                         {cartItems.map(({ _id, product, quantity }) => (

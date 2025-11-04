@@ -43,10 +43,10 @@ export default function Loader({
     }, [src])
 
     const sizeClasses = {
-        sm: 'max-w-xs h-32',
-        md: 'max-w-md h-64',
-        lg: 'max-w-lg h-80',
-        xl: 'max-w-2xl h-96',
+        sm: 'w-full h-32',
+        md: 'w-full h-64',
+        lg: 'w-full h-80',
+        xl: 'w-full h-96',
     }
 
     const containerClass = fullScreen
@@ -86,8 +86,8 @@ export default function Loader({
         <div className={`${containerClass} ${className}`}>
             <div className="flex flex-col items-center justify-center gap-6 w-full">
                 {/* Lottie loader */}
-                <div className={`relative w-full ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px' }}>
-                    <div style={{ width: '100%', height: '100%', minWidth: '200px', minHeight: '200px' }}>
+                <div className={`relative ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px', width: '100%' }}>
+                    <div style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '200px', flexShrink: 0 }}>
                         <DotLottieReact
                             src={src}
                             loop={loop}
@@ -96,6 +96,7 @@ export default function Loader({
                                 width: '100%',
                                 height: '100%',
                                 display: 'block',
+                                minWidth: '100%',
                             }}
                         />
                     </div>
