@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -26,8 +26,6 @@ function ProductItemContent() {
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
     const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
     const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
-    const isSheetActiveRef = useRef(false) // Ref для доступа к актуальному значению в обработчиках
-    const isDraggingRef = useRef(false) // Ref для доступа к актуальному значению в обработчиках
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -60,13 +58,11 @@ function ProductItemContent() {
     }, [])
 
     // Скрываем Header и Footer на мобильных устройствах и блокируем скролл body
-    // Используем useLayoutEffect для установки стилей ДО первого рендера
-    useLayoutEffect(() => {
+    useEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 768) {
             const header = document.querySelector('header')
             const footer = document.querySelector('footer')
             const body = document.body
-            const html = document.documentElement
 
             if (header) {
                 header.style.display = 'none'
@@ -78,12 +74,6 @@ function ProductItemContent() {
                 body.style.overflow = 'hidden'
                 body.style.position = 'fixed'
                 body.style.width = '100%'
-                // Предотвращаем bounce эффект и прокрутку страницы при достижении границ в Safari
-                body.style.overscrollBehaviorY = 'contain'
-                body.style.setProperty('-webkit-overflow-scrolling', 'touch')
-            }
-            if (html) {
-                html.style.overscrollBehaviorY = 'contain'
             }
 
             return () => {
@@ -97,11 +87,6 @@ function ProductItemContent() {
                     body.style.overflow = ''
                     body.style.position = ''
                     body.style.width = ''
-                    body.style.overscrollBehaviorY = ''
-                    body.style.removeProperty('-webkit-overflow-scrolling')
-                }
-                if (html) {
-                    html.style.overscrollBehaviorY = ''
                 }
             }
         }
@@ -134,53 +119,7 @@ function ProductItemContent() {
     // Обновляем флаг активности bottom sheet
     useEffect(() => {
         setIsSheetActive(sheetPosition > 0 || isDragging)
-        isSheetActiveRef.current = sheetPosition > 0 || isDragging
-        isDraggingRef.current = isDragging
     }, [sheetPosition, isDragging])
-
-    // Блокируем touch события на уровне document когда bottom sheet активен
-    // Используем useLayoutEffect для установки обработчиков ДО первого рендера
-    useLayoutEffect(() => {
-        if (typeof window === 'undefined' || window.innerWidth >= 768) return
-
-        const preventDefault = (e: TouchEvent) => {
-            // Используем ref для доступа к актуальным значениям
-            const isDragging = isDraggingRef.current
-            const isSheetActive = isSheetActiveRef.current
-
-            // Если идет перетаскивание, блокируем только события ВНЕ bottom sheet
-            if (isDragging) {
-                const target = e.target as HTMLElement
-                const sheetElement = document.querySelector('[data-bottom-sheet]') as HTMLElement
-
-                // Если событие не внутри bottom sheet, блокируем его - это предотвращает прокрутку страницы
-                if (!sheetElement || !sheetElement.contains(target)) {
-                    e.preventDefault()
-                    e.stopPropagation()
-                }
-                // Если событие внутри bottom sheet, НЕ блокируем - это позволяет работать самому sheet
-            } else if (isSheetActive) {
-                // Если bottom sheet открыт, но не перетаскивается, блокируем только события вне sheet
-                const target = e.target as HTMLElement
-                const sheetElement = document.querySelector('[data-bottom-sheet]') as HTMLElement
-
-                if (!sheetElement || !sheetElement.contains(target)) {
-                    e.preventDefault()
-                    e.stopPropagation()
-                }
-            }
-        }
-
-        // Используем passive: false чтобы иметь возможность вызывать preventDefault
-        // Устанавливаем обработчики сразу при монтировании
-        document.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
-        document.body.addEventListener('touchmove', preventDefault, { passive: false, capture: true })
-
-        return () => {
-            document.removeEventListener('touchmove', preventDefault, { capture: true })
-            document.body.removeEventListener('touchmove', preventDefault, { capture: true })
-        }
-    }, []) // Зависимостей нет, так как используем refs
 
     // Отключаем карусель, когда bottom sheet открыт
     useEffect(() => {
@@ -211,16 +150,11 @@ function ProductItemContent() {
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
-        // ВАЖНО: Сначала обновляем refs синхронно, чтобы глобальный обработчик сразу работал
-        isSheetActiveRef.current = true
-        isDraggingRef.current = true
-
         e.stopPropagation()
-        e.preventDefault() // Предотвращаем дефолтное поведение сразу
         const touchY = e.touches[0].clientY
         setStartY(touchY)
 
-        // Затем обновляем состояния
+        // Сразу устанавливаем флаг активности для немедленной блокировки карусели
         setIsSheetActive(true)
         setIsDragging(true)
 
@@ -298,7 +232,6 @@ function ProductItemContent() {
 
     const handleTouchEnd = () => {
         setIsDragging(false)
-        isDraggingRef.current = false
 
         // Определяем направление последнего движения
         const isSwipeDown = lastDeltaY < 0
@@ -309,7 +242,6 @@ function ProductItemContent() {
             // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
             if (sheetPosition < 0.15) {
                 setSheetPosition(0)
-                isSheetActiveRef.current = false
                 // Восстанавливаем карусель только если sheet закрыт
                 if (emblaApi) {
                     emblaApi.reInit({
@@ -320,16 +252,13 @@ function ProductItemContent() {
             } else {
                 // Если не закрыли полностью, возвращаем к открытому состоянию
                 setSheetPosition(1)
-                isSheetActiveRef.current = true
             }
         } else {
             // Свайп вверх - открываем при позиции больше 0.25 (25%)
             if (sheetPosition > 0.25) {
                 setSheetPosition(1)
-                isSheetActiveRef.current = true
             } else {
                 setSheetPosition(0)
-                isSheetActiveRef.current = false
                 // Восстанавливаем карусель только если sheet закрыт
                 if (emblaApi) {
                     emblaApi.reInit({
@@ -360,12 +289,7 @@ function ProductItemContent() {
     }
 
     return (
-        <div
-            className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0"
-            style={{
-                overscrollBehaviorY: 'contain',
-            } as React.CSSProperties}
-        >
+        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0">
             <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-20 items-start m-0 p-0 md:p-0">
 
                 {currentProduct.photos && currentProduct.photos.length > 0 && (
@@ -567,14 +491,12 @@ function ProductItemContent() {
 
             {/* Mobile bottom sheet - pull to expand */}
             <div
-                data-bottom-sheet
                 className="md:hidden fixed left-0 w-full z-40"
                 style={{
                     bottom: '-1px',
                     top: `${80 + (1 - sheetPosition) * (windowHeight - 80 - 20 - 120)}px`,
                     transition: isDragging ? 'none' : 'top 0.3s ease-out',
-                    overscrollBehaviorY: 'contain',
-                } as React.CSSProperties}
+                }}
             >
                 <div
                     className="rounded-t-3xl relative overflow-hidden h-full"
@@ -583,7 +505,7 @@ function ProductItemContent() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderTop: '1px solid var(--mint-dark)',
-                        touchAction: isDragging ? 'none' : 'pan-y',
+                        touchAction: 'pan-y',
                         WebkitTouchCallout: 'none',
                         WebkitUserSelect: 'none',
                         userSelect: 'none',
