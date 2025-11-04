@@ -143,7 +143,6 @@ const Catalog = () => {
                                                         backdropFilter: 'blur(20px) saturate(180%)',
                                                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                                                         borderTop: '1px solid var(--mint-dark)',
-                                                        touchAction: 'pan-y',
                                                         WebkitTouchCallout: 'none',
                                                         WebkitUserSelect: 'none',
                                                         userSelect: 'none',
