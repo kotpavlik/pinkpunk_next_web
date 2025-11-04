@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import Image from 'next/image'
+import Loader from '@/components/ui/shared/Loader'
 
 export default function Cart() {
     const { user } = useUserStore()
@@ -16,6 +17,7 @@ export default function Cart() {
         removeFromCart,
         clearCart,
         setError,
+        isLoading,
     } = useCartStore()
 
     useEffect(() => {
@@ -31,6 +33,10 @@ export default function Cart() {
     const totalItems = useMemo(() => {
         return stats?.totalItems || cartItems.reduce((t, it) => t + it.quantity, 0)
     }, [stats?.totalItems, cartItems])
+
+    if (isLoading) {
+        return <Loader fullScreen showText />
+    }
 
     return (
         <div className="relative mx-auto min-h-screen px-4 py-24 md:max-w-[80vw]">

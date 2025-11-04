@@ -5,10 +5,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useProductsStore } from "@/zustand/products_store/ProductsStore";
 import { useUserStore } from "@/zustand/user_store/UserStore";
+import { useAppStore } from "@/zustand/app_store/AppStore";
+import Loader from "@/components/ui/shared/Loader";
 
 const Catalog = () => {
     const { products, getProducts } = useProductsStore()
     const isAdmin = useUserStore((state) => state.user.isAdmin)
+    const status = useAppStore((state) => state.status)
 
     // notifications removed in this page version; handled elsewhere if needed
 
@@ -25,6 +28,10 @@ const Catalog = () => {
     }, [isAdmin])
 
     const safeProducts = useMemo(() => products || [], [products])
+
+    if (status === 'loading') {
+        return <Loader fullScreen showText />
+    }
 
     return (
         <div className="relative md:max-w-[100vw]  md:px-0  min-h-screen mb-20">

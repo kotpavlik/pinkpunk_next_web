@@ -83,16 +83,33 @@ function ProductItemContent() {
         if (!emblaApi) return
 
         if (sheetPosition > 0 || isDragging) {
-            emblaApi.reInit({ watchDrag: false, watchResize: false })
+            // Полностью блокируем карусель
+            emblaApi.reInit({
+                watchDrag: false,
+                watchResize: false,
+            })
         } else {
-            emblaApi.reInit({ watchDrag: true, watchResize: true })
+            // Восстанавливаем карусель
+            emblaApi.reInit({
+                watchDrag: true,
+                watchResize: true,
+            })
         }
     }, [emblaApi, sheetPosition, isDragging])
 
     // Обработчики для bottom sheet
     const handleTouchStart = (e: React.TouchEvent) => {
+        e.stopPropagation()
         setIsDragging(true)
         setStartY(e.touches[0].clientY)
+
+        // Сразу блокируем карусель при начале перетаскивания
+        if (emblaApi) {
+            emblaApi.reInit({
+                watchDrag: false,
+                watchResize: false,
+            })
+        }
     }
 
     const handleTouchMove = (e: React.TouchEvent) => {
@@ -117,6 +134,13 @@ function ProductItemContent() {
             setSheetPosition(1)
         } else {
             setSheetPosition(0)
+            // Восстанавливаем карусель только если sheet закрыт
+            if (emblaApi) {
+                emblaApi.reInit({
+                    watchDrag: true,
+                    watchResize: true,
+                })
+            }
         }
         setStartY(0)
     }
@@ -133,13 +157,7 @@ function ProductItemContent() {
     }
 
     if (!currentProduct) {
-        return (
-            <div className="relative md:max-w-[100vw] md:px-0 min-h-screen mb-20">
-                <div className="text-white text-center py-20">
-                    <h1 className="text-2xl font-blauer-nue">Загрузка...</h1>
-                </div>
-            </div>
-        )
+        return <Loader fullScreen showText />
     }
 
     return (
@@ -149,7 +167,13 @@ function ProductItemContent() {
                 {currentProduct.photos && currentProduct.photos.length > 0 && (
                     <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 md:items-start md:flex-nowrap">
                         {/* Main photo */}
-                        <div className="relative w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden">
+                        <div
+                            className="relative w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden"
+                            style={{
+                                pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                            }}
+                        >
                             {/* Back button - Mobile only */}
                             <button
                                 onClick={() => router.back()}
@@ -180,6 +204,23 @@ function ProductItemContent() {
                                 style={{
                                     pointerEvents: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
                                     touchAction: (sheetPosition > 0 || isDragging) ? 'none' : 'pan-y',
+                                    WebkitTouchCallout: (sheetPosition > 0 || isDragging) ? 'none' : 'default',
+                                    WebkitUserSelect: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                    userSelect: (sheetPosition > 0 || isDragging) ? 'none' : 'auto',
+                                }}
+                                onTouchStart={(e) => {
+                                    // Если bottom sheet открыт или перетаскивается, блокируем события карусели
+                                    if (sheetPosition > 0 || isDragging) {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                    }
+                                }}
+                                onTouchMove={(e) => {
+                                    // Если bottom sheet открыт или перетаскивается, блокируем события карусели
+                                    if (sheetPosition > 0 || isDragging) {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                    }
                                 }}
                             >
                                 <div className="flex flex-col h-full">
