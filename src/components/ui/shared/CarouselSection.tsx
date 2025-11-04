@@ -101,10 +101,14 @@ export default function CarouselSection({
 
   return (
     <section className={`relative py-20 md:py-25 ${className}`}>
-      <div className="w-[90vw] mx-auto py-2 flex items-center justify-between">
-        <h1 className="text-lg md:text-2xl font-blauer-nue cursor-default">
+      <div className="w-[96vw] mx-auto py-2 flex items-center justify-between">
+        <h1 className=" text-2xl md:text-4xl  text-start font-blauer-nue font-bold text-white cursor-default">
           {title}
+          {products.length > 0 && (
+            <span className="ml-3 align-middle text-lg md:text-2xl font-normal text-white/60">({products.length})</span>
+          )}
         </h1>
+
         {viewAllLink && (
           <Link href={viewAllLink} className="text-sm md:text-base font-blauer-nue">
             Cмотреть все &gt;
@@ -117,6 +121,7 @@ export default function CarouselSection({
           <div className="flex touch-pan-y gap-2 md:gap-3 lg:gap-1 px-2 md:px-3 lg:px-1">
             {products.map((product, idx) => {
               const firstPhoto = product.photos && product.photos.length > 0 ? product.photos[0] : null
+              const secondPhoto = product.photos && product.photos.length > 1 ? product.photos[1] : null
               if (!firstPhoto) return null
 
               return (
@@ -125,15 +130,39 @@ export default function CarouselSection({
                   className={`min-w-0 ${slideClasses} flex flex-col group`}
                 >
                   <div className={`relative w-full ${slideHeight} overflow-hidden`}>
+                    {/* default image */}
                     <Image
                       src={getImageUrl(firstPhoto)}
                       alt={product.name}
                       fill
                       sizes={`(max-width: 768px) 100vw, (max-width: 1024px) ${Math.ceil(100 / slidesToShow.tablet * 1.5)}vw, ${Math.ceil(100 / slidesToShow.desktop * 1.5)}vw`}
-                      className="object-cover"
+                      className="object-cover transition-opacity duration-100"
                       priority={idx === 0}
                       quality={95}
                     />
+                    {/* hover image (second) */}
+                    {secondPhoto && (
+                      <Image
+                        src={getImageUrl(secondPhoto)}
+                        alt={`${product.name} alt`}
+                        fill
+                        sizes={`(max-width: 768px) 100vw, (max-width: 1024px) ${Math.ceil(100 / slidesToShow.tablet * 1.5)}vw, ${Math.ceil(100 / slidesToShow.desktop * 1.5)}vw`}
+                        className="object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                        quality={95}
+                      />
+                    )}
+
+                    {/* Add to cart button on hover */}
+                    <div className="absolute top-3 right-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70 hover:bg-[var(--green)]/80 text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 shadow-md font-blauer-nue"
+                        aria-label="Добавить в корзину"
+                      >
+                        в корзину
+                      </button>
+                    </div>
+
                     <div className="absolute bottom-0 left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
                       <div className="p-4 pb-8">
                         <div className="flex items-center justify-between ">
@@ -149,7 +178,7 @@ export default function CarouselSection({
                           <p className="font-blauer-nue pb-2 text-xs text-white/50">
                             сейчас в наличии: {product.stockQuantity} шт.
                           </p>
-                          <p className="font-blauer-nue text-xs pb-2  line-clamp-2">
+                          <p className="font-blauer-nue text-xs pb-2  ">
                             {product.description}
                           </p>
                         </div>

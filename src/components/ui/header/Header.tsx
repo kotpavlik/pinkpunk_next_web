@@ -163,9 +163,11 @@ export default function Header() {
 
                         {/* Корзина справа */}
                         <div>
-                            <button className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">
-                                <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
-                            </button>
+                            <Link href="/cart">
+                                <button className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">
+                                    <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
+                                </button>
+                            </Link>
                         </div>
                     </div>
 
@@ -183,7 +185,7 @@ export default function Header() {
                         >
 
                             <Link
-                                href="#catalog"
+                                href="/catalog"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base font-medium transition-all duration-200 rounded-lg"
                                 onClick={() => setIsMenuOpen(false)}
                             >
