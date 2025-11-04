@@ -130,15 +130,15 @@ const Catalog = () => {
 
                                                 {/* Add to cart button (always visible on mobile, hover on md+) */}
                                                 <div className="absolute top-3 right-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
-                                                    <button className="px-3 py-2  bg-[var(--mint-dark)]/70 hover:bg-[var(--green)]/80 font-bold text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 font-blauer-nue">
+                                                    <button className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70  hover:bg-[var(--green)]/80 font-bold text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 font-blauer-nue">
                                                         в корзину
                                                     </button>
                                                 </div>
 
                                                 {/* Bottom info slide-up like CarouselSection */}
 
-                                                <div className="absolute bottom-0 left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
-                                                    <div className="p-4 pb-8">
+                                                <div className="absolute -bottom-[1px] left-0 right-0 cursor-default backdrop-blur-sm transition-transform duration-300 translate-y-[calc(100%-4rem)] group-hover:translate-y-0">
+                                                    <div className="p-4 pb-12">
                                                         <div className="flex items-center justify-between ">
                                                             <h3 className="font-blauer-nue text-sm md:text-base font-semibold line-clamp-2">
                                                                 {product.name}
