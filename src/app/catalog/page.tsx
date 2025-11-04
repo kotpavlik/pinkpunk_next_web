@@ -139,13 +139,8 @@ const Catalog = () => {
 
                                                 <div className="absolute bottom-0  left-0 right-0 cursor-default transition-transform duration-300 md:translate-y-[calc(100%-4.5rem)] translate-y-[calc(100%-3.5rem)] group-hover:translate-y-0"
                                                     style={{
-                                                        background: 'rgba(255, 255, 255, 0.1)',
-                                                        backdropFilter: 'blur(20px) saturate(180%)',
-                                                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                                                        background: 'var(--background)',
                                                         borderTop: '1px solid var(--mint-dark)',
-                                                        WebkitTouchCallout: 'none',
-                                                        WebkitUserSelect: 'none',
-                                                        userSelect: 'none',
                                                     }}>
                                                     <div className="p-4 md:pb-2 pb-10">
                                                         <div className="flex items-center justify-between ">
