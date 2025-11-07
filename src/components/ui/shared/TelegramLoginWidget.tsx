@@ -120,56 +120,59 @@ export default function TelegramLoginWidget({
         widget.setAttribute('data-auth-url', origin)
 
         container.appendChild(widget)
+        console.log('Widget div appended to container:', botName)
 
         // Telegram скрипт автоматически инициализирует виджеты при загрузке страницы
-        // Для динамически созданных элементов нужно либо перезагрузить скрипт,
-        // либо вызвать событие, которое заставит скрипт пересканировать DOM
-        // Или использовать более простой подход - создать script тег с виджетом
-        
-        // Пробуем вызвать инициализацию через небольшой таймаут
+        // Для динамически созданных элементов скрипт может не найти их автоматически
+        // Проверяем через таймаут и если виджет не инициализирован, создаем iframe вручную
+
         const initTimeout = setTimeout(() => {
             const widgetElement = container.querySelector('[data-telegram-login]')
             if (widgetElement) {
-                console.log('Telegram Login Widget element created:', botName)
-                
-                // Проверяем, что скрипт загружен
-                if (window.Telegram?.Login) {
-                    console.log('Telegram Login Widget script is loaded')
-                    
-                    // Проверяем, создал ли скрипт iframe
-                    const iframe = widgetElement.querySelector('iframe')
-                    if (!iframe) {
-                        console.log('Widget not initialized by script, trying to trigger re-initialization')
-                        
-                        // Пытаемся вызвать событие, которое заставит скрипт пересканировать
-                        // Или создаем новый script тег, который инициализирует виджет
-                        const script = document.createElement('script')
-                        script.async = true
-                        script.src = 'https://telegram.org/js/telegram-widget.js?22'
-                        script.setAttribute('data-telegram-login', botName)
-                        script.setAttribute('data-size', size)
-                        if (requestAccess) {
-                            script.setAttribute('data-request-access', 'write')
-                        }
-                        script.setAttribute('data-userpic', usePic ? '1' : '0')
-                        script.setAttribute('data-radius', cornerRadius.toString())
-                        script.setAttribute('data-lang', lang)
-                        script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-                        script.setAttribute('data-auth-url', origin)
-                        
-                        // Очищаем контейнер и добавляем script
-                        container.innerHTML = ''
-                        container.appendChild(script)
-                        
-                        console.log('Created script tag for widget initialization')
-                    } else {
-                        console.log('Widget iframe found, widget is initialized')
+                console.log('Checking widget initialization for:', botName)
+
+                // Проверяем, создал ли скрипт iframe внутри виджета
+                const iframe = widgetElement.querySelector('iframe')
+                const allIframes = container.querySelectorAll('iframe')
+
+                console.log('Found iframes in container:', allIframes.length)
+
+                if (!iframe && allIframes.length === 0) {
+                    console.log('Widget not initialized by script, creating iframe manually')
+
+                    // Создаем iframe напрямую используя официальный URL Telegram OAuth
+                    // Формат: https://oauth.telegram.org/auth?bot_id=BOT_USERNAME&...
+                    const params = new URLSearchParams()
+                    params.append('origin', origin)
+                    params.append('size', size)
+                    if (requestAccess) {
+                        params.append('request_access', 'write')
                     }
+                    params.append('userpic', usePic ? '1' : '0')
+                    params.append('radius', cornerRadius.toString())
+                    params.append('lang', lang)
+
+                    const manualIframe = document.createElement('iframe')
+                    // Используем bot username напрямую в URL
+                    manualIframe.src = `https://oauth.telegram.org/auth?bot_id=${encodeURIComponent(botName)}&${params.toString()}`
+                    manualIframe.frameBorder = '0'
+                    manualIframe.scrolling = 'no'
+                    manualIframe.width = size === 'large' ? '280' : size === 'medium' ? '240' : '200'
+                    manualIframe.height = size === 'large' ? '60' : size === 'medium' ? '50' : '40'
+                    manualIframe.style.border = 'none'
+                    manualIframe.style.overflow = 'hidden'
+                    manualIframe.style.display = 'block'
+
+                    // Очищаем контейнер и добавляем iframe
+                    container.innerHTML = ''
+                    container.appendChild(manualIframe)
+
+                    console.log('Created iframe manually with src:', manualIframe.src)
                 } else {
-                    console.warn('Telegram Login Widget script not found')
+                    console.log('Widget iframe found, widget is initialized')
                 }
             }
-        }, 500)
+        }, 1000)
 
         return () => {
             clearTimeout(initTimeout)
