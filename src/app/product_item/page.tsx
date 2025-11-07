@@ -57,17 +57,25 @@ function ProductItemContent() {
         }
     }, [])
 
-    // Скрываем Header и Footer на мобильных устройствах
+    // Скрываем Header и Footer на мобильных устройствах и блокируем скролл body
     useEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 768) {
             const header = document.querySelector('header')
             const footer = document.querySelector('footer')
+            const body = document.body
 
             if (header) {
                 header.style.display = 'none'
             }
             if (footer) {
                 footer.style.display = 'none'
+            }
+            if (body) {
+
+                body.style.overflow = 'hidden'
+                body.style.position = 'fixed'
+                body.style.width = '100%'
+                body.style.overscrollBehaviorY = 'none'
             }
 
             return () => {
@@ -76,6 +84,13 @@ function ProductItemContent() {
                 }
                 if (footer) {
                     footer.style.display = ''
+                }
+                if (body) {
+                    body.style.overscrollBehaviorY = ''
+                    body.style.height = ''
+                    body.style.overflow = ''
+                    body.style.position = ''
+                    body.style.width = ''
                 }
             }
         }
@@ -453,16 +468,79 @@ function ProductItemContent() {
                 )}
 
                 {/* Desktop only content */}
-                <div className="hidden md:block w-full md:w-1/2">
-                    <h1 className="text-3xl font-blauer-nue font-bold mb-4">{currentProduct.name}</h1>
-                    <p className="text-white/80 mb-4">{currentProduct.description}</p>
-                    <p className="text-2xl font-bold text-[var(--mint-dark)] mb-4">
-                        {currentProduct.price.toLocaleString('ru-RU')} BYN
-                    </p>
-                    <p className="text-white/60 mb-2">
-                        В наличии: {currentProduct.stockQuantity} шт.
-                    </p>
-                    <p className="text-white/60 mb-4">Размер: {currentProduct.size}</p>
+                <div className="hidden md:flex md:flex-col w-full md:w-1/2  gap-6">
+                    {/* Название товара */}
+                    <div>
+                        <h1 className="text-4xl md:text-5xl font-blauer-nue font-bold mb-2 text-white leading-tight">
+                            {currentProduct.name}
+                        </h1>
+                    </div>
+
+                    {/* Кнопка добавления в корзину с ценой */}
+                    <div className="pb-4 border-b border-white/10">
+                        <button
+                            className="w-full py-4 px-6 bg-[var(--mint-dark)] hover:bg-[var(--mint-dark)]/90 text-white font-blauer-nue font-bold text-lg rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+                            disabled={currentProduct.stockQuantity === 0}
+                        >
+                            <span>
+                                {currentProduct.stockQuantity > 0 ? 'Добавить в корзину' : 'Товар закончился'}
+                            </span>
+                            <span className="flex items-baseline gap-2">
+                                <span className="text-2xl font-bold">
+                                    {currentProduct.price.toLocaleString('ru-RU')}
+                                </span>
+                                <span className="text-base font-medium">BYN</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Описание */}
+                    {currentProduct.description && (
+                        <div className="space-y-2">
+                            <h2 className="text-lg font-blauer-nue font-semibold text-white mb-2">Описание</h2>
+                            <p className="text-white/80 leading-relaxed text-base">
+                                {currentProduct.description}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Характеристики */}
+                    <div className="space-y-4 py-4 border-t border-b border-white/10">
+                        <h2 className="text-lg font-blauer-nue font-semibold text-white mb-3">Характеристики</h2>
+                        <div className="grid grid-cols-1 gap-3">
+                            {/* Артикул */}
+                            <div className="flex items-center justify-between py-2">
+                                <span className="text-white/60 text-sm font-medium">Артикул</span>
+                                <span className="text-white font-semibold">{currentProduct.productId}</span>
+                            </div>
+
+                            {/* Категория */}
+                            {currentProduct.category && (
+                                <div className="flex items-center justify-between py-2 border-t border-white/5">
+                                    <span className="text-white/60 text-sm font-medium">Категория</span>
+                                    <span className="text-white font-semibold">
+                                        {typeof currentProduct.category === 'string'
+                                            ? currentProduct.category
+                                            : currentProduct.category.name}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Размер */}
+                            <div className="flex items-center justify-between py-2 border-t border-white/5">
+                                <span className="text-white/60 text-sm font-medium">Размер</span>
+                                <span className="text-white font-semibold">{currentProduct.size}</span>
+                            </div>
+
+                            {/* В наличии */}
+                            <div className="flex items-center justify-between py-2 border-t border-white/5">
+                                <span className="text-white/60 text-sm font-medium">В наличии</span>
+                                <span className={`font-semibold ${currentProduct.stockQuantity > 0 ? 'text-[var(--mint-dark)]' : 'text-red-400'}`}>
+                                    {currentProduct.stockQuantity > 0 ? `${currentProduct.stockQuantity} шт.` : 'Нет в наличии'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -527,10 +605,8 @@ function ProductItemContent() {
                     <div
                         className="relative overflow-y-auto h-full"
                         style={{
-
-                            maxHeight: 'calc(100% - 0px)',
-                            maskImage: 'linear-gradient(to bottom, transparent 0px, transparent 200px, black 200px, black calc(100% - 80px), transparent calc(100% - 80px))',
-                            WebkitMaskImage: 'linear-gradient(to bottom,   black calc(100% - 90px), transparent calc(100% - 90px))',
+                            maxHeight: 'calc(100% - 100px)',
+                            WebkitOverflowScrolling: 'touch',
                         }}
                         onTouchStart={handleContentTouchStart}
                         onTouchMove={handleContentTouchMove}
@@ -543,58 +619,75 @@ function ProductItemContent() {
                         {/* Content */}
                         <div className="relative w-full pt-2 pb-4 px-4">
                             {/* Always visible: Product name */}
-                            <div className="text-white text-xl font-blauer-nue font-bold mb-4 text-center">
+                            <div className="text-white text-2xl font-blauer-nue font-bold mb-3 text-center">
                                 {currentProduct.name}
                             </div>
 
                             {/* Expandable content */}
                             <div
-                                className="overflow-hidden"
+                                className="overflow-visible"
                                 style={{
-                                    maxHeight: sheetPosition > 0 ? '1000px' : '0',
-                                    transition: 'maxHeight 0.3s ease-out',
+                                    maxHeight: sheetPosition > 0 ? '5000px' : '0',
+                                    opacity: sheetPosition > 0 ? 1 : 0,
+                                    overflow: sheetPosition > 0 ? 'visible' : 'hidden',
+                                    transition: 'opacity 0.3s ease-out, maxHeight 0.3s ease-out',
                                 }}
                             >
-                                <div className="space-y-4 pb-4">
+                                <div className="space-y-5 pb-4">
+                                    {/* Цена - выделенный блок */}
+                                    <div className="flex items-baseline justify-center gap-2 py-3 border-y border-white/10">
+                                        <span className="text-3xl font-bold text-[var(--mint-dark)]">
+                                            {currentProduct.price.toLocaleString('ru-RU')}
+                                        </span>
+                                        <span className="text-lg text-white/80 font-medium">BYN</span>
+                                    </div>
+
                                     {/* Описание */}
                                     {currentProduct.description && (
-                                        <div>
-                                            <p className="text-white font-bold text-sm mb-2">Описание:</p>
-                                            <p className="text-white/80 text-sm">{currentProduct.description}</p>
+                                        <div className="space-y-2">
+                                            <h2 className="text-base font-blauer-nue font-semibold text-white mb-2">Описание</h2>
+                                            <p className="text-white/80 text-sm leading-relaxed">
+                                                {currentProduct.description}
+                                            </p>
                                         </div>
                                     )}
 
                                     {/* Характеристики */}
-                                    <div className="space-y-2">
-                                        <p className="text-white font-bold text-sm mb-2">Характеристики:</p>
-                                        <div className="space-y-1">
-                                            <p className="text-white/60 text-sm">
-                                                Артикул: <span className="text-white">{currentProduct.productId}</span>
-                                            </p>
+                                    <div className="space-y-3 py-3 border-t border-b border-white/10">
+                                        <h2 className="text-base font-blauer-nue font-semibold text-white mb-3">Характеристики</h2>
+                                        <div className="space-y-3">
+                                            {/* Артикул */}
+                                            <div className="flex items-center justify-between py-1.5">
+                                                <span className="text-white/60 text-sm font-medium">Артикул</span>
+                                                <span className="text-white font-semibold text-sm">{currentProduct.productId}</span>
+                                            </div>
+
+                                            {/* Категория */}
                                             {currentProduct.category && (
-                                                <p className="text-white/60 text-sm">
-                                                    Категория: <span className="text-white">
+                                                <div className="flex items-center justify-between py-1.5 border-t border-white/5">
+                                                    <span className="text-white/60 text-sm font-medium">Категория</span>
+                                                    <span className="text-white font-semibold text-sm">
                                                         {typeof currentProduct.category === 'string'
                                                             ? currentProduct.category
                                                             : currentProduct.category.name}
                                                     </span>
-                                                </p>
+                                                </div>
                                             )}
-                                            <p className="text-white/60 text-sm">
-                                                Размер: <span className="text-white">{currentProduct.size}</span>
-                                            </p>
-                                            <p className="text-white/60 text-sm">
-                                                В наличии: <span className="text-white">{currentProduct.stockQuantity} шт.</span>
-                                            </p>
-                                        </div>
-                                    </div>
 
-                                    {/* Цена */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                        <p className="text-white/60 text-sm">Цена:</p>
-                                        <p className="text-2xl font-bold text-[var(--mint-dark)]">
-                                            {currentProduct.price.toLocaleString('ru-RU')} BYN
-                                        </p>
+                                            {/* Размер */}
+                                            <div className="flex items-center justify-between py-1.5 border-t border-white/5">
+                                                <span className="text-white/60 text-sm font-medium">Размер</span>
+                                                <span className="text-white font-semibold text-sm">{currentProduct.size}</span>
+                                            </div>
+
+                                            {/* В наличии - выделено */}
+                                            <div className="flex items-center justify-between py-2 border-t border-white/5 bg-white/5 rounded-lg px-3 -mx-3">
+                                                <span className="text-white/60 text-sm font-medium">В наличии</span>
+                                                <span className={`font-bold text-base ${currentProduct.stockQuantity > 0 ? 'text-[var(--mint-dark)]' : 'text-red-400'}`}>
+                                                    {currentProduct.stockQuantity > 0 ? `${currentProduct.stockQuantity} шт.` : 'Нет в наличии'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

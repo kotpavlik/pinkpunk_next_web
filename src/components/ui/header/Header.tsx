@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { ShoppingBagIcon, UserIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import AnimatedBurger from './AnimatedBurger'
+import TelegramLoginModal from '../shared/TelegramLoginModal'
 
 
 export default function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [logoWidth, setLogoWidth] = useState(0)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [lastScrollY, setLastScrollY] = useState(0)
@@ -168,10 +170,20 @@ export default function Header() {
                             </h1>
                         </div>
 
-                        {/* Корзина справа */}
-                        <div>
+                        {/* Иконки пользователя и корзины справа */}
+                        <div className="flex items-center justify-center md:gap-2">
+                            <button
+                                onClick={() => {
+                                    console.log('User icon clicked, opening modal')
+                                    setIsLoginModalOpen(true)
+                                }}
+                                className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105"
+                                aria-label="Войти через Telegram"
+                            >
+                                <UserIcon className="h-6 w-6" aria-hidden="true" />
+                            </button>
                             <Link href="/cart">
-                                <button className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">
+                                <button className="inline-flex items-center justify-center  p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">
                                     <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
                                 </button>
                             </Link>
@@ -254,6 +266,12 @@ export default function Header() {
                     </div>
                 </div>
             </div>
+
+            {/* Telegram Login Modal */}
+            <TelegramLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+            />
 
         </header>
     )
