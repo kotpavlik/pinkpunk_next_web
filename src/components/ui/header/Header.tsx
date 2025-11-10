@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { ShoppingBagIcon, UserIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import AnimatedBurger from './AnimatedBurger'
 import TelegramLoginModal from '../shared/TelegramLoginModal'
+import { useUserStore } from '@/zustand/user_store/UserStore'
 
 
 export default function Header() {
@@ -13,7 +16,21 @@ export default function Header() {
     const [logoWidth, setLogoWidth] = useState(0)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [lastScrollY, setLastScrollY] = useState(0)
+    const [imageError, setImageError] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
     const logoRef = useRef<HTMLDivElement>(null)
+    const { user } = useUserStore()
+    const router = useRouter()
+
+    // Отслеживаем монтирование компонента для предотвращения hydration mismatch
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    // Сбрасываем ошибку изображения при изменении photoUrl или photo_url
+    useEffect(() => {
+        setImageError(false)
+    }, [user.photoUrl, user.photo_url])
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -174,13 +191,31 @@ export default function Header() {
                         <div className="flex items-center justify-center md:gap-2">
                             <button
                                 onClick={() => {
-                                    console.log('User icon clicked, opening modal')
-                                    setIsLoginModalOpen(true)
+                                    if (user.userId) {
+                                        router.push('/user_profile')
+                                    } else {
+                                        setIsLoginModalOpen(true)
+                                    }
                                 }}
                                 className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105"
-                                aria-label="Войти через Telegram"
+                                aria-label={isMounted && user.userId ? 'Профиль пользователя' : 'Войти через Telegram'}
                             >
-                                <UserIcon className="h-6 w-6" aria-hidden="true" />
+                                {isMounted && user.userId && (user.photoUrl || user.photo_url) && !imageError ? (
+                                    <div className="relative h-6 w-6 rounded-full overflow-hidden">
+                                        <Image
+                                            src={user.photoUrl || user.photo_url || ''}
+                                            alt={user.firstName || user.username || 'User avatar'}
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                            onError={() => {
+                                                setImageError(true)
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <UserIcon className="h-6 w-6" aria-hidden="true" />
+                                )}
                             </button>
                             <Link href="/cart">
                                 <button className="inline-flex items-center justify-center  p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">

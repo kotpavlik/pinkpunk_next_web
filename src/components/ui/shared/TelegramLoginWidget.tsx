@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // Типы данных, которые приходят от Telegram Login Widget
 export interface TelegramUser {
@@ -26,7 +26,12 @@ interface TelegramLoginWidgetProps {
 
 declare global {
     interface Window {
-        TelegramOnAuthCb?: (user: TelegramUser) => void
+        onTelegramAuth?: (user: TelegramUser) => void
+        Telegram?: {
+            Login?: {
+                auth: (options: Record<string, unknown>, callback: (user: TelegramUser) => void) => void
+            }
+        }
     }
 }
 
@@ -41,52 +46,96 @@ export default function TelegramLoginWidget({
     className = '',
 }: TelegramLoginWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null)
+    const [scriptLoaded, setScriptLoaded] = useState(false)
+    const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
 
+    // Загружаем скрипт Telegram Widget
     useEffect(() => {
-        if (!containerRef.current || !onAuth) return
+        // Проверяем, загружен ли скрипт
+        if (document.querySelector('script[src*="telegram-widget.js"]')) {
+            setScriptLoaded(true)
+            return
+        }
+
+        // Загружаем скрипт
+        const script = document.createElement('script')
+        script.src = 'https://telegram.org/js/telegram-widget.js?22'
+        script.async = true
+        script.onload = () => {
+            setScriptLoaded(true)
+        }
+        script.onerror = () => {
+            console.error('Failed to load Telegram Widget script')
+        }
+        document.body.appendChild(script)
+
+        return () => {
+            // Не удаляем скрипт при размонтировании, так как он может использоваться другими компонентами
+        }
+    }, [])
+
+    // Создаем виджет после загрузки скрипта
+    useEffect(() => {
+        if (!containerRef.current) return
 
         const container = containerRef.current
 
+        // Если скрипт еще не загружен, создаем виджет с задержкой
+        if (!scriptLoaded) {
+            // Очищаем контейнер
+            container.innerHTML = '<div className="text-white text-sm">Загрузка...</div>'
+            return
+        }
+
+        // Если нет callback, не создаем виджет
+        if (!onAuth) {
+            console.warn('TelegramLoginWidget: onAuth callback is required')
+            return
+        }
+
         // Устанавливаем глобальный обработчик для callback
-        window.TelegramOnAuthCb = (user: TelegramUser) => {
+        window.onTelegramAuth = (user: TelegramUser) => {
             onAuth(user)
         }
 
-        // Создаем script тег с data-атрибутами (как в рабочем примере)
-        const script = document.createElement('script')
-        script.src = 'https://telegram.org/js/telegram-widget.js?21'
-        script.async = true
+        // Очищаем контейнер перед созданием нового виджета
+        container.innerHTML = ''
 
-        script.setAttribute('data-telegram-login', botName)
-        script.setAttribute('data-size', size)
-        if (requestAccess) {
-            script.setAttribute('data-request-access', 'write')
-        }
-        script.setAttribute('data-userpic', usePic ? '1' : '0')
-        script.setAttribute('data-radius', cornerRadius.toString())
-        script.setAttribute('data-lang', lang)
-        script.setAttribute('data-onauth', 'TelegramOnAuthCb(user)')
-
-        // Устанавливаем origin для проверки подлинности
+        // Создаем виджет согласно официальной документации Telegram
+        // Используем script тег с data-атрибутами (официальный способ)
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
-        script.setAttribute('data-auth-url', origin)
 
-        // Добавляем script в контейнер
-        container.appendChild(script)
+        // Создаем script тег точно как в официальной документации
+        const widgetScript = document.createElement('script')
+        widgetScript.async = true
+        widgetScript.src = 'https://telegram.org/js/telegram-widget.js?22'
+        widgetScript.setAttribute('data-telegram-login', botName)
+        widgetScript.setAttribute('data-size', size)
+        if (requestAccess) {
+            widgetScript.setAttribute('data-request-access', 'write')
+        }
+        widgetScript.setAttribute('data-userpic', usePic ? '1' : '0')
+        widgetScript.setAttribute('data-radius', cornerRadius.toString())
+        widgetScript.setAttribute('data-lang', lang)
+        widgetScript.setAttribute('data-onauth', 'onTelegramAuth(user)')
+        widgetScript.setAttribute('data-auth-url', origin)
+
+        // Добавляем script тег в контейнер
+        container.appendChild(widgetScript)
 
         return () => {
             // Очистка при размонтировании
-            if (container && script.parentNode) {
-                container.removeChild(script)
+            if (container) {
+                container.innerHTML = ''
             }
-            window.TelegramOnAuthCb = undefined
         }
-    }, [botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
+    }, [scriptLoaded, botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
 
     return (
         <div
             ref={containerRef}
             className={`telegram-login-widget ${className}`}
+            id={widgetId.current}
             style={{ minHeight: '60px', minWidth: '280px' }}
         />
     )

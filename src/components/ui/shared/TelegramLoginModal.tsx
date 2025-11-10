@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import TelegramLoginWidget, { TelegramUser } from './TelegramLoginWidget'
 import { useUserStore } from '@/zustand/user_store/UserStore'
+import { useAppStore } from '@/zustand/app_store/AppStore'
 
 interface TelegramLoginModalProps {
     isOpen: boolean
@@ -17,8 +19,11 @@ export default function TelegramLoginModal({
     botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'pinkpunk_brand',
 }: TelegramLoginModalProps) {
     const [mounted, setMounted] = useState(false)
-    const { initialUser } = useUserStore()
-    
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const { authenticateTelegramLoginWidget } = useUserStore()
+    const { status } = useAppStore()
+
     // Убираем @ из начала botName, если он есть (Telegram Widget требует bot name без @)
     const cleanBotName = botName.startsWith('@') ? botName.slice(1) : botName
 
@@ -56,12 +61,6 @@ export default function TelegramLoginModal({
         }
     }, [isOpen, onClose])
 
-    // Отладочная информация
-    useEffect(() => {
-        if (isOpen) {
-            console.log('TelegramLoginModal: Modal is opening', { isOpen, mounted, botName, cleanBotName })
-        }
-    }, [isOpen, mounted, botName, cleanBotName])
 
     if (!isOpen) return null
 
@@ -72,8 +71,8 @@ export default function TelegramLoginModal({
 
     const modalContent = (
         <div
-            className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            style={{ 
+            className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300"
+            style={{
                 zIndex: 99999,
                 position: 'fixed',
                 top: 0,
@@ -84,44 +83,75 @@ export default function TelegramLoginModal({
                 height: '100vh',
             }}
             onClick={(e) => {
-                console.log('Modal backdrop clicked', e.target === e.currentTarget)
                 if (e.target === e.currentTarget) {
                     onClose()
                 }
             }}
         >
             <div
-                className="relative bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl max-w-md w-full mx-4"
+                className="relative bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-2xl rounded-3xl p-8 md:p-10 border border-white/20 shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100"
                 style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(20px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                    zIndex: 100000,
-                    position: 'relative',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.1) 100%)',
+                    backdropFilter: 'blur(30px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
                 }}
-                onClick={(e) => {
-                    console.log('Modal content clicked')
-                    e.stopPropagation()
-                }}
+                onClick={(e) => e.stopPropagation()}
             >
+                {/* Кнопка закрытия */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors z-10"
+                    className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all duration-200 z-10 group"
                     aria-label="Закрыть"
                 >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg className="w-5 h-5 transform group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-                <div className="text-center mb-6">
-                    <h2 className="text-2xl font-blauer-nue font-bold text-white mb-2">
+
+                {/* Иконка Telegram - Lottie анимация */}
+                <div className="flex justify-center ">
+                    <div className="w-40 h-40 ">
+                        <div className="w-full h-full">
+                            <DotLottieReact
+                                src="/animations/telegram.lottie"
+                                loop={true}
+                                autoplay={true}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Заголовок */}
+                <div className="text-center mb-8">
+                    <h2 className="text-3xl md:text-4xl font-blauer-nue font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                         Вход через Telegram
                     </h2>
-                    <p className="text-white/60 text-sm">
-                        Авторизуйтесь через Telegram для доступа к личному кабинету
+                    <p className="text-white/70 text-base leading-relaxed max-w-sm mx-auto">
+                        Авторизуйтесь через Telegram для доступа к личному кабинету и персональным предложениям!
                     </p>
                 </div>
-                <div className="flex justify-center min-h-[60px]">
+
+                {/* Сообщение об ошибке */}
+                {error && (
+                    <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+                        <p className="text-red-200 text-sm text-center">{error}</p>
+                    </div>
+                )}
+
+                {/* Индикатор загрузки */}
+                {(loading || status === 'loading') && (
+                    <div className="mb-4 flex justify-center">
+                        <div className="text-white/70 text-sm">Проверка данных...</div>
+                    </div>
+                )}
+
+                {/* Виджет */}
+                <div className="flex justify-center  min-h-[70px] mb-4">
                     <TelegramLoginWidget
                         botName={cleanBotName}
                         size="large"
@@ -129,20 +159,29 @@ export default function TelegramLoginModal({
                         usePic={true}
                         cornerRadius={20}
                         lang="ru"
-                        onAuth={(telegramUser: TelegramUser) => {
-                            // Обрабатываем данные пользователя из Telegram
-                            // Данные, которые приходят: id, first_name, last_name, username, photo_url, auth_date, hash
-                            console.log('Telegram auth success:', telegramUser)
-                            const userData = {
-                                userId: telegramUser.id,
-                                firstName: telegramUser.first_name,
-                                lastName: telegramUser.last_name,
-                                username: telegramUser.username,
+                        className="flex justify-center"
+                        onAuth={async (telegramUser: TelegramUser) => {
+                            setLoading(true)
+                            setError(null)
+
+                            const result = await authenticateTelegramLoginWidget(telegramUser)
+
+                            if (result.success) {
+                                onClose()
+                            } else {
+                                setError(result.error || 'Ошибка авторизации')
                             }
-                            initialUser(userData)
-                            onClose()
+
+                            setLoading(false)
                         }}
                     />
+                </div>
+
+                {/* Дополнительная информация */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                    <p className="text-white/50 text-xs text-center">
+                        Нажимая кнопку, вы соглашаетесь с тем, что вы булочка 🥐
+                    </p>
                 </div>
             </div>
         </div>
