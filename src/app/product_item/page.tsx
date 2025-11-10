@@ -294,7 +294,7 @@ function ProductItemContent() {
     }
 
     return (
-        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20 md:pb-20 md:pt-0 z-20 md:z-auto m-0 p-0">
+        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20  md:pt-0 z-20 md:z-auto m-0 p-0">
             <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-20 items-start m-0 p-0 md:p-0">
 
                 {currentProduct.photos && currentProduct.photos.length > 0 && (

@@ -23,7 +23,7 @@ const Footer = React.memo(function Footer() {
                 <div className="flex md:flex-row flex-col md:items-center mx-4 my-2 mb-4 md:justify-around justify-center text-start text-sm text-gray-500 ">
                     <div className="">политика конфиденциальности</div>
                     <div className=" ">
-                        разработка и дизайн: <span className="font-bold font-blauer-nue text-pink-light">pink punk dev</span>
+                        разработка и дизайн: pink punk dev
                     </div>
                     <div> © 2025 All rights reserved.</div>
                 </div>
