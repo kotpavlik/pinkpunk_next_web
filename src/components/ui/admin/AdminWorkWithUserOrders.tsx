@@ -71,7 +71,7 @@ export const AdminWorkWithUserOrders = () => {
 
     return (
         <div className="min-h-screen flex flex-col p-4 pb-24">
-            <div className="max-w-4xl mx-auto flex flex-col w-full">
+            <div className=" mx-auto flex flex-col w-full">
                 <div className="mb-4 flex-shrink-0">
                     <h1 className="text-[var(--mint-bright)] text-2xl font-durik font-bold mb-2">Управление заказами</h1>
                     <p className="text-white/60 text-sm">

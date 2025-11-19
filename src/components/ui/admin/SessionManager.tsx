@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAdminLoginStore } from '@/zustand/admin_login_store/AdminLoginStore';
 import { useUserStore } from '@/zustand/user_store/UserStore';
 import { SessionInfo, AdminSessionData } from '@/api/AdminApi';
@@ -41,7 +41,7 @@ export const SessionManager: React.FC = () => {
         }
     }, [successMessage]);
 
-    const loadMySessions = async () => {
+    const loadMySessions = useCallback(async () => {
         setIsLoading(true);
         setErrorMessage('');
         try {
@@ -54,9 +54,9 @@ export const SessionManager: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [getSessions]);
 
-    const loadAllAdminSessions = async () => {
+    const loadAllAdminSessions = useCallback(async () => {
         if (!isOwner) return;
         setIsLoading(true);
         setErrorMessage('');
@@ -70,14 +70,14 @@ export const SessionManager: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [isOwner, getAllAdminSessions]);
 
     useEffect(() => {
         loadMySessions();
         if (isOwner) {
             loadAllAdminSessions();
         }
-    }, [isOwner]);
+    }, [isOwner, loadMySessions, loadAllAdminSessions]);
 
     useEffect(() => {
         if (viewMode === 'my-sessions') {
@@ -85,7 +85,7 @@ export const SessionManager: React.FC = () => {
         } else if (viewMode === 'all-sessions' && isOwner) {
             loadAllAdminSessions();
         }
-    }, [viewMode]);
+    }, [viewMode, isOwner, loadMySessions, loadAllAdminSessions]);
 
     const handleRevokeClick = (session: SessionInfo, userId?: number) => {
         setSelectedSession(session);
@@ -310,7 +310,7 @@ export const SessionManager: React.FC = () => {
                         Нет активных сессий
                     </p>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {mySessions.map((session) => {
                             const isCurrent = session.deviceId === currentDeviceId;
                             return (
@@ -377,7 +377,7 @@ export const SessionManager: React.FC = () => {
                                         — {admin.sessions.length} {admin.sessions.length === 1 ? 'сессия' : 'сессий'}
                                     </span>
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {admin.sessions.map((session) => {
                                         const isCurrent = session.deviceId === currentDeviceId;
                                         return (
