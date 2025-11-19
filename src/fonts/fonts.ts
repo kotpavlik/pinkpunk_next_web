@@ -11,6 +11,7 @@ export const durikFont = localFont({
   ],
   variable: '--font-durik',
   display: 'swap',
+  preload: true,
 })
 
 // Шрифт Blauer Nue с полным набором весов
@@ -104,6 +105,7 @@ export const blauerNueFont = localFont({
   ],
   variable: '--font-blauer-nue',
   display: 'swap',
+  preload: true,
 })
 
 // Шрифт CabinetGrotesk с разными весами
@@ -152,4 +154,5 @@ export const cabinetGroteskFont = localFont({
   ],
   variable: '--font-cabinet-grotesk',
   display: 'swap',
+  preload: true,
 })

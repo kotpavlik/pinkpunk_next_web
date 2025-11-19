@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import LoadingCatAnimation from '@/../public/animations/LoadingCat.json'
+import EmptyAnimation from '@/../public/animations/empty.json'
+import TelegramAnimation from '@/../public/animations/telegram.json'
+import AdminAnimation from '@/../public/animations/Admin.json'
+import OrderConfirmedAnimation from '@/../public/animations/YourOrderIsConfirmed.json'
+import ShoppingBagErrorAnimation from '@/../public/animations/ShoppingBag-error.json'
 
 interface LoaderProps {
     src?: string
@@ -12,6 +18,16 @@ interface LoaderProps {
     className?: string
     loop?: boolean
     autoplay?: boolean
+}
+
+// Маппинг путей на JSON объекты
+const animationMap: Record<string, unknown> = {
+    '/animations/LoadingCat.lottie': LoadingCatAnimation,
+    '/animations/empty.lottie': EmptyAnimation,
+    '/animations/telegram.lottie': TelegramAnimation,
+    '/animations/Admin.lottie': AdminAnimation,
+    '/animations/YourOrderIsConfirmed!.lottie': OrderConfirmedAnimation,
+    '/animations/ShoppingBag-error.lottie': ShoppingBagErrorAnimation,
 }
 
 export default function Loader({
@@ -25,22 +41,15 @@ export default function Loader({
     autoplay = true,
 }: LoaderProps) {
     const [hasError, setHasError] = useState(false)
+    const animationData = animationMap[src]
 
     useEffect(() => {
-        // Проверяем доступность файла
-        const checkFile = async () => {
-            try {
-                const response = await fetch(src, { method: 'HEAD' })
-                if (!response.ok) {
-                    setHasError(true)
-                }
-            } catch (error) {
-                console.error('Error loading animation:', error)
-                setHasError(true)
-            }
+        // Если анимация не найдена в маппинге, показываем ошибку
+        if (!animationData) {
+            console.error(`Animation not found for src: ${src}`)
+            setHasError(true)
         }
-        checkFile()
-    }, [src])
+    }, [src, animationData])
 
     const sizeClasses = {
         sm: 'w-full h-32',
@@ -89,7 +98,7 @@ export default function Loader({
                 <div className={`relative ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px', width: '100%' }}>
                     <div style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '200px', flexShrink: 0 }}>
                         <DotLottieReact
-                            src={src}
+                            data={animationData}
                             loop={loop}
                             autoplay={autoplay}
                             style={{

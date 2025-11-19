@@ -7,12 +7,15 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import AnimatedBurger from './AnimatedBurger'
 import TelegramLoginModal from '../shared/TelegramLoginModal'
+import CartModal from '../shared/CartModal'
 import { useUserStore } from '@/zustand/user_store/UserStore'
+import { useCartStore } from '@/zustand/cart_store/CartStore'
 
 
 export default function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+    const [isCartModalOpen, setIsCartModalOpen] = useState(false)
     const [logoWidth, setLogoWidth] = useState(0)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [lastScrollY, setLastScrollY] = useState(0)
@@ -20,12 +23,24 @@ export default function Header() {
     const [isMounted, setIsMounted] = useState(false)
     const logoRef = useRef<HTMLDivElement>(null)
     const { user } = useUserStore()
+    const { items, stats } = useCartStore()
     const router = useRouter()
+
+    // Вычисляем общее количество товаров в корзине
+    const totalItems = stats?.totalItems || items.reduce((sum, item) => sum + item.quantity, 0)
 
     // Отслеживаем монтирование компонента для предотвращения hydration mismatch
     useEffect(() => {
         setIsMounted(true)
     }, [])
+
+    // Загружаем корзину при авторизации пользователя
+    const { getCart } = useCartStore()
+    useEffect(() => {
+        if (user._id && isMounted) {
+            getCart(user._id)
+        }
+    }, [user._id, isMounted, getCart])
 
     // Сбрасываем ошибку изображения при изменении photoUrl или photo_url
     useEffect(() => {
@@ -217,11 +232,18 @@ export default function Header() {
                                     <UserIcon className="h-6 w-6" aria-hidden="true" />
                                 )}
                             </button>
-                            <Link href="/cart">
-                                <button className="inline-flex items-center justify-center  p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105">
-                                    <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
-                                </button>
-                            </Link>
+                            <button
+                                onClick={() => setIsCartModalOpen(true)}
+                                className="relative inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105"
+                                aria-label="Открыть корзину"
+                            >
+                                <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
+                                {totalItems > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 md:px-1.5 px-1 text-xs font-bold text-white bg-[var(--pink-punk)] rounded-full ">
+                                        {totalItems > 99 ? '99+' : totalItems}
+                                    </span>
+                                )}
+                            </button>
                         </div>
                     </div>
 
@@ -306,6 +328,12 @@ export default function Header() {
             <TelegramLoginModal
                 isOpen={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
+            />
+
+            {/* Cart Modal */}
+            <CartModal
+                isOpen={isCartModalOpen}
+                onClose={() => setIsCartModalOpen(false)}
             />
 
         </header>

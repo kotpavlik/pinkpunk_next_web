@@ -4,10 +4,35 @@ import BlurredText from './BlurredText'
 import MapSection from './MapSection'
 import MarqueeText from './MarqueeText'
 import { useScrollBlur } from '@/hooks/useScrollBlur'
-import React from 'react'
+import React, { useState, useRef } from 'react'
+import AdminLoginModal from '@/components/ui/admin/AdminLoginModal'
 
 const Footer = React.memo(function Footer() {
     const { blurStyles } = useScrollBlur()
+    const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
+    const clickCountRef = useRef(0)
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+    const handleSpanClick = () => {
+        // Сбрасываем предыдущий таймаут
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current)
+        }
+
+        // Увеличиваем счетчик
+        clickCountRef.current += 1
+
+        // Если достигли 5 кликов, открываем модалку
+        if (clickCountRef.current >= 5) {
+            setIsAdminModalOpen(true)
+            clickCountRef.current = 0
+        } else {
+            // Сбрасываем счетчик через 2 секунды
+            clickTimeoutRef.current = setTimeout(() => {
+                clickCountRef.current = 0
+            }, 2000)
+        }
+    }
 
     return (
         <footer className="w-full h-screen relative overflow-hidden">
@@ -23,12 +48,27 @@ const Footer = React.memo(function Footer() {
                 <div className="flex md:flex-row flex-col md:items-center mx-4 my-2 mb-4 md:justify-around justify-center text-start text-sm text-gray-500 ">
                     <div className="">политика конфиденциальности</div>
                     <div className=" ">
-                        разработка и дизайн: pink punk dev
+                        разработка и дизайн: <span
+                            className='cursor-default select-none'
+                            onClick={handleSpanClick}
+                        >
+                            pink punk dev
+                        </span>
                     </div>
                     <div> © 2025 All rights reserved.</div>
                 </div>
             </div>
 
+            {/* Модалка админской авторизации */}
+            {isAdminModalOpen && (
+                <AdminLoginModal
+                    isOpen={isAdminModalOpen}
+                    onClose={() => {
+                        setIsAdminModalOpen(false)
+                        clickCountRef.current = 0
+                    }}
+                />
+            )}
         </footer>
     )
 })

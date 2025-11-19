@@ -18,7 +18,7 @@ interface OrderState {
     // Данные
     orders: PinkPunkOrder[];              // Список заказов пользователя
     currentOrder: PinkPunkOrder | null;   // Текущий просматриваемый заказ
-    // allOrders: PinkPunkOrder[];           // Все заказы (для админа)
+    allOrders: PinkPunkOrder[];           // Все заказы (для админа)
 
     // Состояния загрузки
     isLoading: boolean;
@@ -48,16 +48,22 @@ interface OrderState {
     // Отменить заказ
     cancelOrder: (orderId: string) => Promise<boolean>;
 
+    // Обновить статус заказа
+    updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string) => Promise<boolean>;
+
+    // Удалить заказ
+    deleteOrder: (orderId: string) => Promise<boolean>;
+
     // ===== Админские действия =====
 
-    // // Получить все заказы
-    // getAllOrders: () => Promise<void>;
+    // Получить все заказы
+    getAllOrders: () => Promise<void>;
 
-    // // Получить заказы по статусу
-    // getOrdersByStatus: (status: OrderStatus) => Promise<void>;
+    // Получить заказы по статусу
+    getOrdersByStatus: (status: OrderStatus) => Promise<void>;
 
-    // // Получить заказы по username
-    // getOrdersByUsername: (username: string) => Promise<void>;
+    // Получить заказы по username
+    getOrdersByUsername: (username: string) => Promise<void>;
 
     // // Обновить статус заказа
     // updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string) => Promise<boolean>;
@@ -122,6 +128,10 @@ export const useOrderStore = create<OrderState>()(
 
         // ===== Получить заказы пользователя =====
         getUserOrders: async (userId: string) => {
+            console.log('🏪 OrderStore.getUserOrders вызван с userId:', userId)
+            console.log('🌐 Вызываем OrderApi.getUserOrders(userId)')
+            console.log('📡 API запрос: GET /orders/user/' + userId)
+
             set((state) => {
                 state.isLoading = true;
                 state.error = null;
@@ -129,12 +139,16 @@ export const useOrderStore = create<OrderState>()(
 
             try {
                 const orders = await OrderApi.getUserOrders(userId);
+                console.log('📦 OrderApi.getUserOrders вернул:', orders)
+                console.log('📊 Количество заказов:', orders.length)
 
                 set((state) => {
                     state.orders = orders;
                     state.isLoading = false;
                 });
+                console.log('✅ Заказы сохранены в store')
             } catch (error) {
+                console.error('❌ Ошибка в OrderStore.getUserOrders:', error)
                 const errorMessage = HandleError(error);
                 set((state) => {
                     state.error = errorMessage;
@@ -145,6 +159,10 @@ export const useOrderStore = create<OrderState>()(
 
         // ===== Получить мои заказы =====
         getMyOrders: async (userId: string) => {
+            console.log('🏪 OrderStore.getMyOrders вызван с userId:', userId)
+            console.log('🌐 Вызываем OrderApi.getMyOrders(userId)')
+            console.log('📡 API запрос: GET /orders/my/' + userId)
+
             set((state) => {
                 state.isLoading = true;
                 state.error = null;
@@ -152,12 +170,20 @@ export const useOrderStore = create<OrderState>()(
 
             try {
                 const orders = await OrderApi.getMyOrders(userId);
+                console.log('📦 OrderApi.getMyOrders вернул:', orders)
+                console.log('📊 Количество заказов:', orders.length)
+                console.log('📊 Тип orders:', typeof orders)
+                console.log('📊 Array.isArray(orders):', Array.isArray(orders))
 
                 set((state) => {
+                    console.log('💾 Сохраняем заказы в store. Старое количество:', state.orders.length)
                     state.orders = orders;
                     state.isLoading = false;
+                    console.log('💾 Новое количество заказов в store:', state.orders.length)
                 });
+                console.log('✅ Заказы сохранены в store')
             } catch (error) {
+                console.error('❌ Ошибка в OrderStore.getMyOrders:', error)
                 const errorMessage = HandleError(error);
                 set((state) => {
                     state.error = errorMessage;
@@ -257,155 +283,146 @@ export const useOrderStore = create<OrderState>()(
         // ===== АДМИНСКИЕ МЕТОДЫ =====
 
         // Получить все заказы
-        // getAllOrders: async () => {
-        //     set((state) => {
-        //         state.isLoading = true;
-        //         state.error = null;
-        //     });
+        getAllOrders: async () => {
+            set((state) => {
+                state.isLoading = true;
+                state.error = null;
+            });
 
-        //     try {
-        //         const orders = await OrderApi.getAllOrders();
+            try {
+                const orders = await OrderApi.getAllOrders();
 
-        //         set((state) => {
-        //             state.allOrders = orders;
-        //             state.isLoading = false;
-        //         });
-        //     } catch (error) {
-        //         const errorMessage = HandleError(error);
-        //         set((state) => {
-        //             state.error = errorMessage;
-        //             state.isLoading = false;
-        //         });
-        //     }
-        // },
+                set((state) => {
+                    state.allOrders = orders;
+                    state.isLoading = false;
+                });
+            } catch (error) {
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isLoading = false;
+                });
+            }
+        },
 
-        // // Получить заказы по статусу
-        // getOrdersByStatus: async (status: OrderStatus) => {
-        //     set((state) => {
-        //         state.isLoading = true;
-        //         state.error = null;
-        //     });
+        // Получить заказы по статусу
+        getOrdersByStatus: async (status: OrderStatus) => {
+            set((state) => {
+                state.isLoading = true;
+                state.error = null;
+            });
 
-        //     try {
-        //         const orders = await OrderApi.getOrdersByStatus(status);
+            try {
+                const orders = await OrderApi.getOrdersByStatus(status);
 
-        //         set((state) => {
-        //             state.allOrders = orders;
-        //             state.isLoading = false;
-        //         });
-        //     } catch (error) {
-        //         const errorMessage = HandleError(error);
-        //         set((state) => {
-        //             state.error = errorMessage;
-        //             state.isLoading = false;
-        //         });
-        //     }
-        // },
+                set((state) => {
+                    state.allOrders = orders;
+                    state.isLoading = false;
+                });
+            } catch (error) {
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isLoading = false;
+                });
+            }
+        },
 
-        // // Получить заказы по username
-        // getOrdersByUsername: async (username: string) => {
-        //     set((state) => {
-        //         state.isLoading = true;
-        //         state.error = null;
-        //     });
+        // Получить заказы по username
+        getOrdersByUsername: async (username: string) => {
+            set((state) => {
+                state.isLoading = true;
+                state.error = null;
+            });
 
-        //     try {
-        //         const orders = await OrderApi.getOrdersByUsername(username);
+            try {
+                const orders = await OrderApi.getOrdersByUsername(username);
 
-        //         set((state) => {
-        //             state.allOrders = orders;
-        //             state.isLoading = false;
-        //         });
-        //     } catch (error) {
-        //         const errorMessage = HandleError(error);
-        //         set((state) => {
-        //             state.error = errorMessage;
-        //             state.isLoading = false;
-        //         });
-        //     }
-        // },
+                set((state) => {
+                    state.allOrders = orders;
+                    state.isLoading = false;
+                });
+            } catch (error) {
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isLoading = false;
+                });
+            }
+        },
 
-        // // Обновить статус заказа
-        // updateOrderStatus: async (orderId: string, status: OrderStatus, trackingNumber?: string) => {
-        //     set((state) => {
-        //         state.isUpdating = true;
-        //         state.error = null;
-        //     });
+        // Обновить статус заказа
+        updateOrderStatus: async (orderId: string, status: OrderStatus, trackingNumber?: string) => {
+            set((state) => {
+                state.isUpdating = true;
+                state.error = null;
+            });
 
-        //     try {
-        //         const updatedOrder = await OrderApi.updateOrderStatus({
-        //             orderId,
-        //             status,
-        //             trackingNumber
-        //         });
+            try {
+                const updatedOrder = await OrderApi.updateOrderStatus({
+                    orderId,
+                    status,
+                    trackingNumber
+                });
 
-        //         set((state) => {
-        //             // Обновляем в allOrders
-        //             const adminIndex = state.allOrders.findIndex(o => o._id === orderId);
-        //             if (adminIndex !== -1) {
-        //                 state.allOrders[adminIndex] = updatedOrder;
-        //             }
+                set((state) => {
+                    // Обновляем в orders
+                    const userIndex = state.orders.findIndex(o => o._id === orderId);
+                    if (userIndex !== -1) {
+                        state.orders[userIndex] = updatedOrder;
+                    }
 
-        //             // Обновляем в orders
-        //             const userIndex = state.orders.findIndex(o => o._id === orderId);
-        //             if (userIndex !== -1) {
-        //                 state.orders[userIndex] = updatedOrder;
-        //             }
+                    // Обновляем текущий заказ
+                    if (state.currentOrder?._id === orderId) {
+                        state.currentOrder = updatedOrder;
+                    }
 
-        //             // Обновляем текущий заказ
-        //             if (state.currentOrder?._id === orderId) {
-        //                 state.currentOrder = updatedOrder;
-        //             }
+                    state.isUpdating = false;
+                });
 
-        //             state.isUpdating = false;
-        //         });
+                return true;
+            } catch (error) {
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isUpdating = false;
+                });
+                return false;
+            }
+        },
 
-        //         return true;
-        //     } catch (error) {
-        //         const errorMessage = HandleError(error);
-        //         set((state) => {
-        //             state.error = errorMessage;
-        //             state.isUpdating = false;
-        //         });
-        //         return false;
-        //     }
-        // },
+        // Удалить заказ
+        deleteOrder: async (orderId: string) => {
+            set((state) => {
+                state.isUpdating = true;
+                state.error = null;
+            });
 
-        // // Удалить заказ
-        // deleteOrder: async (orderId: string) => {
-        //     set((state) => {
-        //         state.isUpdating = true;
-        //         state.error = null;
-        //     });
+            try {
+                await OrderApi.deleteOrder(orderId);
 
-        //     try {
-        //         await OrderApi.deleteOrder(orderId);
+                set((state) => {
+                    // Удаляем из orders
+                    state.orders = state.orders.filter(o => o._id !== orderId);
 
-        //         set((state) => {
-        //             // Удаляем из allOrders
-        //             state.allOrders = state.allOrders.filter(o => o._id !== orderId);
+                    // Очищаем текущий заказ если он был удален
+                    if (state.currentOrder?._id === orderId) {
+                        state.currentOrder = null;
+                    }
 
-        //             // Удаляем из orders
-        //             state.orders = state.orders.filter(o => o._id !== orderId);
+                    state.isUpdating = false;
+                });
 
-        //             // Очищаем текущий заказ если он был удален
-        //             if (state.currentOrder?._id === orderId) {
-        //                 state.currentOrder = null;
-        //             }
-
-        //             state.isUpdating = false;
-        //         });
-
-        //         return true;
-        //     } catch (error) {
-        //         const errorMessage = HandleError(error);
-        //         set((state) => {
-        //             state.error = errorMessage;
-        //             state.isUpdating = false;
-        //         });
-        //         return false;
-        //     }
-        // },
+                return true;
+            } catch (error) {
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isUpdating = false;
+                });
+                return false;
+            }
+        },
 
         // ===== УТИЛИТЫ =====
 

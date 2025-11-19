@@ -5,13 +5,18 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
 import { useProductsStore } from '@/zustand/products_store/ProductsStore'
+import { useUserStore } from '@/zustand/user_store/UserStore'
+import { useCartStore } from '@/zustand/cart_store/CartStore'
 import Loader from '@/components/ui/shared/Loader'
+import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
 
 function ProductItemContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const productId = searchParams.get('id')
     const { currentProduct, getProductById } = useProductsStore()
+    const { user, isAuthenticated } = useUserStore()
+    const { addToCart, error: cartError, setError: setCartError } = useCartStore()
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [emblaRef, emblaApi] = useEmblaCarousel({
         axis: 'y',
@@ -26,6 +31,10 @@ function ProductItemContent() {
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
     const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
     const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+    const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
+    const [isAddingToCart, setIsAddingToCart] = useState(false)
+    const [showError, setShowError] = useState(false)
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -278,6 +287,88 @@ function ProductItemContent() {
         setLastDeltaY(0)
     }
 
+    // Автоматическое отображение ошибки из корзины
+    useEffect(() => {
+        if (cartError) {
+            setShowError(true)
+            const timer = setTimeout(() => {
+                setShowError(false)
+                setTimeout(() => setCartError(null), 300)
+            }, 5000) // Показываем ошибку 5 секунд
+            return () => clearTimeout(timer)
+        } else {
+            setShowError(false)
+        }
+    }, [cartError, setCartError])
+
+    // Обработка добавления товара после логина
+    useEffect(() => {
+        if (pendingProduct && user._id && isAuthenticated()) {
+            const handleAddToCart = async () => {
+                if (isAddingToCart) {
+                    return // Предотвращаем повторные нажатия
+                }
+
+                try {
+                    setIsAddingToCart(true)
+
+                    // Закрываем модалку логина
+                    setIsLoginModalOpen(false)
+
+                    // Небольшая задержка для закрытия модалки
+                    await new Promise(resolve => setTimeout(resolve, 300))
+
+                    if (!user._id) return
+
+                    await addToCart(user._id, pendingProduct.productId, pendingProduct.quantity)
+
+                    setPendingProduct(null)
+                } catch (error) {
+                    console.error('Ошибка при добавлении товара в корзину:', error)
+                } finally {
+                    setIsAddingToCart(false)
+                }
+            }
+            handleAddToCart()
+        }
+    }, [pendingProduct, user._id, isAuthenticated, addToCart, isAddingToCart])
+
+    const handleAddToCartClick = async (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+
+        if (!currentProduct) return
+
+        // Проверяем авторизацию
+        if (!user._id || !isAuthenticated()) {
+            // Сохраняем информацию о товаре для добавления после логина
+            setPendingProduct({
+                productId: currentProduct.productId,
+                quantity: 1
+            })
+            setIsLoginModalOpen(true)
+            return
+        }
+
+        if (isAddingToCart) {
+            return // Предотвращаем повторные нажатия
+        }
+
+        // Если авторизован, добавляем сразу
+        if (!user._id) return
+
+        try {
+            setIsAddingToCart(true)
+            await addToCart(user._id, currentProduct.productId, 1)
+        } catch (error) {
+            console.error('Ошибка при добавлении товара в корзину:', error)
+        } finally {
+            setIsAddingToCart(false)
+        }
+    }
+
     if (!productId) {
         return (
             <div className="relative md:max-w-[100vw] md:px-0 min-h-screen mb-20">
@@ -479,11 +570,14 @@ function ProductItemContent() {
                     {/* Кнопка добавления в корзину с ценой */}
                     <div className="pb-4 border-b border-white/10">
                         <button
+                            type="button"
+                            onClick={handleAddToCartClick}
                             className="w-full py-4 px-6 bg-[var(--mint-dark)] hover:bg-[var(--mint-dark)]/90 text-white font-blauer-nue font-bold text-lg rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
-                            disabled={currentProduct.stockQuantity === 0}
+                            disabled={currentProduct.stockQuantity === 0 || isAddingToCart}
+                            style={{ pointerEvents: 'auto', zIndex: 10 }}
                         >
                             <span>
-                                {currentProduct.stockQuantity > 0 ? 'Добавить в корзину' : 'Товар закончился'}
+                                {isAddingToCart ? 'Добавление...' : currentProduct.stockQuantity > 0 ? 'Добавить в корзину' : 'Товар закончился'}
                             </span>
                             <span className="flex items-baseline gap-2">
                                 <span className="text-2xl font-bold">
@@ -547,8 +641,16 @@ function ProductItemContent() {
             {/* Mobile fixed button - always visible */}
             <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
                 <div className="px-4 py-3" >
-                    <button className="w-full py-4 flex items-center justify-around bg-[var(--mint-dark)]/70 font-blauer-nue rounded-lg">
-                        <div className="text-white text-sm font-bold">Добавить в корзину</div>
+                    <button
+                        type="button"
+                        onClick={handleAddToCartClick}
+                        disabled={currentProduct.stockQuantity === 0 || isAddingToCart}
+                        className="w-full py-4 flex items-center justify-around bg-[var(--mint-dark)]/70 font-blauer-nue rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ pointerEvents: 'auto' }}
+                    >
+                        <div className="text-white text-sm font-bold">
+                            {isAddingToCart ? 'Добавление...' : currentProduct.stockQuantity > 0 ? 'Добавить в корзину' : 'Товар закончился'}
+                        </div>
                         <div className="text-white text-xl font-bold">
                             {currentProduct.price.toLocaleString('ru-RU')}
                             <span className="text-white ml-1 text-sm font-bold">BYN</span>
@@ -556,6 +658,78 @@ function ProductItemContent() {
                     </button>
                 </div>
             </div>
+
+            {/* Модалка логина */}
+            <TelegramLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => {
+                    setIsLoginModalOpen(false)
+                    // Если пользователь закрыл модалку без логина, очищаем pending продукт
+                    if (!isAuthenticated()) {
+                        setPendingProduct(null)
+                    }
+                }}
+            />
+
+            {/* Сообщение об ошибке */}
+            {cartError && showError && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none"
+                    style={{
+                        animation: showError ? 'fadeIn 0.3s ease-out' : 'fadeOut 0.3s ease-out'
+                    }}
+                >
+                    <div
+                        className="rounded-2xl p-6 shadow-2xl max-w-md mx-4 pointer-events-auto"
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            backdropFilter: 'blur(30px) saturate(180%)',
+                            WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                        }}
+                    >
+                        <div className="flex items-center justify-between gap-4">
+                            <p className="text-white font-blauer-nue font-medium text-center flex-1">{cartError}</p>
+                            <button
+                                className="text-white/70 hover:text-white transition-colors flex-shrink-0"
+                                onClick={() => {
+                                    setShowError(false)
+                                    setTimeout(() => setCartError(null), 300)
+                                }}
+                                aria-label="Закрыть"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style jsx global>{`
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @keyframes fadeOut {
+                    from {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateY(-20px);
+                    }
+                }
+            `}</style>
 
             {/* Mobile bottom sheet - pull to expand */}
             <div

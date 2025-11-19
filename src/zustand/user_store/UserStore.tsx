@@ -119,7 +119,8 @@ const getUserFromStorage = (): UserType | null => {
                 const user = JSON.parse(userData) as UserType;
                 // Восстанавливаем токен из отдельного хранилища
                 const token = getTokenFromStorage();
-                return { ...user, token: token || undefined };
+                // isAdmin не загружаем из localStorage, он должен приходить только с бэкенда
+                return { ...user, token: token || undefined, isAdmin: false };
             }
         } catch {
             // Ошибка загрузки данных пользователя
@@ -166,18 +167,12 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             setStatus("loading")
             const UserRequest = await UserApi.InitialUser(user)
 
-            // Сохраняем текущий isAdmin статус перед обновлением
-            const currentIsAdmin = currentUser.isAdmin
-
             set(state => {
                 state.user = UserRequest.data
-                // Восстанавливаем isAdmin статус если он был установлен
-                if (currentIsAdmin) {
-                    state.user.isAdmin = currentIsAdmin
-                }
-                // Если есть токен, проверяем его валидность для установки isAdmin
-                else if (state.user.token) {
-                    // Здесь можно добавить проверку токена, но пока просто логируем
+                // isAdmin устанавливается только из данных бэкенда
+                // Если бэкенд не вернул isAdmin, устанавливаем false
+                if (state.user.isAdmin === undefined) {
+                    state.user.isAdmin = false
                 }
                 // Сохраняем данные пользователя в localStorage
                 saveUserToStorage(state.user)
@@ -342,8 +337,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
 
                 // Обновляем UserStore напрямую с данными от бэкенда
                 // Не вызываем initialUser, так как данные уже получены от бэкенда
-                const { user: currentUser } = get()
-                const currentIsAdmin = currentUser.isAdmin
 
                 // Удаляем токены из данных пользователя перед сохранением
                 const userData = { ...response.data };
@@ -353,9 +346,10 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
 
                 set(state => {
                     state.user = userData
-                    // Восстанавливаем isAdmin статус если он был установлен
-                    if (currentIsAdmin) {
-                        state.user.isAdmin = currentIsAdmin
+                    // isAdmin устанавливается только из данных бэкенда
+                    // Если бэкенд не вернул isAdmin, устанавливаем false
+                    if (state.user.isAdmin === undefined) {
+                        state.user.isAdmin = false
                     }
                     // Сохраняем данные пользователя в localStorage
                     saveUserToStorage(state.user)

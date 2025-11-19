@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import TelegramAnimation from '@/../public/animations/telegram.json'
 import TelegramLoginWidget, { TelegramUser } from './TelegramLoginWidget'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useAppStore } from '@/zustand/app_store/AppStore'
@@ -114,7 +115,7 @@ export default function TelegramLoginModal({
                     <div className="w-40 h-40 ">
                         <div className="w-full h-full">
                             <DotLottieReact
-                                src="/animations/telegram.lottie"
+                                data={TelegramAnimation}
                                 loop={true}
                                 autoplay={true}
                                 style={{

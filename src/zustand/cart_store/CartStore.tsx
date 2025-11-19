@@ -26,8 +26,8 @@ export type CartStateType = {
     // Actions
     getCart: (userId: string) => Promise<void>;
     addToCart: (userId: string, productId: string, quantity: number) => Promise<boolean>;
-    updateCartItem: (userId: string, productId: string, quantity: number) => Promise<boolean>;
-    removeFromCart: (userId: string, productId: string) => Promise<boolean>;
+    updateCartItem: (userId: string, cartItemId: string, quantity: number) => Promise<boolean>;
+    removeFromCart: (userId: string, cartItemId: string) => Promise<boolean>;
     clearCart: (userId: string) => Promise<boolean>;
     getCartStats: (userId: string) => Promise<void>;
     syncCart: () => Promise<SyncCartResponse | null>;
@@ -114,13 +114,13 @@ export const useCartStore = create<CartStateType>()(
 
                 // Проверяем, если это ошибка недостатка товара на складе
                 if ('statusCode' in response && response.statusCode === 400) {
-                    console.log('⚠️ Недостаточно товара на складе:', response.message);
+                    const errorMessage = response.message || 'Недостаточно товара на складе';
                     set((state) => {
                         state.isLoading = false;
-                        state.error = null; // Не показываем ошибку пользователю
+                        state.error = errorMessage; // Показываем ошибку пользователю
                     });
                     setStatus("failed");
-                    return false; // Просто возвращаем false без показа ошибки
+                    return false;
                 }
 
                 // API возвращает полную корзину, обновляем состояние
@@ -183,13 +183,13 @@ export const useCartStore = create<CartStateType>()(
 
                 // Проверяем, если это ошибка недостатка товара на складе
                 if ('statusCode' in response && response.statusCode === 400) {
-                    console.log('⚠️ Недостаточно товара на складе:', response.message);
+                    const errorMessage = response.message || 'Недостаточно товара на складе';
                     set((state) => {
                         state.isLoading = false;
-                        state.error = null; // Не показываем ошибку пользователю
+                        state.error = errorMessage; // Показываем ошибку пользователю
                     });
                     setStatus("failed");
-                    return false; // Просто возвращаем false без показа ошибки
+                    return false;
                 }
 
                 // API возвращает полную корзину, обновляем состояние

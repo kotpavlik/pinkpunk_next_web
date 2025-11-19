@@ -114,18 +114,22 @@ export class OrderApi {
 
     // Получить заказы пользователя (для пользователя)
     static async getUserOrders(userId: string): Promise<ListOrdersResponse> {
+        console.log('🌐 OrderApi.getUserOrders - запрос к API')
+        console.log('   URL:', `/orders/user/${userId}`)
+        console.log('   Метод: GET')
         const { data: res } = await instance.get<ListOrdersResponse>(`/orders/user/${userId}`);
+        console.log('📥 OrderApi.getUserOrders - ответ от API:', res)
         return res;
     }
 
     // Обновление статуса заказа
-    // static async updateOrderStatus(data: UpdateOrderStatusRequest): Promise<UpdateOrderStatusResponse> {
-    //     const { data: res } = await instance.put<UpdateOrderStatusResponse>(
-    //         `/orders/${data.orderId}/status`,
-    //         { status: data.status, trackingNumber: data.trackingNumber }
-    //     );
-    //     return res;
-    // }
+    static async updateOrderStatus(data: UpdateOrderStatusRequest): Promise<UpdateOrderStatusResponse> {
+        const { data: res } = await instance.put<UpdateOrderStatusResponse>(
+            `/orders/${data.orderId}/status`,
+            { status: data.status, trackingNumber: data.trackingNumber }
+        );
+        return res;
+    }
 
     // Отмена заказа
     static async cancelOrder(orderId: string): Promise<UpdateOrderStatusResponse> {
@@ -133,21 +137,21 @@ export class OrderApi {
         return res;
     }
 
-    // ===== Админские методы (отключено) =====
-    // static async getAllOrders(): Promise<ListOrdersResponse> {
-    //     const { data: res } = await instance.get<ListOrdersResponse>(`/orders`);
-    //     return res;
-    // }
+    // ===== Админские методы =====
+    static async getAllOrders(): Promise<ListOrdersResponse> {
+        const { data: res } = await instance.get<ListOrdersResponse>(`/orders`);
+        return res;
+    }
 
-    // static async getOrdersByStatus(status: OrderStatus): Promise<ListOrdersResponse> {
-    //     const { data: res } = await instance.get<ListOrdersResponse>(`/orders/status/${status}`);
-    //     return res;
-    // }
+    static async getOrdersByStatus(status: OrderStatus): Promise<ListOrdersResponse> {
+        const { data: res } = await instance.get<ListOrdersResponse>(`/orders/status/${status}`);
+        return res;
+    }
 
-    // static async getOrdersByUsername(username: string): Promise<ListOrdersResponse> {
-    //     const { data: res } = await instance.get<ListOrdersResponse>(`/orders/admin/search/username`, { params: { username } });
-    //     return res;
-    // }
+    static async getOrdersByUsername(username: string): Promise<ListOrdersResponse> {
+        const { data: res } = await instance.get<ListOrdersResponse>(`/orders/admin/search/username`, { params: { username } });
+        return res;
+    }
 
     static async getOrderByNumber(orderNumber: string): Promise<GetOrderResponse> {
         const { data: res } = await instance.get<GetOrderResponse>(`/orders/number/${orderNumber}`);
@@ -155,12 +159,36 @@ export class OrderApi {
     }
 
     static async getMyOrders(userId: string): Promise<ListOrdersResponse> {
-        const { data: res } = await instance.get<ListOrdersResponse>(`/orders/my/${userId}`);
-        return res;
+        console.log('🌐 OrderApi.getMyOrders - запрос к API')
+        console.log('   URL:', `/orders/my/${userId}`)
+        console.log('   Метод: GET')
+        console.log('   userId:', userId)
+        const response = await instance.get<ListOrdersResponse>(`/orders/my/${userId}`);
+        console.log('📥 OrderApi.getMyOrders - полный ответ:', response)
+        console.log('📥 OrderApi.getMyOrders - response.data:', response.data)
+        console.log('📥 OrderApi.getMyOrders - тип response.data:', typeof response.data)
+        console.log('📥 OrderApi.getMyOrders - Array.isArray(response.data):', Array.isArray(response.data))
+        
+        // Проверяем, если ответ обёрнут в объект
+        let orders: ListOrdersResponse;
+        if (Array.isArray(response.data)) {
+            orders = response.data;
+        } else if (response.data && Array.isArray((response.data as any).orders)) {
+            orders = (response.data as any).orders;
+        } else if (response.data && Array.isArray((response.data as any).data)) {
+            orders = (response.data as any).data;
+        } else {
+            console.warn('⚠️ Неожиданная структура ответа:', response.data)
+            orders = [];
+        }
+        
+        console.log('📦 OrderApi.getMyOrders - итоговые заказы:', orders)
+        console.log('📊 OrderApi.getMyOrders - количество заказов:', orders.length)
+        return orders;
     }
 
-    // static async deleteOrder(orderId: string): Promise<DeleteOrderResponse> {
-    //     const { data: res } = await instance.delete<DeleteOrderResponse>(`/orders/${orderId}`);
-    //     return res;
-    // }
+    static async deleteOrder(orderId: string): Promise<DeleteOrderResponse> {
+        const { data: res } = await instance.delete<DeleteOrderResponse>(`/orders/${orderId}`);
+        return res;
+    }
 }

@@ -249,6 +249,34 @@ class TokenManager {
         }
         return localStorage.getItem(REFRESH_TOKEN_KEY);
     }
+
+    /**
+     * Получает deviceId (алиас для getOrCreateDeviceId)
+     */
+    getDeviceId(): string {
+        return this.getOrCreateDeviceId();
+    }
+
+    /**
+     * Получает информацию об устройстве
+     */
+    getDeviceInfo(): string {
+        if (typeof window === 'undefined') {
+            return 'Unknown';
+        }
+        return navigator.userAgent || 'Unknown';
+    }
+
+    /**
+     * Сохраняет токены (алиас для saveTokens с другим форматом)
+     */
+    setTokens(accessToken: string, refreshToken: string, expiresIn?: number): void {
+        this.saveTokens({
+            accessToken,
+            refreshToken,
+            expiresIn: expiresIn || 3600 // По умолчанию 1 час
+        });
+    }
 }
 
 // Экспорт singleton

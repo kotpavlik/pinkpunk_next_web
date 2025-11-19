@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import * as yup from 'yup'
 import { useUserStore, ShippingAddress } from '@/zustand/user_store/UserStore'
+import Loader from './Loader'
 
 interface ContactInfoModalProps {
     isOpen: boolean
@@ -481,6 +482,12 @@ export default function ContactInfoModal({
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
+                {/* Loader поверх контента при сохранении */}
+                {loading && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl">
+                        <Loader fullScreen showText />
+                    </div>
+                )}
                 {/* Фиксированный заголовок и кнопка закрытия */}
                 <div className="flex-shrink-0 p-6  ">
                     {/* Кнопка закрытия */}
@@ -511,6 +518,7 @@ export default function ContactInfoModal({
                                 <label htmlFor="phoneNumber" className="block text-sm font-medium text-white/80 mb-2">
                                     Номер телефона *
                                 </label>
+                                <div className="relative">
                                 <input
                                     type="tel"
                                     id="phoneNumber"
@@ -525,8 +533,11 @@ export default function ContactInfoModal({
                                     disabled={loading}
                                 />
                                 {phoneNumberError && (
-                                    <p className="mt-1 text-sm text-red-400">{phoneNumberError}</p>
+                                        <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                            {phoneNumberError}
+                                        </p>
                                 )}
+                                </div>
                             </div>
                         ) : (
                             <>
@@ -534,6 +545,7 @@ export default function ContactInfoModal({
                                     <label htmlFor="fullName" className="block text-sm font-medium text-white/80 mb-2">
                                         ФИО *
                                     </label>
+                                    <div className="relative">
                                     <input
                                         type="text"
                                         id="fullName"
@@ -548,13 +560,17 @@ export default function ContactInfoModal({
                                         disabled={loading}
                                     />
                                     {fullNameError && (
-                                        <p className="mt-1 text-sm text-red-400">{fullNameError}</p>
+                                            <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {fullNameError}
+                                            </p>
                                     )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label htmlFor="phone" className="block text-sm font-medium text-white/80 mb-2">
                                         Телефон *
                                     </label>
+                                    <div className="relative">
                                     <input
                                         type="tel"
                                         id="phone"
@@ -569,13 +585,17 @@ export default function ContactInfoModal({
                                         disabled={loading}
                                     />
                                     {phoneError && (
-                                        <p className="mt-1 text-sm text-red-400">{phoneError}</p>
+                                            <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {phoneError}
+                                            </p>
                                     )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
                                         Адрес *
                                     </label>
+                                    <div className="relative">
                                     <input
                                         type="text"
                                         id="address"
@@ -590,14 +610,18 @@ export default function ContactInfoModal({
                                         disabled={loading}
                                     />
                                     {addressError && (
-                                        <p className="mt-1 text-sm text-red-400">{addressError}</p>
+                                            <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {addressError}
+                                            </p>
                                     )}
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="city" className="block text-sm font-medium text-white/80 mb-2">
                                             Город *
                                         </label>
+                                        <div className="relative">
                                         <input
                                             type="text"
                                             id="city"
@@ -612,13 +636,17 @@ export default function ContactInfoModal({
                                             disabled={loading}
                                         />
                                         {cityError && (
-                                            <p className="mt-1 text-sm text-red-400">{cityError}</p>
+                                                <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {cityError}
+                                                </p>
                                         )}
+                                        </div>
                                     </div>
                                     <div>
                                         <label htmlFor="postalCode" className="block text-sm font-medium text-white/80 mb-2">
                                             Индекс *
                                         </label>
+                                        <div className="relative">
                                         <input
                                             type="text"
                                             id="postalCode"
@@ -633,14 +661,18 @@ export default function ContactInfoModal({
                                             disabled={loading}
                                         />
                                         {postalCodeError && (
-                                            <p className="mt-1 text-sm text-red-400">{postalCodeError}</p>
+                                                <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {postalCodeError}
+                                                </p>
                                         )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div>
                                     <label htmlFor="country" className="block text-sm font-medium text-white/80 mb-2">
                                         Страна *
                                     </label>
+                                    <div className="relative">
                                     <input
                                         type="text"
                                         id="country"
@@ -655,8 +687,11 @@ export default function ContactInfoModal({
                                         disabled={loading}
                                     />
                                     {countryError && (
-                                        <p className="mt-1 text-sm text-red-400">{countryError}</p>
+                                            <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {countryError}
+                                            </p>
                                     )}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
@@ -667,11 +702,12 @@ export default function ContactInfoModal({
                                             {notes.length}/500
                                         </span>
                                     </div>
+                                    <div className="relative">
                                     <textarea
                                         id="notes"
                                         value={notes}
                                         onChange={handleNotesChange}
-                                        placeholder="Например: Позвонить перед доставкой"
+                                        placeholder="Например: Нужна доставка на Европочту или СДЕК"
                                         rows={3}
                                         className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none transition-all resize-none ${notesError
                                             ? 'border-red-500 focus:ring-2 focus:ring-red-500'
@@ -680,8 +716,11 @@ export default function ContactInfoModal({
                                         disabled={loading}
                                     />
                                     {notesError && (
-                                        <p className="mt-1 text-sm text-red-400">{notesError}</p>
+                                            <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {notesError}
+                                            </p>
                                     )}
+                                    </div>
                                 </div>
                             </>
                         )}
