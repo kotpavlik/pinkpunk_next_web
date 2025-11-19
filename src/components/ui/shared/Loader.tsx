@@ -21,7 +21,7 @@ interface LoaderProps {
 }
 
 // Маппинг путей на JSON объекты
-const animationMap: Record<string, unknown> = {
+const animationMap: Record<string, object> = {
     '/animations/LoadingCat.lottie': LoadingCatAnimation,
     '/animations/empty.lottie': EmptyAnimation,
     '/animations/telegram.lottie': TelegramAnimation,
@@ -98,7 +98,7 @@ export default function Loader({
                 <div className={`relative ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px', width: '100%' }}>
                     <div style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '200px', flexShrink: 0 }}>
                         <DotLottieReact
-                            data={animationData}
+                            data={animationData as Parameters<typeof DotLottieReact>[0]['data']}
                             loop={loop}
                             autoplay={autoplay}
                             style={{

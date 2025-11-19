@@ -9,10 +9,9 @@ interface PhotoSliderProps {
         src: string;
         alt: string;
     }[];
-    className?: string;
 }
 
-export default function PhotoSlider({ photos, className }: PhotoSliderProps) {
+export default function PhotoSlider({ photos }: PhotoSliderProps) {
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: true,
         // Основные опции скролла:

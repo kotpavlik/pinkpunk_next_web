@@ -7,11 +7,11 @@ import { useAppStore } from '@/zustand/app_store/AppStore'
 interface LoginFormProps {
     _id: string
     userId: string | null
-    username: string
+    username?: string
     onSuccess?: () => void
 }
 
-export default function LoginForm({ _id, userId, username, onSuccess }: LoginFormProps) {
+export default function LoginForm({ _id, userId, username = '', onSuccess }: LoginFormProps) {
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const { loginAdmin } = useAdminLoginStore()

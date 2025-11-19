@@ -113,8 +113,9 @@ export default function OrderPage() {
 
     // Очищаем таймер при размонтировании компонента
     useEffect(() => {
+        const timeoutRef = successModalTimeoutRef
         return () => {
-            const timeoutId = successModalTimeoutRef.current
+            const timeoutId = timeoutRef.current
             if (timeoutId) {
                 clearTimeout(timeoutId)
             }

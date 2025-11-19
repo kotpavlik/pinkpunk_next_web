@@ -170,13 +170,20 @@ export class OrderApi {
         console.log('📥 OrderApi.getMyOrders - Array.isArray(response.data):', Array.isArray(response.data))
         
         // Проверяем, если ответ обёрнут в объект
+        type ResponseWrapper = { orders?: ListOrdersResponse; data?: ListOrdersResponse };
         let orders: ListOrdersResponse;
         if (Array.isArray(response.data)) {
             orders = response.data;
-        } else if (response.data && Array.isArray((response.data as any).orders)) {
-            orders = (response.data as any).orders;
-        } else if (response.data && Array.isArray((response.data as any).data)) {
-            orders = (response.data as any).data;
+        } else if (response.data && typeof response.data === 'object') {
+            const wrapped = response.data as ResponseWrapper;
+            if ('orders' in wrapped && Array.isArray(wrapped.orders)) {
+                orders = wrapped.orders;
+            } else if ('data' in wrapped && Array.isArray(wrapped.data)) {
+                orders = wrapped.data;
+            } else {
+                console.warn('⚠️ Неожиданная структура ответа:', response.data)
+                orders = [];
+            }
         } else {
             console.warn('⚠️ Неожиданная структура ответа:', response.data)
             orders = [];

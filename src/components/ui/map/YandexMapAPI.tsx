@@ -53,7 +53,7 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                 : `https://api-maps.yandex.ru/v3/?lang=ru_RU`
             script.async = true
 
-            script.onerror = (error) => {
+            script.onerror = () => {
                 // Ошибка загрузки скрипта
             }
 
@@ -174,7 +174,7 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                 if (mapInstance.current && typeof mapInstance.current === 'object' && 'addChild' in mapInstance.current) {
                     (mapInstance.current as { addChild: (child: unknown) => void }).addChild(customMarker)
                 }
-            } catch (error) {
+            } catch {
                 // Ошибка создания карты
             }
         }

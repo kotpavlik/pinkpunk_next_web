@@ -52,8 +52,12 @@ const AdminLogin = () => {
                         Выйти
                     </button>
                 </div>
+            ) : userData._id ? (
+                <LoginForm _id={userData._id} userId={userData.userId !== null ? String(userData.userId) : null} username={userData.username} />
             ) : (
-                <LoginForm _id={userData._id} userId={userData.userId} username={userData.username} />
+                <div className="text-center text-white/60">
+                    Необходимо авторизоваться через Telegram
+                </div>
             )}
         </div>
     )
