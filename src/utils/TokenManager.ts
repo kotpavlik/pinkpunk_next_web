@@ -56,6 +56,7 @@ class TokenManager {
         // Возвращаем функцию для отписки
         return () => this.eventListeners.delete(listener);
     }
+    
 
     /**
      * Отправляет событие всем подписчикам
