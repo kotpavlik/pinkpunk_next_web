@@ -1,6 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenManager } from "@/utils/TokenManager";
-import { useUserStore } from "@/zustand/user_store/UserStore";
 
 export const instance = axios.create({
     baseURL: process.env.NEXT_PUBLIC_BASE_URL || 'https://pinkpunknestbot-production.up.railway.app',

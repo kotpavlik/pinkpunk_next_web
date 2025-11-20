@@ -1,0 +1,60 @@
+# robots.txt для Pink Punk - Белорусский бренд оверсайз одежды
+
+# Разрешаем всем поисковым роботам индексировать сайт
+User-agent: *
+Allow: /
+Allow: /catalog
+Allow: /product_item
+Allow: /pinkpunkabout
+Allow: /delivery
+Allow: /exchange_and_return
+Allow: /composition_and_care
+Allow: /gift_certificate
+
+# Запрещаем индексацию административных и приватных страниц
+Disallow: /admin
+Disallow: /api/
+Disallow: /user_profile
+Disallow: /order
+Disallow: /_next/
+Disallow: /static/
+
+# Специальные правила для Google
+User-agent: Googlebot
+Allow: /
+Allow: /catalog
+Allow: /product_item
+Disallow: /admin
+Disallow: /api/
+Disallow: /user_profile
+Disallow: /order
+Crawl-delay: 0
+
+# Специальные правила для Yandex (важно для Беларуси)
+User-agent: Yandex
+Allow: /
+Allow: /catalog
+Allow: /product_item
+Disallow: /admin
+Disallow: /api/
+Disallow: /user_profile
+Disallow: /order
+Crawl-delay: 0
+
+# Специальные правила для Bing
+User-agent: Bingbot
+Allow: /
+Allow: /catalog
+Allow: /product_item
+Disallow: /admin
+Disallow: /api/
+Disallow: /user_profile
+Disallow: /order
+Crawl-delay: 0
+
+# Sitemap
+Sitemap: https://pinkpunk.by/sitemap.xml
+
+# Host (для Yandex)
+Host: https://pinkpunk.by
+

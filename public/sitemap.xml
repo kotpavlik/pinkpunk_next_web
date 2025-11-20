@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <!-- Главная страница - ВЫСОКИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pinkpunk.by/" />
+  </url>
+  
+  <!-- Каталог - ВЫСОКИЙ ПРИОРИТЕТ (основная страница для SEO) -->
+  <url>
+    <loc>https://pinkpunk.by/catalog</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/catalog" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/catalog" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/catalog" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pinkpunk.by/catalog" />
+  </url>
+  
+  <!-- О нас - СРЕДНИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/pinkpunkabout</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/pinkpunkabout" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/pinkpunkabout" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/pinkpunkabout" />
+  </url>
+  
+  <!-- Доставка - СРЕДНИЙ ПРИОРИТЕТ (важно для конверсии) -->
+  <url>
+    <loc>https://pinkpunk.by/delivery</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/delivery" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/delivery" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/delivery" />
+  </url>
+  
+  <!-- Обмен и возврат - СРЕДНИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/exchange_and_return</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/exchange_and_return" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/exchange_and_return" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/exchange_and_return" />
+  </url>
+  
+  <!-- Состав и уход - СРЕДНИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/composition_and_care</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/composition_and_care" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/composition_and_care" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/composition_and_care" />
+  </url>
+  
+  <!-- Подарочный сертификат - СРЕДНИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/gift_certificate</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/gift_certificate" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/gift_certificate" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/gift_certificate" />
+  </url>
+  
+  <!-- Реквизиты - НИЗКИЙ ПРИОРИТЕТ -->
+  <url>
+    <loc>https://pinkpunk.by/company_registration_details</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ru-BY" href="https://pinkpunk.by/company_registration_details" />
+    <xhtml:link rel="alternate" hreflang="ru-RU" href="https://pinkpunk.by/company_registration_details" />
+    <xhtml:link rel="alternate" hreflang="be-BY" href="https://pinkpunk.by/company_registration_details" />
+  </url>
+  
+  <!-- Оформление заказа - НИЗКИЙ ПРИОРИТЕТ (не индексируем) -->
+  <url>
+    <loc>https://pinkpunk.by/order</loc>
+    <lastmod>2025-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <!-- Профиль пользователя - НЕ ИНДЕКСИРУЕМ -->
+  <!-- user_profile не добавляем в sitemap - это приватная страница -->
+  
+</urlset>
