@@ -101,21 +101,25 @@ class TokenManager {
 
         try {
             const expiresAt = Date.now() + data.expiresIn * 1000;
+            const timeUntilExpiry = Math.round((expiresAt - Date.now()) / 1000 / 60);
 
             localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
             localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
             localStorage.setItem(EXPIRES_IN_KEY, String(data.expiresIn));
             localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
 
+            console.log('💾 Tokens saved successfully');
+            console.log('  - Access token (first 20):', data.accessToken.substring(0, 20) + '...');
+            console.log('  - Time until expiry:', timeUntilExpiry, 'minutes');
+            console.log('  - Will refresh at:', new Date(expiresAt - TOKEN_REFRESH_BUFFER).toLocaleTimeString());
+
             // Сбрасываем счетчик retry при успешном сохранении
             this.retryCount = 0;
 
             // Запускаем фоновое обновление
             this.startBackgroundRefresh();
-
-            console.log('💾 Tokens saved successfully');
         } catch (error) {
-            console.error('Error saving tokens:', error);
+            console.error('❌ Error saving tokens:', error);
         }
     }
 
@@ -355,7 +359,15 @@ class TokenManager {
             }
 
             const data = await response.json();
+            
+            console.log('✅ Refresh successful, saving new tokens');
+            console.log('  - New access token (first 20 chars):', data.accessToken.substring(0, 20));
+            console.log('  - Expires in:', data.expiresIn, 'seconds');
+            
             this.saveTokens(data);
+            
+            console.log('💾 New tokens saved to localStorage');
+            
             return data.accessToken;
         } catch (error) {
             // Если это сетевая ошибка (нет интернета и т.д.), НЕ очищаем токены

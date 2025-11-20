@@ -16,8 +16,13 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
 
     // Функция проверки статуса админа
     const checkAdminStatus = useCallback(async () => {
-        const accessToken = tokenManager.getAccessTokenSync();
+        // Используем getAccessToken() вместо getAccessTokenSync()
+        // это позволит автоматически обновить токен при необходимости
+        const accessToken = await tokenManager.getAccessToken();
+
         if (!accessToken) {
+            // Токена нет даже после попытки refresh
+            console.log('🚫 No access token available after refresh attempt');
             useUserStore.getState().setAdminStatus(false);
             router.push('/');
             return;
@@ -27,18 +32,23 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
             // Добавляем таймаут для validateToken
             const validatePromise = AdminApi.validateToken();
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Validate timeout')), 5000)
+                setTimeout(() => reject(new Error('Validate timeout')), 10000) // Увеличили до 10 сек
             );
 
             const response = await Promise.race([validatePromise, timeoutPromise]) as Awaited<ReturnType<typeof AdminApi.validateToken>>;
+
             if (response.data.valid) {
                 const userData = response.data.user as { isAdmin?: boolean, owner?: boolean };
                 const isAdminFromBackend = userData?.isAdmin || false;
                 const isOwnerFromBackend = userData?.owner || false;
+
+                console.log('✅ Admin validation successful:', { isAdmin: isAdminFromBackend, isOwner: isOwnerFromBackend });
+
                 useUserStore.getState().setAdminStatus(isAdminFromBackend);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(isOwnerFromBackend);
             } else {
+                console.log('❌ Admin validation failed: token invalid');
                 useUserStore.getState().setAdminStatus(false);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(false);
@@ -47,7 +57,12 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
             }
         } catch (error: unknown) {
             const axiosError = error as { response?: { status: number } };
+
+            console.error('⚠️ Admin validation error:', axiosError.response?.status || error);
+
             if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
+                // Критическая ошибка авторизации
+                console.log('🚨 Critical auth error, clearing tokens');
                 useUserStore.getState().setAdminStatus(false);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(false);
@@ -55,6 +70,9 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
                 router.push('/');
             } else if (axiosError.response?.status === 404) {
                 useUserStore.getState().setAdminStatus(false);
+            } else {
+                // Другие ошибки (сеть, таймаут) - не выкидываем пользователя
+                console.log('⚠️ Temporary error, keeping user logged in');
             }
         }
     }, [router]);
@@ -64,13 +82,14 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
         checkAdminStatus();
     }, [checkAdminStatus]);
 
-    // 2. Периодическая проверка каждые 30 секунд (только для админов)
+    // 2. Периодическая проверка каждые 5 минут (только для админов)
+    // Не нужно проверять слишком часто - токен обновляется автоматически
     useEffect(() => {
         if (!isAdmin) return;
 
         const interval = setInterval(() => {
             checkAdminStatus();
-        }, 30000); // 30 секунд
+        }, 300000); // 5 минут
 
         return () => clearInterval(interval);
     }, [isAdmin, checkAdminStatus]);
@@ -99,32 +118,9 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
         return () => window.removeEventListener('focus', handleFocus);
     }, [isAdmin, checkAdminStatus]);
 
-    // 5. Проверка при активности пользователя (клики, скролл) - debounced
-    useEffect(() => {
-        if (!isAdmin) return;
-
-        let timeoutId: NodeJS.Timeout;
-
-        const debouncedCheck = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                checkAdminStatus();
-            }, 2000); // 2 секунды задержки
-        };
-
-        const events = ['click', 'scroll', 'keydown'];
-
-        events.forEach(event => {
-            document.addEventListener(event, debouncedCheck, { passive: true });
-        });
-
-        return () => {
-            clearTimeout(timeoutId);
-            events.forEach(event => {
-                document.removeEventListener(event, debouncedCheck);
-            });
-        };
-    }, [isAdmin, checkAdminStatus]);
+    // 5. УБРАНО: Проверка при активности пользователя (клики, скролл)
+    // Это слишком агрессивно и вызывает race conditions с обновлением токенов
+    // TokenManager автоматически обновляет токены в фоне, дополнительные проверки не нужны
 
     return <>{children}</>;
 };

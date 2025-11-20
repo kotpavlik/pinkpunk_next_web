@@ -100,19 +100,29 @@ export const useAdminLoginStore = create<AdminLoginType>()(
         },
 
         validateToken: async (): Promise<boolean> => {
+            console.log('🔍 Starting token validation...');
 
             // Check both legacy token and new token system
             const { token } = useUserStore.getState().user
             const hasNewTokens = tokenManager.isAuthenticated()
 
-
             if (!token && !hasNewTokens) {
+                console.log('❌ No tokens available');
                 return false
             }
 
             set(state => { state.isCheckingToken = true })
 
             try {
+                // Получаем токен с автоматическим refresh если нужно
+                const currentAccessToken = await tokenManager.getAccessToken();
+                
+                if (!currentAccessToken && !token) {
+                    console.log('❌ Failed to get valid access token');
+                    return false;
+                }
+
+                console.log('📡 Sending validation request to backend...');
                 const response = await AdminApi.validateToken()
 
                 // Check if response contains valid: true
@@ -121,10 +131,10 @@ export const useAdminLoginStore = create<AdminLoginType>()(
                     setAdminStatus(true)
 
                     // Update local store with current access token
-                    const currentAccessToken = tokenManager.getAccessTokenSync() || token || ''
-                    set(state => { state.token = currentAccessToken })
+                    const finalToken = currentAccessToken || token || ''
+                    set(state => { state.token = finalToken })
 
-                    console.log('👑 Admin status set to true after validation')
+                    console.log('✅ Admin status set to true after validation')
                     return true
                 } else {
                     console.log('❌ Token validation returned invalid')
@@ -136,21 +146,25 @@ export const useAdminLoginStore = create<AdminLoginType>()(
                 const errorResponse = (error as { response?: { status?: number; data?: unknown } })?.response
 
                 console.log('❌ Token validation failed:')
-                console.log('📝 Error message:', errorMessage)
-                console.log('📝 Error response:', errorResponse?.data)
-                console.log('📝 Error status:', errorResponse?.status)
+                console.log('  - Error message:', errorMessage)
+                console.log('  - Error status:', errorResponse?.status)
+                console.log('  - Error data:', errorResponse?.data)
 
                 // Check if this is a 401 error (invalid token)
                 if (errorResponse?.status === 401) {
-                    console.log('🚫 Token is invalid or expired, clearing authentication')
+                    console.log('🚫 Token is invalid or expired (401), clearing authentication')
+                    
+                    // Clear all tokens
+                    tokenManager.clearTokens()
+                    const { clearToken, setAdminStatus } = useUserStore.getState()
+                    clearToken()
+                    setAdminStatus(false)
+                    set(state => { state.token = '' })
+                } else {
+                    // Для других ошибок (сеть, таймаут) не очищаем токены
+                    console.log('⚠️ Non-401 error, keeping tokens (might be temporary)');
                 }
-
-                // Clear all tokens
-                tokenManager.clearTokens()
-                const { clearToken, setAdminStatus } = useUserStore.getState()
-                clearToken()
-                setAdminStatus(false)
-                set(state => { state.token = '' })
+                
                 return false
             } finally {
                 set(state => { state.isCheckingToken = false })
