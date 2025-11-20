@@ -49,26 +49,17 @@ export default function TokenEventHandler() {
 
         switch (event) {
             case 'TOKEN_REFRESHED':
-                return {
-                    id,
-                    type: event,
-                    severity: 'info',
-                    title: 'Сессия обновлена',
-                    message: 'Ваша сессия была автоматически продлена',
-                    showRelogin: false
-                }
+                // Не показываем уведомление - это должно происходить незаметно для пользователя
+                console.log('✅ Token refreshed silently');
+                return null;
 
             case 'TOKEN_REFRESH_FAILED':
-                return {
-                    id,
-                    type: event,
-                    severity: 'warning',
-                    title: 'Проблема с подключением',
-                    message: 'Не удалось обновить сессию, повторяем попытку...',
-                    showRelogin: false
-                }
+                // Тоже не показываем - система сама retry сделает
+                console.log('⚠️ Token refresh failed, retrying...');
+                return null;
 
             case 'NETWORK_ERROR':
+                // Показываем только при длительных проблемах
                 return {
                     id,
                     type: event,

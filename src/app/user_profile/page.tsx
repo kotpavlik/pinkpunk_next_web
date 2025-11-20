@@ -31,53 +31,64 @@ export default function UserProfile() {
     useEffect(() => {
         const checkAndRefreshTokens = async () => {
             setIsCheckingToken(true)
+
+            console.log('🔍 User profile: checking tokens...');
+
             try {
-                // Проверяем, есть ли токены
-                if (!tokenManager.isAuthenticated()) {
-                    // Если токенов нет, но есть user.userId, значит данные в localStorage устарели
-                    if (user.userId) {
-                        setIsLoginModalOpen(true)
-                    } else {
-                        router.push('/')
-                    }
-                    setIsCheckingToken(false)
+                // Если пользователь не авторизован, перенаправляем на главную
+                if (!user.userId) {
+                    console.log('❌ No userId, redirecting to home');
+                    router.push('/')
                     return
                 }
 
-                // Проверяем, истек ли токен или скоро истечет
-                if (tokenManager.isAccessTokenExpired()) {
-                    // Пытаемся обновить токен автоматически
-                    try {
-                        const newToken = await tokenManager.getAccessToken()
-                        if (!newToken) {
-                            // Если не удалось обновить, показываем модалку авторизации
-                            setIsLoginModalOpen(true)
-                        }
-                    } catch {
-                        // Ошибка при обновлении токена - показываем модалку
-                        setIsLoginModalOpen(true)
-                    }
-                } else {
-                    // Токен валиден, просто получаем его для проверки
-                    await tokenManager.getAccessToken()
+                // Проверяем наличие токенов (accessToken или refreshToken)
+                const hasTokens = tokenManager.isAuthenticated();
+
+                if (!hasTokens) {
+                    console.log('❌ No tokens at all, showing login modal');
+                    setIsLoginModalOpen(true)
+                    return
                 }
-            } catch {
-                // Ошибка при проверке токенов - показываем модалку
-                setIsLoginModalOpen(true)
+
+                // Пытаемся получить валидный access token
+                // getAccessToken() автоматически обновит токен если нужно
+                try {
+                    const token = await tokenManager.getAccessToken();
+
+                    if (token) {
+                        console.log('✅ Got valid access token');
+                        // Все ОК, токен есть и валиден
+                    } else {
+                        // Токен не удалось получить даже после refresh
+                        // Возможно, refresh token тоже истек
+                        console.log('⚠️ Could not get access token, checking if refresh token exists');
+
+                        if (!tokenManager.getRefreshToken()) {
+                            console.log('❌ No refresh token, showing login modal');
+                            setIsLoginModalOpen(true)
+                        } else {
+                            // Refresh token есть, но почему-то не удалось получить access token
+                            // Возможно, временная проблема - не показываем модалку
+                            console.log('⚠️ Refresh token exists but getAccessToken failed - might be temporary');
+                        }
+                    }
+                } catch (error) {
+                    console.error('⚠️ Error getting access token:', error);
+                    // При ошибке проверяем, есть ли refresh token
+                    if (!tokenManager.getRefreshToken()) {
+                        console.log('❌ No refresh token after error, showing login modal');
+                        setIsLoginModalOpen(true)
+                    } else {
+                        console.log('⚠️ Error but refresh token exists - not showing modal');
+                    }
+                }
             } finally {
                 setIsCheckingToken(false)
             }
         }
 
         setIsMounted(true)
-
-        // Если пользователь не авторизован, перенаправляем на главную
-        if (!user.userId) {
-            router.push('/')
-            return
-        }
-
-        // Проверяем и обновляем токены
         checkAndRefreshTokens()
     }, [user.userId, router])
 

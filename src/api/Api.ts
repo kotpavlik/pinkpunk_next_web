@@ -46,11 +46,15 @@ instance.interceptors.response.use(
             originalRequest._retry = true;
             originalRequest._refreshAttempted = true;
 
+            console.log('🔄 API interceptor: Got 401, attempting token refresh...');
+
             try {
                 // Пробуем обновить токен
                 const newAccessToken = await tokenManager.refreshAccessToken();
 
                 if (newAccessToken && originalRequest.headers) {
+                    console.log('✅ API interceptor: Token refreshed, retrying request');
+                    
                     // Убеждаемся, что токен передается в правильном формате: Bearer <token>
                     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                     // Устанавливаем флаг, чтобы интерцептор запроса не перезаписывал токен
@@ -61,19 +65,20 @@ instance.interceptors.response.use(
                         const retryResponse = await instance(originalRequest);
                         return retryResponse;
                     } catch (retryError) {
+                        console.error('❌ API interceptor: Retry failed:', retryError);
                         throw retryError;
                     }
                 } else {
-                    // Если не получили новый токен, очищаем старые
-                    tokenManager.clearTokens();
-                    useUserStore.getState().clearToken();
+                    console.log('⚠️ API interceptor: No new token received, but not clearing tokens here');
+                    // НЕ очищаем токены здесь - TokenManager сам это сделает если нужно
+                    // Просто пробрасываем ошибку дальше
                 }
-            } catch {
-                // Если refresh не удался, очищаем токены и данные пользователя
-                tokenManager.clearTokens();
-                // Очищаем данные пользователя из UserStore
-                useUserStore.getState().clearToken();
-                // Ошибка будет проброшена дальше
+            } catch (refreshError) {
+                console.error('⚠️ API interceptor: Refresh failed:', refreshError);
+                // НЕ очищаем токены при ошибке refresh!
+                // TokenManager сам решит, критическая это ошибка или временная
+                // И сам очистит токены если нужно (через event-систему)
+                // Здесь просто пробрасываем ошибку
             }
         }
 
