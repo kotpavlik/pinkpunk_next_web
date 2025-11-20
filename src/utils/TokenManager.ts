@@ -57,7 +57,6 @@ class TokenManager {
         return () => this.eventListeners.delete(listener);
     }
     
-
     /**
      * Отправляет событие всем подписчикам
      */
@@ -72,8 +71,8 @@ class TokenManager {
         });
     }
 
-    /**
-     * Получает или создает deviceId
+    /** 
+     * Получает или создает deviceId (deploy for vercel)
      */
     getOrCreateDeviceId(): string {
         if (typeof window === 'undefined') {
