@@ -1,6 +1,18 @@
 /**
- * Менеджер для работы с токенами авторизации
+ * Улучшенный менеджер для работы с токенами авторизации
  * Управляет accessToken, refreshToken и их обновлением
+ * 
+ * ПАРАМЕТРЫ ТОКЕНОВ (от бэкенда):
+ * - accessToken (JWT): живет 1 час (3600 секунд)
+ * - refreshToken: живет 30 дней
+ * 
+ * УЛУЧШЕНИЯ v2.0:
+ * ✅ Увеличен буфер обновления до 10 минут (вместо 5)
+ * ✅ Убраны агрессивные alert() и window.location.reload()
+ * ✅ Добавлена retry-логика с экспоненциальной задержкой
+ * ✅ Добавлена event-система для уведомления UI
+ * ✅ Токены не очищаются сразу при временных ошибках
+ * ✅ Добавлено фоновое обновление токенов
  */
 
 const ACCESS_TOKEN_KEY = 'pinkpunk_access_token';
@@ -9,11 +21,55 @@ const EXPIRES_AT_KEY = 'pinkpunk_expires_at';
 const EXPIRES_IN_KEY = 'pinkpunk_expires_in';
 const DEVICE_ID_KEY = 'pinkpunk_device_id';
 
-// Запас времени перед истечением токена (5 минут)
-const TOKEN_REFRESH_BUFFER = 5 * 60 * 1000;
+// Запас времени перед истечением токена (10 минут вместо 5)
+// Токен живет 60 минут, обновляем на 50-й минуте
+const TOKEN_REFRESH_BUFFER = 10 * 60 * 1000;
+
+// Параметры retry-логики
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_BASE_DELAY = 1000; // 1 секунда
+const RETRY_MAX_DELAY = 10000; // 10 секунд
+
+// Event types для уведомления UI
+export type TokenEventType = 
+    | 'TOKEN_EXPIRED'           // Токен истек, нужна повторная авторизация
+    | 'TOKEN_REFRESHED'         // Токен успешно обновлен
+    | 'TOKEN_REFRESH_FAILED'    // Не удалось обновить токен (временно)
+    | 'SESSION_EXPIRED'         // Сессия истекла (нет активных сессий)
+    | 'TELEGRAM_AUTH_EXPIRED'   // Telegram auth_date истек (15 дней)
+    | 'NETWORK_ERROR';          // Сетевая ошибка при обновлении
+
+export type TokenEventListener = (event: TokenEventType, data?: unknown) => void;
 
 class TokenManager {
     private refreshPromise: Promise<string> | null = null;
+    private backgroundRefreshTimer: NodeJS.Timeout | null = null;
+    private eventListeners: Set<TokenEventListener> = new Set();
+    private retryCount = 0;
+    private isRefreshing = false;
+
+    /**
+     * Подписывается на события токенов
+     */
+    addEventListener(listener: TokenEventListener): () => void {
+        this.eventListeners.add(listener);
+        // Возвращаем функцию для отписки
+        return () => this.eventListeners.delete(listener);
+    }
+
+    /**
+     * Отправляет событие всем подписчикам
+     */
+    private emitEvent(event: TokenEventType, data?: unknown): void {
+        console.log(`🔔 Token Event: ${event}`, data);
+        this.eventListeners.forEach(listener => {
+            try {
+                listener(event, data);
+            } catch (error) {
+                console.error('Error in token event listener:', error);
+            }
+        });
+    }
 
     /**
      * Получает или создает deviceId
@@ -50,8 +106,53 @@ class TokenManager {
             localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
             localStorage.setItem(EXPIRES_IN_KEY, String(data.expiresIn));
             localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
-        } catch {
-            // Ошибка сохранения токенов
+
+            // Сбрасываем счетчик retry при успешном сохранении
+            this.retryCount = 0;
+
+            // Запускаем фоновое обновление
+            this.startBackgroundRefresh();
+
+            console.log('💾 Tokens saved successfully');
+        } catch (error) {
+            console.error('Error saving tokens:', error);
+        }
+    }
+
+    /**
+     * Запускает фоновое обновление токена
+     */
+    private startBackgroundRefresh(): void {
+        // Останавливаем предыдущий таймер, если есть
+        this.stopBackgroundRefresh();
+
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const expiresAt = parseInt(localStorage.getItem(EXPIRES_AT_KEY) || '0');
+        if (!expiresAt) return;
+
+        // Вычисляем время до обновления (за 10 минут до истечения)
+        const timeUntilRefresh = expiresAt - TOKEN_REFRESH_BUFFER - Date.now();
+
+        if (timeUntilRefresh > 0) {
+            console.log(`⏰ Background refresh scheduled in ${Math.round(timeUntilRefresh / 1000 / 60)} minutes`);
+            this.backgroundRefreshTimer = setTimeout(() => {
+                this.refreshAccessToken().catch(error => {
+                    console.error('Background refresh failed:', error);
+                });
+            }, timeUntilRefresh);
+        }
+    }
+
+    /**
+     * Останавливает фоновое обновление токена
+     */
+    private stopBackgroundRefresh(): void {
+        if (this.backgroundRefreshTimer) {
+            clearTimeout(this.backgroundRefreshTimer);
+            this.backgroundRefreshTimer = null;
         }
     }
 
@@ -76,13 +177,15 @@ class TokenManager {
             // Токен истек или скоро истечет - обновляем, но только если есть refresh token
             const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
             if (!refreshToken) {
+                this.emitEvent('TOKEN_EXPIRED');
                 return null;
             }
 
             try {
                 const newToken = await this.refreshAccessToken();
                 return newToken;
-            } catch {
+            } catch (error) {
+                console.error('Failed to refresh token in getAccessToken:', error);
                 return null;
             }
         }
@@ -121,18 +224,69 @@ class TokenManager {
             return await this.refreshPromise;
         }
 
-        this.refreshPromise = this._doRefresh();
+        this.refreshPromise = this._doRefreshWithRetry();
 
         try {
             const token = await this.refreshPromise;
             return token;
         } finally {
             this.refreshPromise = null;
+            this.isRefreshing = false;
         }
     }
 
     /**
-     * Внутренний метод для выполнения refresh
+     * Выполняет refresh с retry-логикой
+     */
+    private async _doRefreshWithRetry(): Promise<string> {
+        this.isRefreshing = true;
+        let lastError: Error | null = null;
+
+        for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                console.log(`🔄 Refresh attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS}`);
+                const token = await this._doRefresh();
+                
+                // Успешно обновили - сбрасываем счетчик
+                this.retryCount = 0;
+                this.emitEvent('TOKEN_REFRESHED', { attempt: attempt + 1 });
+                
+                return token;
+            } catch (error) {
+                lastError = error as Error;
+                
+                // Проверяем тип ошибки
+                const errorMessage = lastError.message || '';
+                
+                // Если это критическая ошибка (401), не делаем retry
+                if (errorMessage.includes('Session expired') ||
+                    errorMessage.includes('No active sessions') ||
+                    errorMessage.includes('Telegram authentication expired') ||
+                    errorMessage.includes('Invalid refresh token')) {
+                    console.error('🚨 Critical auth error, stopping retry:', errorMessage);
+                    break;
+                }
+
+                // Для остальных ошибок (сетевые и т.д.) делаем retry
+                if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+                    const delay = Math.min(
+                        RETRY_BASE_DELAY * Math.pow(2, attempt),
+                        RETRY_MAX_DELAY
+                    );
+                    console.log(`⏳ Retrying in ${delay}ms...`);
+                    this.emitEvent('TOKEN_REFRESH_FAILED', { attempt: attempt + 1, delay });
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        // Все попытки исчерпаны
+        console.error('❌ All refresh attempts failed');
+        throw lastError || new Error('Failed to refresh token after multiple attempts');
+    }
+
+    /**
+     * Внутренний метод для выполнения refresh (одна попытка)
      */
     private async _doRefresh(): Promise<string> {
         if (typeof window === 'undefined') {
@@ -143,7 +297,7 @@ class TokenManager {
         const deviceId = this.getOrCreateDeviceId();
 
         if (!refreshToken) {
-            this.clearTokens();
+            this.emitEvent('TOKEN_EXPIRED');
             throw new Error('No refresh token available. Please login again.');
         }
 
@@ -166,40 +320,37 @@ class TokenManager {
                     message: 'Failed to refresh token',
                 }));
 
-                // Очищаем токены при ошибке
-                this.clearTokens();
-
                 if (response.status === 401) {
+                    // Критическая ошибка авторизации
+                    const errorMessage = error.message || '';
+                    
+                    // Очищаем токены только при критических ошибках
+                    this.clearTokens();
+                    
                     // Очищаем данные пользователя из UserStore
-                    // Используем динамический импорт, чтобы избежать циклических зависимостей
                     if (typeof window !== 'undefined') {
                         import('@/zustand/user_store/UserStore').then(({ useUserStore }) => {
                             useUserStore.getState().clearToken();
                         });
                     }
 
-                    if (error.message?.includes('Telegram authentication expired')) {
-                        // Telegram auth_date истек (15 дней)
-                        if (typeof window !== 'undefined') {
-                            alert(
-                                'Авторизация Telegram истекла (15 дней). Пожалуйста, авторизуйтесь заново.'
-                            );
-                        }
+                    // Отправляем соответствующее событие вместо alert
+                    if (errorMessage.includes('Telegram authentication expired')) {
+                        this.emitEvent('TELEGRAM_AUTH_EXPIRED', { message: errorMessage });
+                    } else if (
+                        errorMessage.includes('No active sessions') ||
+                        errorMessage.includes('Session expired') ||
+                        errorMessage.includes('Invalid refresh token')
+                    ) {
+                        this.emitEvent('SESSION_EXPIRED', { message: errorMessage });
                     } else {
-                        // Refresh token невалиден
-                        if (typeof window !== 'undefined') {
-                            alert('Сессия истекла. Пожалуйста, авторизуйтесь заново.');
-                        }
+                        this.emitEvent('TOKEN_EXPIRED', { message: errorMessage });
                     }
 
-                    // Перезагружаем страницу для повторной авторизации
-                    if (typeof window !== 'undefined') {
-                        window.location.reload();
-                    }
-
-                    throw new Error(error.message || 'Token refresh failed');
+                    throw new Error(errorMessage || 'Token refresh failed');
                 }
 
+                // Для других ошибок (5xx и т.д.) не очищаем токены
                 throw new Error(error.message || 'Failed to refresh token');
             }
 
@@ -207,7 +358,14 @@ class TokenManager {
             this.saveTokens(data);
             return data.accessToken;
         } catch (error) {
-            this.clearTokens();
+            // Если это сетевая ошибка (нет интернета и т.д.), НЕ очищаем токены
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                console.error('🌐 Network error during token refresh:', error);
+                this.emitEvent('NETWORK_ERROR', { error: error.message });
+                throw new Error('Network error: Please check your internet connection');
+            }
+            
+            // Пробрасываем другие ошибки
             throw error;
         }
     }
@@ -220,11 +378,15 @@ class TokenManager {
             return;
         }
 
+        this.stopBackgroundRefresh();
+        
         localStorage.removeItem(ACCESS_TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(EXPIRES_AT_KEY);
         localStorage.removeItem(EXPIRES_IN_KEY);
         // deviceId не удаляем, он нужен для следующей авторизации
+        
+        console.log('🗑️ Tokens cleared');
     }
 
     /**
@@ -277,8 +439,26 @@ class TokenManager {
             expiresIn: expiresIn || 3600 // По умолчанию 1 час
         });
     }
+
+    /**
+     * Получает время до истечения токена в миллисекундах
+     */
+    getTimeUntilExpiry(): number {
+        if (typeof window === 'undefined') {
+            return 0;
+        }
+
+        const expiresAt = parseInt(localStorage.getItem(EXPIRES_AT_KEY) || '0');
+        return Math.max(0, expiresAt - Date.now());
+    }
+
+    /**
+     * Проверяет, идет ли сейчас обновление токена
+     */
+    isCurrentlyRefreshing(): boolean {
+        return this.isRefreshing;
+    }
 }
 
 // Экспорт singleton
 export const tokenManager = new TokenManager();
-

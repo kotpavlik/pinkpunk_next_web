@@ -4,6 +4,7 @@ import "./globals.css";
 import { durikFont, cabinetGroteskFont, blauerNueFont } from "@/fonts/fonts";
 import Header from "@/components/ui/header/Header";
 import Footer from "@/components/ui/footer/Footer";
+import TokenEventHandler from "@/components/ui/shared/TokenEventHandler";
 
 // CabinetGrotesk - основной шрифт для латиницы
 
@@ -49,7 +50,7 @@ export default function RootLayout({
       <body
         className={`${cabinetGroteskFont.variable} ${geistSans.variable} ${geistMono.variable} ${durikFont.variable} ${blauerNueFont.variable} antialiased`}
       >
-
+        <TokenEventHandler />
         <Header />
         {children}
         <Footer />
