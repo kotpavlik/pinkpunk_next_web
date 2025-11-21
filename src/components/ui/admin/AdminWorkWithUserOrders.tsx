@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useOrderStore } from '@/zustand/order_store/OrderStore';
 import { OrderCard } from '@/components/ui/shared/OrderCard';
 import { OrderStatus } from '@/api/OrderApi';
+import Loader from '@/components/ui/shared/Loader';
 
 export const AdminWorkWithUserOrders = () => {
     const { allOrders, currentOrder, isLoading, error, getAllOrders, getOrdersByStatus, getOrderByNumber, getOrdersByUsername } = useOrderStore();
@@ -274,7 +275,9 @@ export const AdminWorkWithUserOrders = () => {
                         {!isSearchByNumber && allOrders.length === 0 && hasLoaded && (
                             <div className="flex-1 flex items-center justify-center">
                                 <div className="text-center py-8 bg-white/5 backdrop-blur-md border border-white/10">
-                                    <p className="text-white/60 text-lg mb-2">📦</p>
+                                    <div className="w-24 h-24 mx-auto mb-4">
+                                        <Loader src="/animations/empty.lottie" loop autoplay />
+                                    </div>
                                     <p className="text-white/60">
                                         {filterStatus === 'all'
                                             ? 'Заказов пока нет'

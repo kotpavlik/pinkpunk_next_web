@@ -430,8 +430,8 @@ export default function UserProfile() {
                     {/* Пустое состояние */}
                     {!ordersLoading && !ordersError && orders.length === 0 && hasLoaded && (
                         <div className="text-center py-12">
-                            <div className="inline-block p-4 bg-white/5 rounded-full mb-4">
-                                <ShoppingBagIcon className="h-12 w-12 text-white/30" />
+                            <div className="w-24 h-24 mx-auto mb-4">
+                                <Loader src="/animations/empty.lottie" loop autoplay />
                             </div>
                             <p className="text-white/80 font-semibold text-base mb-2">У вас пока нет заказов</p>
                             <p className="text-white/50 text-sm">
