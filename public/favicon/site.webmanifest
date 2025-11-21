@@ -1,7 +1,7 @@
 {
-  "name": "Pink Punk - Современная женская одежда",
+  "name": "Pink Punk - Оверсайз Одежда Беларусь",
   "short_name": "Pink Punk",
-  "description": "Стильная и современная женская одежда. Уникальные дизайны, высокое качество.",
+  "description": "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -12,7 +12,8 @@
     {
       "src": "/favicon/favicon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon/web-app-manifest-192x192.png",
@@ -25,6 +26,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["shopping", "fashion", "lifestyle"],

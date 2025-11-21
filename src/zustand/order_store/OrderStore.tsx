@@ -128,10 +128,6 @@ export const useOrderStore = create<OrderState>()(
 
         // ===== Получить заказы пользователя =====
         getUserOrders: async (userId: string) => {
-            console.log('🏪 OrderStore.getUserOrders вызван с userId:', userId)
-            console.log('🌐 Вызываем OrderApi.getUserOrders(userId)')
-            console.log('📡 API запрос: GET /orders/user/' + userId)
-
             set((state) => {
                 state.isLoading = true;
                 state.error = null;
@@ -139,16 +135,12 @@ export const useOrderStore = create<OrderState>()(
 
             try {
                 const orders = await OrderApi.getUserOrders(userId);
-                console.log('📦 OrderApi.getUserOrders вернул:', orders)
-                console.log('📊 Количество заказов:', orders.length)
 
                 set((state) => {
                     state.orders = orders;
                     state.isLoading = false;
                 });
-                console.log('✅ Заказы сохранены в store')
             } catch (error) {
-                console.error('❌ Ошибка в OrderStore.getUserOrders:', error)
                 const errorMessage = HandleError(error);
                 set((state) => {
                     state.error = errorMessage;
@@ -159,10 +151,6 @@ export const useOrderStore = create<OrderState>()(
 
         // ===== Получить мои заказы =====
         getMyOrders: async (userId: string) => {
-            console.log('🏪 OrderStore.getMyOrders вызван с userId:', userId)
-            console.log('🌐 Вызываем OrderApi.getMyOrders(userId)')
-            console.log('📡 API запрос: GET /orders/my/' + userId)
-
             set((state) => {
                 state.isLoading = true;
                 state.error = null;
@@ -170,20 +158,12 @@ export const useOrderStore = create<OrderState>()(
 
             try {
                 const orders = await OrderApi.getMyOrders(userId);
-                console.log('📦 OrderApi.getMyOrders вернул:', orders)
-                console.log('📊 Количество заказов:', orders.length)
-                console.log('📊 Тип orders:', typeof orders)
-                console.log('📊 Array.isArray(orders):', Array.isArray(orders))
 
                 set((state) => {
-                    console.log('💾 Сохраняем заказы в store. Старое количество:', state.orders.length)
                     state.orders = orders;
                     state.isLoading = false;
-                    console.log('💾 Новое количество заказов в store:', state.orders.length)
                 });
-                console.log('✅ Заказы сохранены в store')
             } catch (error) {
-                console.error('❌ Ошибка в OrderStore.getMyOrders:', error)
                 const errorMessage = HandleError(error);
                 set((state) => {
                     state.error = errorMessage;
@@ -372,6 +352,12 @@ export const useOrderStore = create<OrderState>()(
                         state.orders[userIndex] = updatedOrder;
                     }
 
+                    // Обновляем в allOrders (для админской панели)
+                    const allOrdersIndex = state.allOrders.findIndex(o => o._id === orderId);
+                    if (allOrdersIndex !== -1) {
+                        state.allOrders[allOrdersIndex] = updatedOrder;
+                    }
+
                     // Обновляем текущий заказ
                     if (state.currentOrder?._id === orderId) {
                         state.currentOrder = updatedOrder;
@@ -404,6 +390,9 @@ export const useOrderStore = create<OrderState>()(
                 set((state) => {
                     // Удаляем из orders
                     state.orders = state.orders.filter(o => o._id !== orderId);
+
+                    // Удаляем из allOrders (для админской панели)
+                    state.allOrders = state.allOrders.filter(o => o._id !== orderId);
 
                     // Очищаем текущий заказ если он был удален
                     if (state.currentOrder?._id === orderId) {

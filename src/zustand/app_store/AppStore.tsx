@@ -36,13 +36,10 @@ export const useAppStore = create<AppStateType>()(
 
             // Не инициализируем повторно если уже инициализировано
             if (initialized) {
-                console.log('🚫 App already initialized, skipping...');
                 return;
             }
 
             try {
-                console.log('🚀 Initializing app with user:', user);
-
                 // Инициализируем пользователя
                 await initialUser(user);
 
@@ -51,17 +48,14 @@ export const useAppStore = create<AppStateType>()(
 
                 // Загружаем корзину если пользователь имеет _id
                 if (updatedUser._id) {
-                    console.log('🛒 Loading cart for user:', updatedUser._id);
                     await getCart(updatedUser._id);
                 }
 
                 set((state) => { state.initialized = true; });
-                console.log('✅ App initialized successfully');
             } catch (error) {
                 const err = error as Error | AxiosError;
                 HandleError(err);
                 set((state) => { state.status = "failed"; });
-                console.error('❌ App initialization failed:', err);
             }
         }
     }))

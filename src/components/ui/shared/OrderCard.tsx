@@ -67,8 +67,8 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
             await navigator.clipboard.writeText(order.orderNumber)
             setIsCopied(true)
             setTimeout(() => setIsCopied(false), 300)
-        } catch (error) {
-            console.error('Failed to copy order number:', error)
+        } catch {
+            // Silent error handling
         }
     }, [order.orderNumber])
 
@@ -77,8 +77,8 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
             await navigator.clipboard.writeText(phone)
             setIsPhoneCopied(true)
             setTimeout(() => setIsPhoneCopied(false), 1000)
-        } catch (error) {
-            console.error('Failed to copy phone number:', error)
+        } catch {
+            // Silent error handling
         }
     }, [])
 
@@ -94,8 +94,8 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                 setShowDeleteModal(false)
                 onDeleted?.()
             }
-        } catch (error) {
-            console.error('Error deleting order:', error)
+        } catch {
+            // Silent error handling
         } finally {
             setIsDeleting(false)
         }
@@ -131,8 +131,8 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                 setShowCancelModal(false)
                 onDeleted?.()
             }
-        } catch (error) {
-            console.error('Error cancelling order:', error)
+        } catch {
+            // Silent error handling
         } finally {
             setIsStatusUpdating(false)
         }
@@ -204,17 +204,22 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
             </div>
 
             {/* Статус заказа */}
-            <div className="mb-4">
+            <div className="mb-4 relative">
+                {isStatusUpdating && (
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-sm rounded z-20 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--mint-bright)]"></div>
+                    </div>
+                )}
                 <div className="flex items-center justify-between relative">
                     {/* Линия прогресса */}
                     <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#4a5568] -translate-y-1/2 z-0"></div>
 
                     {/* pending_confirmation */}
                     <button
-                        disabled={!canGoToConfirmed}
-                        onClick={() => canGoToConfirmed && doUpdateStatus('confirmed')}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToConfirmed ? 'cursor-default' : 'cursor-pointer'}`}
-                        title={canGoToConfirmed ? 'Подтвердить заказ' : ''}
+                        disabled={!canGoToConfirmed || isStatusUpdating}
+                        onClick={() => canGoToConfirmed && !isStatusUpdating && doUpdateStatus('confirmed')}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToConfirmed || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                        title={canGoToConfirmed && !isStatusUpdating ? 'Подтвердить заказ' : ''}
                     >
                         <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568]'>
                             <svg className="w-4 h-4"
@@ -232,17 +237,17 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                     {/* confirmed */}
                     <div className="flex flex-col items-center z-10 bg-[#2a2f31] px-1 relative">
                         <button
-                            disabled={!isAdmin && true}
+                            disabled={!isAdmin || isStatusUpdating}
                             onClick={() => {
-                                if (!isAdmin) return
+                                if (!isAdmin || isStatusUpdating) return
                                 if (order.status === 'pending_confirmation') {
                                     doUpdateStatus('confirmed')
                                 } else if (order.status === 'paid') {
                                     doUpdateStatus('confirmed')
                                 }
                             }}
-                            className={`flex flex-col items-center ${!isAdmin ? 'cursor-default' : 'cursor-pointer'}`}
-                            title={isAdmin ? (order.status === 'pending_confirmation' ? 'Подтвердить заказ' : (order.status === 'paid' ? 'Откатить к Confirmed' : '')) : ''}
+                            className={`flex flex-col items-center ${!isAdmin || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                            title={isAdmin && !isStatusUpdating ? (order.status === 'pending_confirmation' ? 'Подтвердить заказ' : (order.status === 'paid' ? 'Откатить к Confirmed' : '')) : ''}
                         >
                             <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
                                 <svg className="w-4 h-4"
@@ -261,8 +266,9 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                             <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] absolute left-8 top-0 z-10'>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowCancelModal(true); }}
-                                    className="flex flex-col items-center text-[var(--pink-punk)]"
-                                    title="Отменить заказ"
+                                    disabled={isStatusUpdating}
+                                    className={`flex flex-col items-center text-[var(--pink-punk)] ${isStatusUpdating ? 'opacity-50 cursor-default' : ''}`}
+                                    title={isStatusUpdating ? '' : 'Отменить заказ'}
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -274,13 +280,14 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
 
                     {/* paid */}
                     <button
-                        disabled={!canGoToPaid && !canRollbackToConfirmed}
+                        disabled={(!canGoToPaid && !canRollbackToConfirmed) || isStatusUpdating}
                         onClick={() => {
+                            if (isStatusUpdating) return
                             if (canGoToPaid) doUpdateStatus('paid')
                             if (canRollbackToConfirmed) doUpdateStatus('confirmed')
                         }}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${(!canGoToPaid && !canRollbackToConfirmed) ? 'cursor-default' : 'cursor-pointer'}`}
-                        title={canGoToPaid ? 'Отметить как оплаченный' : canRollbackToConfirmed ? 'Откатить к подтвержденному' : ''}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${(!canGoToPaid && !canRollbackToConfirmed) || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                        title={isStatusUpdating ? '' : (canGoToPaid ? 'Отметить как оплаченный' : canRollbackToConfirmed ? 'Откатить к подтвержденному' : '')}
                     >
                         <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
                             <svg className="w-4 h-4"
@@ -297,10 +304,10 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
 
                     {/* completed or cancelled */}
                     <button
-                        disabled={!canGoToCompleted}
-                        onClick={() => canGoToCompleted && doUpdateStatus('completed')}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToCompleted ? 'cursor-default' : 'cursor-pointer'}`}
-                        title={canGoToCompleted ? 'Завершить заказ' : ''}
+                        disabled={!canGoToCompleted || isStatusUpdating}
+                        onClick={() => canGoToCompleted && !isStatusUpdating && doUpdateStatus('completed')}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToCompleted || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                        title={canGoToCompleted && !isStatusUpdating ? 'Завершить заказ' : ''}
                     >
                         <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568]'>
                             {order.status === 'cancelled' ? (

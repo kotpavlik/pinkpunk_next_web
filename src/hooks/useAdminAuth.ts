@@ -12,8 +12,8 @@ export const useAdminAuth = () => {
         try {
             await logoutAdmin()
             router.push('/')
-        } catch (error) {
-            console.error('Logout error:', error)
+        } catch {
+            // Silent error handling
         } finally {
             setIsLoading(false)
         }
@@ -23,8 +23,7 @@ export const useAdminAuth = () => {
         setIsLoading(true)
         try {
             await logoutAllDevices()
-        } catch (error) {
-            console.error('Logout all devices error:', error)
+        } catch {
             setIsLoading(false)
         }
     }

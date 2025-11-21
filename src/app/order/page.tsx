@@ -294,13 +294,11 @@ export default function OrderPage() {
         const isUserAuthenticated = hasUserId && isAuth
 
         if (!isUserAuthenticated) {
-            console.log('User not authenticated:', { hasUserId, isAuth, userId: user?._id })
             setIsLoginModalOpen(true)
             setIsSubmitting(false)
             return
         }
 
-        console.log('User authenticated, proceeding with order creation')
 
         if (cartItems.length === 0 || !cartId) {
             setErrors({ general: 'Недостаточно данных для создания заказа' })

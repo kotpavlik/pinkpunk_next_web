@@ -26,8 +26,6 @@ export default function TokenEventHandler() {
 
     useEffect(() => {
         const unsubscribe = tokenManager.addEventListener((event: TokenEventType) => {
-            console.log('📬 Token event received:', event)
-
             const notification = createNotification(event)
             if (notification) {
                 setNotifications(prev => [...prev, notification])
@@ -50,12 +48,10 @@ export default function TokenEventHandler() {
         switch (event) {
             case 'TOKEN_REFRESHED':
                 // Не показываем уведомление - это должно происходить незаметно для пользователя
-                console.log('✅ Token refreshed silently');
                 return null;
 
             case 'TOKEN_REFRESH_FAILED':
                 // Тоже не показываем - система сама retry сделает
-                console.log('⚠️ Token refresh failed, retrying...');
                 return null;
 
             case 'NETWORK_ERROR':

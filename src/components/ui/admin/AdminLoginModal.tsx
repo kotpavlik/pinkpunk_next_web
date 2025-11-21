@@ -193,8 +193,8 @@ export default function AdminLoginModal({
                                 try {
                                     await logoutAdmin()
                                     onClose()
-                                } catch (error) {
-                                    console.error('Ошибка выхода:', error)
+                                } catch {
+                                    // Silent error handling
                                 } finally {
                                     setIsLoggingOut(false)
                                 }

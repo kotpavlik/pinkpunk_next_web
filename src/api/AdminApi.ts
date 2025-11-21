@@ -105,8 +105,6 @@ export const AdminApi = {
         const deviceId = tokenManager.getDeviceId();
         const deviceInfo = tokenManager.getDeviceInfo();
         
-        console.log('🔐 Admin login with device:', deviceId);
-        
         const requestData: AdminLoginRequest = {
             password,
             userData,
@@ -115,10 +113,6 @@ export const AdminApi = {
         };
 
         const response = await instance.post<AdminLoginResponse>('/auth/admin-login', requestData);
-        
-        console.log('✅ Login successful, received token pair');
-        console.log('  - Access token:', response.data.accessToken.substring(0, 20) + '...');
-        console.log('  - Refresh token:', response.data.refreshToken.substring(0, 20) + '...');
         
         return response;
     },
@@ -136,19 +130,12 @@ export const AdminApi = {
             throw new Error('No refresh token available');
         }
 
-        console.log('🔄 Refreshing tokens with device:', deviceId);
-        console.log('  - Using refresh token:', refreshToken.substring(0, 20) + '...');
-
         const requestData: RefreshRequest = {
             refreshToken,  // ← Hex строка (64 символа), НЕ JWT!
             deviceId
         };
 
         const response = await instance.post<RefreshResponse>('/auth/refresh', requestData);
-        
-        console.log('✅ Tokens refreshed successfully');
-        console.log('  - New access token:', response.data.accessToken.substring(0, 20) + '...');
-        console.log('  - New refresh token:', response.data.refreshToken.substring(0, 20) + '...');
         
         return response;
     },
@@ -160,15 +147,11 @@ export const AdminApi = {
     async logoutDevice(): Promise<AxiosResponse<LogoutResponse>> {
         const deviceId = tokenManager.getDeviceId();
         
-        console.log('🚪 Logging out device:', deviceId);
-        
         const requestData: LogoutRequest = {
             deviceId
         };
 
         const response = await instance.post<LogoutResponse>('/auth/logout', requestData);
-        
-        console.log('✅ Device logged out successfully');
         
         return response;
     },
@@ -178,11 +161,7 @@ export const AdminApi = {
      * Требует Authorization header с accessToken
      */
     async logoutAllDevices(): Promise<AxiosResponse<LogoutResponse>> {
-        console.log('🚪 Logging out all devices');
-        
         const response = await instance.post<LogoutResponse>('/auth/logout-all', {});
-        
-        console.log('✅ All devices logged out successfully');
         
         return response;
     },
@@ -192,11 +171,7 @@ export const AdminApi = {
      * Использует accessToken (JWT) из заголовка Authorization
      */
     async validateToken(): Promise<AxiosResponse<ValidateTokenResponse>> {
-        console.log('🔍 Validating access token');
-        
         const response = await instance.get<ValidateTokenResponse>('/auth/validate-token');
-        
-        console.log('✅ Token is valid');
         
         return response;
     },
@@ -206,11 +181,7 @@ export const AdminApi = {
      * Требует Authorization header с accessToken
      */
     async getSessions(): Promise<AxiosResponse<GetSessionsResponse>> {
-        console.log('📋 Getting user sessions');
-        
         const response = await instance.get<GetSessionsResponse>('/auth/sessions');
-        
-        console.log(`✅ Found ${response.data.count} active sessions`);
         
         return response;
     },
@@ -220,15 +191,11 @@ export const AdminApi = {
      * Требует Authorization header с accessToken
      */
     async revokeSession(jti: string): Promise<AxiosResponse<RevokeSessionResponse>> {
-        console.log('🗑️ Revoking session:', jti);
-        
         const requestData: RevokeSessionRequest = {
             jti
         };
         
         const response = await instance.post<RevokeSessionResponse>('/auth/revoke-session', requestData);
-        
-        console.log('✅ Session revoked successfully');
         
         return response;
     },
@@ -241,11 +208,7 @@ export const AdminApi = {
      * Защищено OwnerGuard на бэкенде
      */
     async getAllAdminSessions(): Promise<AxiosResponse<GetAllAdminSessionsResponse>> {
-        console.log('👑 Getting all admin sessions (owner only)');
-        
         const response = await instance.get<GetAllAdminSessionsResponse>('/auth/owner/all-sessions');
-        
-        console.log(`✅ Found ${response.data.count} admins with sessions`);
         
         return response;
     },
@@ -256,16 +219,12 @@ export const AdminApi = {
      * Защищено OwnerGuard на бэкенде
      */
     async revokeAnySession(targetUserId: number, jti: string): Promise<AxiosResponse<RevokeAnySessionResponse>> {
-        console.log(`👑 Revoking session for user ${targetUserId}, jti: ${jti}`);
-        
         const requestData: RevokeAnySessionRequest = {
             targetUserId,
             jti
         };
         
         const response = await instance.post<RevokeAnySessionResponse>('/auth/owner/revoke-any-session', requestData);
-        
-        console.log('✅ Session revoked successfully');
         
         return response;
     },
@@ -277,11 +236,7 @@ export const AdminApi = {
      * Не затрагивает сессии самих владельцев
      */
     async revokeAllAdminSessions(): Promise<AxiosResponse<RevokeAllAdminSessionsResponse>> {
-        console.log('👑 Revoking all admin sessions (owner only)');
-        
         const response = await instance.post<RevokeAllAdminSessionsResponse>('/auth/owner/revoke-all-admin-sessions', {});
-        
-        console.log(`✅ Successfully logged out ${response.data.affected} admin(s)`);
         
         return response;
     }

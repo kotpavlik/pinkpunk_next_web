@@ -32,12 +32,9 @@ export default function UserProfile() {
         const checkAndRefreshTokens = async () => {
             setIsCheckingToken(true)
 
-            console.log('🔍 User profile: checking tokens...');
-
             try {
                 // Если пользователь не авторизован, перенаправляем на главную
                 if (!user.userId) {
-                    console.log('❌ No userId, redirecting to home');
                     router.push('/')
                     return
                 }
@@ -46,7 +43,6 @@ export default function UserProfile() {
                 const hasTokens = tokenManager.isAuthenticated();
 
                 if (!hasTokens) {
-                    console.log('❌ No tokens at all, showing login modal');
                     setIsLoginModalOpen(true)
                     return
                 }
@@ -57,30 +53,18 @@ export default function UserProfile() {
                     const token = await tokenManager.getAccessToken();
 
                     if (token) {
-                        console.log('✅ Got valid access token');
                         // Все ОК, токен есть и валиден
                     } else {
                         // Токен не удалось получить даже после refresh
                         // Возможно, refresh token тоже истек
-                        console.log('⚠️ Could not get access token, checking if refresh token exists');
-
                         if (!tokenManager.getRefreshToken()) {
-                            console.log('❌ No refresh token, showing login modal');
                             setIsLoginModalOpen(true)
-                        } else {
-                            // Refresh token есть, но почему-то не удалось получить access token
-                            // Возможно, временная проблема - не показываем модалку
-                            console.log('⚠️ Refresh token exists but getAccessToken failed - might be temporary');
                         }
                     }
                 } catch (error) {
-                    console.error('⚠️ Error getting access token:', error);
                     // При ошибке проверяем, есть ли refresh token
                     if (!tokenManager.getRefreshToken()) {
-                        console.log('❌ No refresh token after error, showing login modal');
                         setIsLoginModalOpen(true)
-                    } else {
-                        console.log('⚠️ Error but refresh token exists - not showing modal');
                     }
                 }
             } finally {

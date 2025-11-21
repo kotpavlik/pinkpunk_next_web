@@ -98,8 +98,8 @@ const Catalog = () => {
                     }
 
                     setPendingProduct(null)
-                } catch (error) {
-                    console.error('Ошибка при добавлении товара в корзину:', error)
+                } catch {
+                    // Silent error handling
                 } finally {
                     setIsAddingToCart(prev => ({ ...prev, [productKey]: false }))
                 }
@@ -142,8 +142,8 @@ const Catalog = () => {
                     productElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }
             }
-        } catch (error) {
-            console.error('Ошибка при добавлении товара в корзину:', error)
+        } catch {
+            // Silent error handling
         } finally {
             setIsAddingToCart(prev => ({ ...prev, [productKey]: false }))
         }

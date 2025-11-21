@@ -114,11 +114,7 @@ export class OrderApi {
 
     // Получить заказы пользователя (для пользователя)
     static async getUserOrders(userId: string): Promise<ListOrdersResponse> {
-        console.log('🌐 OrderApi.getUserOrders - запрос к API')
-        console.log('   URL:', `/orders/user/${userId}`)
-        console.log('   Метод: GET')
         const { data: res } = await instance.get<ListOrdersResponse>(`/orders/user/${userId}`);
-        console.log('📥 OrderApi.getUserOrders - ответ от API:', res)
         return res;
     }
 
@@ -159,15 +155,7 @@ export class OrderApi {
     }
 
     static async getMyOrders(userId: string): Promise<ListOrdersResponse> {
-        console.log('🌐 OrderApi.getMyOrders - запрос к API')
-        console.log('   URL:', `/orders/my/${userId}`)
-        console.log('   Метод: GET')
-        console.log('   userId:', userId)
         const response = await instance.get<ListOrdersResponse>(`/orders/my/${userId}`);
-        console.log('📥 OrderApi.getMyOrders - полный ответ:', response)
-        console.log('📥 OrderApi.getMyOrders - response.data:', response.data)
-        console.log('📥 OrderApi.getMyOrders - тип response.data:', typeof response.data)
-        console.log('📥 OrderApi.getMyOrders - Array.isArray(response.data):', Array.isArray(response.data))
         
         // Проверяем, если ответ обёрнут в объект
         type ResponseWrapper = { orders?: ListOrdersResponse; data?: ListOrdersResponse };
@@ -181,16 +169,12 @@ export class OrderApi {
             } else if ('data' in wrapped && Array.isArray(wrapped.data)) {
                 orders = wrapped.data;
             } else {
-                console.warn('⚠️ Неожиданная структура ответа:', response.data)
                 orders = [];
             }
         } else {
-            console.warn('⚠️ Неожиданная структура ответа:', response.data)
             orders = [];
         }
         
-        console.log('📦 OrderApi.getMyOrders - итоговые заказы:', orders)
-        console.log('📊 OrderApi.getMyOrders - количество заказов:', orders.length)
         return orders;
     }
 

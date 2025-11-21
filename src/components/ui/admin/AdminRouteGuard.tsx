@@ -22,7 +22,6 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
 
         if (!accessToken) {
             // Токена нет даже после попытки refresh
-            console.log('🚫 No access token available after refresh attempt');
             useUserStore.getState().setAdminStatus(false);
             router.push('/');
             return;
@@ -42,13 +41,10 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
                 const isAdminFromBackend = userData?.isAdmin || false;
                 const isOwnerFromBackend = userData?.owner || false;
 
-                console.log('✅ Admin validation successful:', { isAdmin: isAdminFromBackend, isOwner: isOwnerFromBackend });
-
                 useUserStore.getState().setAdminStatus(isAdminFromBackend);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(isOwnerFromBackend);
             } else {
-                console.log('❌ Admin validation failed: token invalid');
                 useUserStore.getState().setAdminStatus(false);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(false);
@@ -58,11 +54,8 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
         } catch (error: unknown) {
             const axiosError = error as { response?: { status: number } };
 
-            console.error('⚠️ Admin validation error:', axiosError.response?.status || error);
-
             if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
                 // Критическая ошибка авторизации
-                console.log('🚨 Critical auth error, clearing tokens');
                 useUserStore.getState().setAdminStatus(false);
                 // @ts-expect-error optional method
                 useUserStore.getState().setOwnerStatus?.(false);
@@ -70,9 +63,6 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
                 router.push('/');
             } else if (axiosError.response?.status === 404) {
                 useUserStore.getState().setAdminStatus(false);
-            } else {
-                // Другие ошибки (сеть, таймаут) - не выкидываем пользователя
-                console.log('⚠️ Temporary error, keeping user logged in');
             }
         }
     }, [router]);

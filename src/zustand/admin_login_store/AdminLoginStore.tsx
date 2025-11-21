@@ -84,30 +84,23 @@ export const useAdminLoginStore = create<AdminLoginType>()(
 
             // Clear tokens using TokenManager
             tokenManager.clearTokens()
-            console.log('🗑️ Tokens cleared via TokenManager')
 
             // Clear token from local store
             set(state => { state.token = '' })
-            console.log('🗑️ Token removed from AdminLoginStore')
 
             // Clear token from main UserStore
             clearToken()
-            console.log('🗑️ Token removed from UserStore')
 
             // Reset admin status
             setAdminStatus(false)
-            console.log('👤 Admin status reset to false')
         },
 
         validateToken: async (): Promise<boolean> => {
-            console.log('🔍 Starting token validation...');
-
             // Check both legacy token and new token system
             const { token } = useUserStore.getState().user
             const hasNewTokens = tokenManager.isAuthenticated()
 
             if (!token && !hasNewTokens) {
-                console.log('❌ No tokens available');
                 return false
             }
 
@@ -118,11 +111,9 @@ export const useAdminLoginStore = create<AdminLoginType>()(
                 const currentAccessToken = await tokenManager.getAccessToken();
                 
                 if (!currentAccessToken && !token) {
-                    console.log('❌ Failed to get valid access token');
                     return false;
                 }
 
-                console.log('📡 Sending validation request to backend...');
                 const response = await AdminApi.validateToken()
 
                 // Check if response contains valid: true
@@ -134,35 +125,22 @@ export const useAdminLoginStore = create<AdminLoginType>()(
                     const finalToken = currentAccessToken || token || ''
                     set(state => { state.token = finalToken })
 
-                    console.log('✅ Admin status set to true after validation')
                     return true
                 } else {
-                    console.log('❌ Token validation returned invalid')
                     return false
                 }
             } catch (error: unknown) {
                 // Token is invalid, clear everything
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
                 const errorResponse = (error as { response?: { status?: number; data?: unknown } })?.response
-
-                console.log('❌ Token validation failed:')
-                console.log('  - Error message:', errorMessage)
-                console.log('  - Error status:', errorResponse?.status)
-                console.log('  - Error data:', errorResponse?.data)
 
                 // Check if this is a 401 error (invalid token)
                 if (errorResponse?.status === 401) {
-                    console.log('🚫 Token is invalid or expired (401), clearing authentication')
-                    
                     // Clear all tokens
                     tokenManager.clearTokens()
                     const { clearToken, setAdminStatus } = useUserStore.getState()
                     clearToken()
                     setAdminStatus(false)
                     set(state => { state.token = '' })
-                } else {
-                    // Для других ошибок (сеть, таймаут) не очищаем токены
-                    console.log('⚠️ Non-401 error, keeping tokens (might be temporary)');
                 }
                 
                 return false
@@ -172,59 +150,46 @@ export const useAdminLoginStore = create<AdminLoginType>()(
         },
 
         getSessions: async (): Promise<SessionInfo[]> => {
-            console.log('📋 Getting user sessions...')
 
             try {
                 const response = await AdminApi.getSessions()
-                console.log(`✅ Found ${response.data.count} active sessions`)
                 return response.data.data // Бэкенд возвращает data, а не sessions
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                console.log('❌ Failed to get sessions:', errorMessage)
                 return []
             }
         },
 
         revokeSession: async (jti: string): Promise<boolean> => {
-            console.log('🗑️ Revoking session:', jti)
 
             try {
                 await AdminApi.revokeSession(jti)
-                console.log('✅ Session revoked successfully')
                 return true
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                console.log('❌ Failed to revoke session:', errorMessage)
                 return false
             }
         },
 
         logoutAllDevices: async (): Promise<void> => {
             const { clearToken, setAdminStatus } = useUserStore.getState()
-            console.log('🚪 Logging out all devices...')
 
             try {
                 await AdminApi.logoutAllDevices()
-                console.log('✅ All devices logged out successfully')
             } catch (error) {
-                console.warn('⚠️ Failed to logout all devices from server:', error)
             }
 
             // Clear tokens using TokenManager
             tokenManager.clearTokens()
-            console.log('🗑️ Tokens cleared via TokenManager')
 
             // Clear token from local store
             set(state => { state.token = '' })
-            console.log('🗑️ Token removed from AdminLoginStore')
 
             // Clear token from main UserStore
             clearToken()
-            console.log('🗑️ Token removed from UserStore')
 
             // Reset admin status
             setAdminStatus(false)
-            console.log('👤 Admin status reset to false')
 
             // Redirect to home
             window.location.href = '/'
@@ -233,25 +198,20 @@ export const useAdminLoginStore = create<AdminLoginType>()(
         // ========== Owner-only methods ==========
 
         getAllAdminSessions: async (): Promise<AdminSessionData[]> => {
-            console.log('👑 Getting all admin sessions (owner only)...')
 
             try {
                 const response = await AdminApi.getAllAdminSessions()
-                console.log(`✅ Found ${response.data.count} admins with sessions`)
                 return response.data.data
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                console.log('❌ Failed to get all admin sessions:', errorMessage)
                 return []
             }
         },
 
         revokeAnySession: async (targetUserId: number, jti: string): Promise<boolean> => {
-            console.log(`👑 Revoking session for user ${targetUserId}, jti:`, jti)
 
             try {
                 await AdminApi.revokeAnySession(targetUserId, jti)
-                console.log('✅ Session revoked successfully')
                 return true
             } catch (error: unknown) {
                 // Извлекаем детальную информацию об ошибке
@@ -261,27 +221,23 @@ export const useAdminLoginStore = create<AdminLoginType>()(
                     const message = axiosError.response?.data?.message
 
                     if (status === 403) {
-                        console.log('❌ Access denied: Cannot revoke owner sessions')
+                        // Access denied
                     } else if (message) {
-                        console.log('❌ Failed to revoke session:', message)
+                        // Failed to revoke
                     }
                 }
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                console.log('❌ Failed to revoke session:', errorMessage)
                 return false
             }
         },
 
         revokeAllAdminSessions: async (): Promise<{ affected: number }> => {
-            console.log('👑 Revoking all admin sessions (owner only)...')
 
             try {
                 const response = await AdminApi.revokeAllAdminSessions()
-                console.log(`✅ Successfully logged out ${response.data.affected} admin(s)`)
                 return { affected: response.data.affected }
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                console.log('❌ Failed to revoke all admin sessions:', errorMessage)
                 return { affected: 0 }
             }
         }

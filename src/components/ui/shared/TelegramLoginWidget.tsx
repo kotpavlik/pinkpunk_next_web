@@ -65,7 +65,7 @@ export default function TelegramLoginWidget({
             setScriptLoaded(true)
         }
         script.onerror = () => {
-            console.error('Failed to load Telegram Widget script')
+            // Silent error handling
         }
         document.body.appendChild(script)
 
@@ -89,7 +89,6 @@ export default function TelegramLoginWidget({
 
         // Если нет callback, не создаем виджет
         if (!onAuth) {
-            console.warn('TelegramLoginWidget: onAuth callback is required')
             return
         }
 

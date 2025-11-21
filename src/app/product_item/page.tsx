@@ -323,8 +323,8 @@ function ProductItemContent() {
                     await addToCart(user._id, pendingProduct.productId, pendingProduct.quantity)
 
                     setPendingProduct(null)
-                } catch (error) {
-                    console.error('Ошибка при добавлении товара в корзину:', error)
+                } catch {
+                    // Silent error handling
                 } finally {
                     setIsAddingToCart(false)
                 }
@@ -362,8 +362,8 @@ function ProductItemContent() {
         try {
             setIsAddingToCart(true)
             await addToCart(user._id, currentProduct.productId, 1)
-        } catch (error) {
-            console.error('Ошибка при добавлении товара в корзину:', error)
+        } catch {
+            // Silent error handling
         } finally {
             setIsAddingToCart(false)
         }

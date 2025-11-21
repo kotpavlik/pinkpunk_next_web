@@ -73,8 +73,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
       { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon/web-app-manifest-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
       { url: "/favicon/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
@@ -159,7 +161,10 @@ export default function RootLayout({
         {/* Favicon - Multiple formats for better compatibility */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon/favicon-96x96.png" sizes="96x96" type="image/png" />
+        <link rel="icon" href="/favicon/web-app-manifest-192x192.png" sizes="192x192" type="image/png" />
+        <link rel="icon" href="/favicon/web-app-manifest-512x512.png" sizes="512x512" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" sizes="180x180" />
 
         {/* iOS Safari fixes */}
         <meta name="format-detection" content="telephone=no" />

@@ -43,8 +43,8 @@ const AdminLogin = () => {
                         onClick={async () => {
                             try {
                                 await logoutAdmin()
-                            } catch (error) {
-                                console.error('Logout error:', error)
+                            } catch {
+                                // Silent error handling
                             }
                         }}
                         className="px-4 py-2 bg-[#ff2b9c] text-white rounded hover:bg-[#ff1a8c] transition-colors"

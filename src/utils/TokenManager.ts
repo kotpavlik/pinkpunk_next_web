@@ -61,12 +61,11 @@ class TokenManager {
      * Отправляет событие всем подписчикам
      */
     private emitEvent(event: TokenEventType, data?: unknown): void {
-        console.log(`🔔 Token Event: ${event}`, data);
         this.eventListeners.forEach(listener => {
             try {
                 listener(event, data);
             } catch (error) {
-                console.error('Error in token event listener:', error);
+                // Silent error handling
             }
         });
     }
@@ -108,18 +107,13 @@ class TokenManager {
             localStorage.setItem(EXPIRES_IN_KEY, String(data.expiresIn));
             localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
 
-            console.log('💾 Tokens saved successfully');
-            console.log('  - Access token (first 20):', data.accessToken.substring(0, 20) + '...');
-            console.log('  - Time until expiry:', timeUntilExpiry, 'minutes');
-            console.log('  - Will refresh at:', new Date(expiresAt - TOKEN_REFRESH_BUFFER).toLocaleTimeString());
-
             // Сбрасываем счетчик retry при успешном сохранении
             this.retryCount = 0;
 
             // Запускаем фоновое обновление
             this.startBackgroundRefresh();
         } catch (error) {
-            console.error('❌ Error saving tokens:', error);
+            // Silent error handling
         }
     }
 
@@ -141,10 +135,9 @@ class TokenManager {
         const timeUntilRefresh = expiresAt - TOKEN_REFRESH_BUFFER - Date.now();
 
         if (timeUntilRefresh > 0) {
-            console.log(`⏰ Background refresh scheduled in ${Math.round(timeUntilRefresh / 1000 / 60)} minutes`);
             this.backgroundRefreshTimer = setTimeout(() => {
-                this.refreshAccessToken().catch(error => {
-                    console.error('Background refresh failed:', error);
+                this.refreshAccessToken().catch(() => {
+                    // Silent error handling
                 });
             }, timeUntilRefresh);
         }
@@ -189,7 +182,6 @@ class TokenManager {
                 const newToken = await this.refreshAccessToken();
                 return newToken;
             } catch (error) {
-                console.error('Failed to refresh token in getAccessToken:', error);
                 return null;
             }
         }
@@ -248,7 +240,6 @@ class TokenManager {
 
         for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
             try {
-                console.log(`🔄 Refresh attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS}`);
                 const token = await this._doRefresh();
                 
                 // Успешно обновили - сбрасываем счетчик
@@ -267,7 +258,6 @@ class TokenManager {
                     errorMessage.includes('No active sessions') ||
                     errorMessage.includes('Telegram authentication expired') ||
                     errorMessage.includes('Invalid refresh token')) {
-                    console.error('🚨 Critical auth error, stopping retry:', errorMessage);
                     break;
                 }
 
@@ -277,7 +267,6 @@ class TokenManager {
                         RETRY_BASE_DELAY * Math.pow(2, attempt),
                         RETRY_MAX_DELAY
                     );
-                    console.log(`⏳ Retrying in ${delay}ms...`);
                     this.emitEvent('TOKEN_REFRESH_FAILED', { attempt: attempt + 1, delay });
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -285,7 +274,6 @@ class TokenManager {
         }
 
         // Все попытки исчерпаны
-        console.error('❌ All refresh attempts failed');
         throw lastError || new Error('Failed to refresh token after multiple attempts');
     }
 
@@ -360,19 +348,12 @@ class TokenManager {
 
             const data = await response.json();
             
-            console.log('✅ Refresh successful, saving new tokens');
-            console.log('  - New access token (first 20 chars):', data.accessToken.substring(0, 20));
-            console.log('  - Expires in:', data.expiresIn, 'seconds');
-            
             this.saveTokens(data);
-            
-            console.log('💾 New tokens saved to localStorage');
             
             return data.accessToken;
         } catch (error) {
             // Если это сетевая ошибка (нет интернета и т.д.), НЕ очищаем токены
             if (error instanceof TypeError && error.message.includes('fetch')) {
-                console.error('🌐 Network error during token refresh:', error);
                 this.emitEvent('NETWORK_ERROR', { error: error.message });
                 throw new Error('Network error: Please check your internet connection');
             }
@@ -397,8 +378,6 @@ class TokenManager {
         localStorage.removeItem(EXPIRES_AT_KEY);
         localStorage.removeItem(EXPIRES_IN_KEY);
         // deviceId не удаляем, он нужен для следующей авторизации
-        
-        console.log('🗑️ Tokens cleared');
     }
 
     /**

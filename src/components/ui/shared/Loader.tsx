@@ -46,7 +46,6 @@ export default function Loader({
     useEffect(() => {
         // Если анимация не найдена в маппинге, показываем ошибку
         if (!animationData) {
-            console.error(`Animation not found for src: ${src}`)
             setHasError(true)
         }
     }, [src, animationData])

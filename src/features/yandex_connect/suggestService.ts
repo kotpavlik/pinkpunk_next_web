@@ -38,7 +38,6 @@ export async function fetchYandexSuggestions(
             // Запрос был отменен, это нормально
             return []
         }
-        console.error('Ошибка получения подсказок Yandex:', error)
         return []
     }
 }
