@@ -273,12 +273,12 @@ export const AdminWorkWithUserOrders = () => {
                         )}
 
                         {!isSearchByNumber && allOrders.length === 0 && hasLoaded && (
-                            <div className="flex-1 flex items-center justify-center">
-                                <div className="text-center py-8 bg-white/5 backdrop-blur-md border border-white/10">
-                                    <div className="w-24 h-24 mx-auto mb-4">
+                            <div className="flex-1 flex items-center justify-center w-full min-h-[60vh]">
+                                <div className="text-center w-full max-w-2xl mx-auto px-4">
+                                    <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8">
                                         <Loader src="/animations/empty.lottie" loop autoplay />
                                     </div>
-                                    <p className="text-white/60">
+                                    <p className="text-white/70 text-lg md:text-xl font-medium">
                                         {filterStatus === 'all'
                                             ? 'Заказов пока нет'
                                             : `Нет заказов со статусом "${filterStatus}"`
