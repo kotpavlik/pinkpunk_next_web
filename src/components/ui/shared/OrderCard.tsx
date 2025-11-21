@@ -22,7 +22,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
     const [isPhoneCopied, setIsPhoneCopied] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
-    const [isStatusUpdating, setIsStatusUpdating] = useState(false)
+    const [updatingStatus, setUpdatingStatus] = useState<'confirmed' | 'paid' | 'completed' | 'cancelled' | null>(null)
     const [showCancelModal, setShowCancelModal] = useState(false)
     const { user } = useUserStore()
     const { deleteOrder, updateOrderStatus, cancelOrder } = useOrderStore()
@@ -115,16 +115,16 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
 
     // ===== Status action handlers =====
     const doUpdateStatus = useCallback(async (newStatus: 'confirmed' | 'paid' | 'completed') => {
-        setIsStatusUpdating(true)
+        setUpdatingStatus(newStatus)
         try {
             await updateOrderStatus(order._id, newStatus)
         } finally {
-            setIsStatusUpdating(false)
+            setUpdatingStatus(null)
         }
     }, [order._id, updateOrderStatus])
 
     const doCancelOrder = useCallback(async () => {
-        setIsStatusUpdating(true)
+        setUpdatingStatus('cancelled')
         try {
             const success = await cancelOrder(order._id)
             if (success) {
@@ -134,7 +134,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
         } catch {
             // Silent error handling
         } finally {
-            setIsStatusUpdating(false)
+            setUpdatingStatus(null)
         }
     }, [order._id, cancelOrder, onDeleted])
 
@@ -205,60 +205,63 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
 
             {/* Статус заказа */}
             <div className="mb-4 relative">
-                {isStatusUpdating && (
-                    <div className="absolute inset-0 bg-black/20 backdrop-blur-sm rounded z-20 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--mint-bright)]"></div>
-                    </div>
-                )}
                 <div className="flex items-center justify-between relative">
                     {/* Линия прогресса */}
                     <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#4a5568] -translate-y-1/2 z-0"></div>
 
                     {/* pending_confirmation */}
                     <button
-                        disabled={!canGoToConfirmed || isStatusUpdating}
-                        onClick={() => canGoToConfirmed && !isStatusUpdating && doUpdateStatus('confirmed')}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToConfirmed || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                        title={canGoToConfirmed && !isStatusUpdating ? 'Подтвердить заказ' : ''}
+                        disabled={!canGoToConfirmed || updatingStatus !== null}
+                        onClick={() => canGoToConfirmed && updatingStatus === null && doUpdateStatus('confirmed')}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToConfirmed || updatingStatus !== null ? 'cursor-default' : 'cursor-pointer'}`}
+                        title={canGoToConfirmed && updatingStatus === null ? 'Подтвердить заказ' : ''}
                     >
-                        <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568]'>
-                            <svg className="w-4 h-4"
-                                fill="none"
-                                stroke={order.status === 'pending_confirmation' || order.status === 'confirmed' || order.status === 'paid' || order.status === 'completed'
-                                    ? 'var(--mint-bright)'
-                                    : 'currentColor'
-                                }
-                                viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
+                            {updatingStatus === 'confirmed' ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--mint-bright)]"></div>
+                            ) : (
+                                <svg className="w-4 h-4"
+                                    fill="none"
+                                    stroke={order.status === 'pending_confirmation' || order.status === 'confirmed' || order.status === 'paid' || order.status === 'completed'
+                                        ? 'var(--mint-bright)'
+                                        : 'currentColor'
+                                    }
+                                    viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            )}
                         </div>
                     </button>
 
                     {/* confirmed */}
                     <div className="flex flex-col items-center z-10 bg-[#2a2f31] px-1 relative">
                         <button
-                            disabled={!isAdmin || isStatusUpdating}
+                            disabled={!isAdmin || updatingStatus !== null}
                             onClick={() => {
-                                if (!isAdmin || isStatusUpdating) return
+                                if (!isAdmin || updatingStatus !== null) return
                                 if (order.status === 'pending_confirmation') {
                                     doUpdateStatus('confirmed')
                                 } else if (order.status === 'paid') {
                                     doUpdateStatus('confirmed')
                                 }
                             }}
-                            className={`flex flex-col items-center ${!isAdmin || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                            title={isAdmin && !isStatusUpdating ? (order.status === 'pending_confirmation' ? 'Подтвердить заказ' : (order.status === 'paid' ? 'Откатить к Confirmed' : '')) : ''}
+                            className={`flex flex-col items-center ${!isAdmin || updatingStatus !== null ? 'cursor-default' : 'cursor-pointer'}`}
+                            title={isAdmin && updatingStatus === null ? (order.status === 'pending_confirmation' ? 'Подтвердить заказ' : (order.status === 'paid' ? 'Откатить к Confirmed' : '')) : ''}
                         >
                             <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
-                                <svg className="w-4 h-4"
-                                    fill="none"
-                                    stroke={order.status === 'confirmed' || order.status === 'paid' || order.status === 'completed'
-                                        ? 'var(--mint-bright)'
-                                        : 'currentColor'
-                                    }
-                                    viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
+                                {updatingStatus === 'confirmed' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--mint-bright)]"></div>
+                                ) : (
+                                    <svg className="w-4 h-4"
+                                        fill="none"
+                                        stroke={order.status === 'confirmed' || order.status === 'paid' || order.status === 'completed'
+                                            ? 'var(--mint-bright)'
+                                            : 'currentColor'
+                                        }
+                                        viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
                             </div>
                         </button>
                         {/* Cancel button - only visible to admin when status is confirmed */}
@@ -266,13 +269,17 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                             <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] absolute left-8 top-0 z-10'>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowCancelModal(true); }}
-                                    disabled={isStatusUpdating}
-                                    className={`flex flex-col items-center text-[var(--pink-punk)] ${isStatusUpdating ? 'opacity-50 cursor-default' : ''}`}
-                                    title={isStatusUpdating ? '' : 'Отменить заказ'}
+                                    disabled={updatingStatus !== null}
+                                    className={`flex flex-col items-center text-[var(--pink-punk)] ${updatingStatus !== null ? 'cursor-default' : ''}`}
+                                    title={updatingStatus !== null ? '' : 'Отменить заказ'}
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                    {updatingStatus === 'cancelled' ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--pink-punk)]"></div>
+                                    ) : (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    )}
                                 </button>
                             </div>
                         )}
@@ -280,37 +287,43 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
 
                     {/* paid */}
                     <button
-                        disabled={(!canGoToPaid && !canRollbackToConfirmed) || isStatusUpdating}
+                        disabled={(!canGoToPaid && !canRollbackToConfirmed) || updatingStatus !== null}
                         onClick={() => {
-                            if (isStatusUpdating) return
+                            if (updatingStatus !== null) return
                             if (canGoToPaid) doUpdateStatus('paid')
                             if (canRollbackToConfirmed) doUpdateStatus('confirmed')
                         }}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${(!canGoToPaid && !canRollbackToConfirmed) || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                        title={isStatusUpdating ? '' : (canGoToPaid ? 'Отметить как оплаченный' : canRollbackToConfirmed ? 'Откатить к подтвержденному' : '')}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${(!canGoToPaid && !canRollbackToConfirmed) || updatingStatus !== null ? 'cursor-default' : 'cursor-pointer'}`}
+                        title={updatingStatus !== null ? '' : (canGoToPaid ? 'Отметить как оплаченный' : canRollbackToConfirmed ? 'Откатить к подтвержденному' : '')}
                     >
                         <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
-                            <svg className="w-4 h-4"
-                                fill="none"
-                                stroke={order.status === 'paid' || order.status === 'completed'
-                                    ? 'var(--mint-bright)'
-                                    : 'currentColor'
-                                }
-                                viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                            </svg>
+                            {updatingStatus === 'paid' || (updatingStatus === 'confirmed' && canRollbackToConfirmed) ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--mint-bright)]"></div>
+                            ) : (
+                                <svg className="w-4 h-4"
+                                    fill="none"
+                                    stroke={order.status === 'paid' || order.status === 'completed'
+                                        ? 'var(--mint-bright)'
+                                        : 'currentColor'
+                                    }
+                                    viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                            )}
                         </div>
                     </button>
 
                     {/* completed or cancelled */}
                     <button
-                        disabled={!canGoToCompleted || isStatusUpdating}
-                        onClick={() => canGoToCompleted && !isStatusUpdating && doUpdateStatus('completed')}
-                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToCompleted || isStatusUpdating ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                        title={canGoToCompleted && !isStatusUpdating ? 'Завершить заказ' : ''}
+                        disabled={!canGoToCompleted || updatingStatus !== null}
+                        onClick={() => canGoToCompleted && updatingStatus === null && doUpdateStatus('completed')}
+                        className={`flex flex-col items-center z-10 bg-[#2a2f31] px-1 ${!canGoToCompleted || updatingStatus !== null ? 'cursor-default' : 'cursor-pointer'}`}
+                        title={canGoToCompleted && updatingStatus === null ? 'Завершить заказ' : ''}
                     >
-                        <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568]'>
-                            {order.status === 'cancelled' ? (
+                        <div className='w-8 h-8 rounded-full flex items-center justify-center bg-[#4a5568] relative'>
+                            {updatingStatus === 'completed' ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--mint-bright)]"></div>
+                            ) : order.status === 'cancelled' ? (
                                 <svg className="w-4 h-4"
                                     fill="none"
                                     stroke="var(--pink-punk)"
@@ -585,16 +598,16 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                             <button
                                 onClick={() => setShowCancelModal(false)}
                                 className="px-3 py-2 rounded-md bg-white/10 text-white/90 hover:bg-white/15 text-sm"
-                                disabled={isStatusUpdating}
+                                disabled={updatingStatus === 'cancelled'}
                             >
                                 Отмена
                             </button>
                             <button
                                 onClick={doCancelOrder}
                                 className="px-3 py-2 rounded-md bg-[var(--pink-punk)] text-white hover:bg-[var(--pink-dark)] disabled:opacity-60 text-sm"
-                                disabled={isStatusUpdating}
+                                disabled={updatingStatus === 'cancelled'}
                             >
-                                {isStatusUpdating ? 'Отмена...' : 'Отменить'}
+                                {updatingStatus === 'cancelled' ? 'Отмена...' : 'Отменить'}
                             </button>
                         </div>
                     </div>
