@@ -273,17 +273,25 @@ export const AdminWorkWithUserOrders = () => {
                         )}
 
                         {!isSearchByNumber && allOrders.length === 0 && hasLoaded && (
-                            <div className="flex-1 flex items-center justify-center w-full min-h-[60vh]">
-                                <div className="text-center w-full max-w-2xl mx-auto px-4">
-                                    <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8">
-                                        <Loader src="/animations/empty.lottie" loop autoplay />
+                            <div className="flex-1 flex items-center justify-center w-full min-h-[60vh] p-4">
+                                <div className="text-center w-full max-w-2xl mx-auto">
+                                    <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 md:p-12 shadow-xl">
+                                        <div className="w-40 h-40 md:w-48 md:h-48 mx-auto mb-8 flex items-center justify-center">
+                                            <Loader src="/animations/empty.lottie" loop autoplay />
+                                        </div>
+                                        <h3 className="text-white text-xl md:text-2xl font-bold mb-3">
+                                            {filterStatus === 'all'
+                                                ? 'Заказов пока нет'
+                                                : `Нет заказов со статусом "${filterStatus}"`
+                                            }
+                                        </h3>
+                                        <p className="text-white/60 text-sm md:text-base max-w-md mx-auto">
+                                            {filterStatus === 'all'
+                                                ? 'Здесь будут отображаться все оформленные заказы'
+                                                : 'Попробуйте изменить фильтр или создать новый заказ'
+                                            }
+                                        </p>
                                     </div>
-                                    <p className="text-white/70 text-lg md:text-xl font-medium">
-                                        {filterStatus === 'all'
-                                            ? 'Заказов пока нет'
-                                            : `Нет заказов со статусом "${filterStatus}"`
-                                        }
-                                    </p>
                                 </div>
                             </div>
                         )}

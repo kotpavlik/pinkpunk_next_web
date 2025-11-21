@@ -429,14 +429,26 @@ export default function UserProfile() {
 
                     {/* Пустое состояние */}
                     {!ordersLoading && !ordersError && orders.length === 0 && hasLoaded && (
-                        <div className="text-center py-12">
-                            <div className="w-24 h-24 mx-auto mb-4">
-                                <Loader src="/animations/empty.lottie" loop autoplay />
+                        <div className="flex items-center justify-center py-12 px-4">
+                            <div className="text-center max-w-md mx-auto">
+                                <div className="bg-gradient-to-br from-[var(--pink-punk)]/10 via-transparent to-[var(--mint-bright)]/10 backdrop-blur-sm border border-white/10 rounded-2xl p-8 md:p-10">
+                                    <div className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 flex items-center justify-center">
+                                        <Loader src="/animations/empty.lottie" loop autoplay />
+                                    </div>
+                                    <h3 className="text-white text-xl md:text-2xl font-bold mb-3">
+                                        У вас пока нет заказов
+                                    </h3>
+                                    <p className="text-white/60 text-sm md:text-base leading-relaxed">
+                                        Оформите первый заказ в нашем магазине и начните получать удовольствие от покупок!
+                                    </p>
+                                    <button
+                                        onClick={() => router.push('/')}
+                                        className="mt-6 px-6 py-3 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] text-white font-bold rounded-xl transition-all transform hover:scale-105 hover:shadow-lg"
+                                    >
+                                        Перейти к покупкам
+                                    </button>
+                                </div>
                             </div>
-                            <p className="text-white/80 font-semibold text-base mb-2">У вас пока нет заказов</p>
-                            <p className="text-white/50 text-sm">
-                                Оформите первый заказ в нашем магазине!
-                            </p>
                         </div>
                     )}
                 </div>
