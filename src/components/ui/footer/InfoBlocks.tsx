@@ -200,11 +200,14 @@ const InfoBlocks = memo(function InfoBlocks() {
             >
                 {modalContent?.title === 'магазин' &&
                     <div>
-                        <p className=' text-gray-500 mt-4'>
-                            <a href="#catalog">
+                        <div className=' text-gray-500 mt-4'>
+                            <div onClick={() => {
+                                router.push('/catalog')
+                                setIsModalOpen(false)
+                            }}>
                                 каталог
-                            </a>
-                        </p>
+                            </div>
+                        </div>
                         <div className=' text-gray-500 mt-4'>
                             <div onClick={() => {
                                 router.push('/pinkpunkabout')
