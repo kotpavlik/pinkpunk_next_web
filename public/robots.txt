@@ -68,6 +68,7 @@ Disallow: /order
 
 # Специальные правила для Yandex (важно для Беларуси)
 User-agent: Yandex
+# Явно разрешаем все важные страницы
 Allow: /
 Allow: /catalog
 Allow: /product_item
@@ -77,6 +78,7 @@ Allow: /exchange_and_return
 Allow: /composition_and_care
 Allow: /gift_certificate
 Allow: /company_registration_details
+# Запрещаем только приватные разделы
 Disallow: /admin
 Disallow: /admin/
 Disallow: /api/
@@ -84,11 +86,24 @@ Disallow: /user_profile
 Disallow: /user_profile/
 Disallow: /order
 Disallow: /order/
+# Разрешаем доступ к важным ресурсам
 Allow: /favicon.ico
 Allow: /favicon/
 Allow: /images/
 Allow: /videos/
+Allow: /sitemap.xml
+Allow: /robots.txt
 Crawl-delay: 0
+
+# Специальные правила для Yandex Images
+User-agent: YandexImages
+Allow: /
+Allow: /images/
+Allow: /favicon/
+Disallow: /admin
+Disallow: /api/
+Disallow: /user_profile
+Disallow: /order
 
 # Специальные правила для Bing
 User-agent: Bingbot

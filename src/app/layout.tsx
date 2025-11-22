@@ -20,10 +20,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Pink Punk - Оверсайз Одежда Беларусь | Унисекс Одежда Минск",
-    template: "%s | Pink Punk - Оверсайз Одежда Беларусь"
+    default: "Pink Punk - Оверсайз Одежда | Доставка по России: Москва, СПб, Екатеринбург, Ростов-на-Дону",
+    template: "%s | Pink Punk - Оверсайз Одежда с доставкой по России"
   },
-  description: "Pink Punk - белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Оверсайз одежда Минск, Беларусь. Доставка по всему миру. Уникальные дизайны, высокое качество, стиль для всех.",
+  description: "Pink Punk - белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Доставка по России: Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону и другие города. Оверсайз одежда с доставкой по всей России. Уникальные дизайны, высокое качество, стиль для всех.",
   keywords: [
     // Основные ключевые слова
     "оверсайз одежда беларусь",
@@ -36,28 +36,55 @@ export const metadata: Metadata = {
     "оверсайз одежда унисекс",
     "oversize одежда беларусь",
     "белорусская мода оверсайз",
+    // Российские регионы - Москва
+    "оверсайз одежда москва",
+    "oversize одежда москва",
+    "унисекс одежда москва",
+    "оверсайз одежда с доставкой в москву",
+    "купить оверсайз одежду москва",
+    // Санкт-Петербург
+    "оверсайз одежда санкт-петербург",
+    "оверсайз одежда спб",
+    "oversize одежда санкт-петербург",
+    "унисекс одежда спб",
+    "оверсайз одежда с доставкой в спб",
+    "купить оверсайз одежду санкт-петербург",
+    // Екатеринбург
+    "оверсайз одежда екатеринбург",
+    "oversize одежда екатеринбург",
+    "унисекс одежда екатеринбург",
+    "оверсайз одежда с доставкой в екатеринбург",
+    "купить оверсайз одежду екатеринбург",
+    // Ростов-на-Дону
+    "оверсайз одежда ростов-на-дону",
+    "оверсайз одежда ростов",
+    "oversize одежда ростов-на-дону",
+    "унисекс одежда ростов",
+    "оверсайз одежда с доставкой в ростов-на-дону",
+    "купить оверсайз одежду ростов",
+    // Общие по России
+    "оверсайз одежда россия",
+    "oversize одежда россия",
+    "унисекс одежда россия",
+    "оверсайз одежда с доставкой по россии",
+    "купить оверсайз одежду россия",
+    "доставка оверсайз одежды по россии",
+    // Дополнительные
     "оверсайз пальто",
     "черный худи",
     "спортивные штаны",
     "оверсайз одежда для парней и девушек",
-    "оверсайз одежда унисекс",
-    "оверсайз одежда беларусь",
-    "оверсайз одежда минск",
-    "оверсайз одежда для всех",
-    "оверсайз одежда для парней",
-    "оверсайз одежда для девушек",
-    // Дополнительные
     "Pink Punk",
     "оверсайз",
     "унисекс",
     "одежда беларусь",
-    "модная одежда минск",
+    "модная одежда",
     "стильная одежда",
     "oversize",
     "белорусский бренд",
     "одежда для всех",
     "оверсайз вещи",
-    "унисекс вещи беларусь"
+    "унисекс вещи"
   ],
   authors: [{ name: "Pink Punk", url: "https://pinkpunk.by" }],
   creator: "Pink Punk",
@@ -95,11 +122,11 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "ru_BY",
-    alternateLocale: ["ru_RU", "be_BY"],
+    locale: "ru_RU",
+    alternateLocale: ["ru_BY", "be_BY"],
     url: "/",
     title: "Pink Punk - Оверсайз Одежда Беларусь | Унисекс Одежда Минск",
-    description: "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Оверсайз одежда Минск, Беларусь. Доставка по всему миру.",
+    description: "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Доставка по России: Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону и другие города. Оверсайз одежда с доставкой по всей России.",
     siteName: "Pink Punk",
     images: [
       {
@@ -138,10 +165,12 @@ export const metadata: Metadata = {
     // yandex: 'your-yandex-verification-code',
   },
   other: {
-    'geo.region': 'BY',
-    'geo.placename': 'Минск',
+    'geo.region': 'BY-RU',
+    'geo.placename': 'Минск, Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону',
     'geo.position': '53.9045;27.5615',
     'ICBM': '53.9045, 27.5615',
+    'distribution': 'RU, BY',
+    'target': 'RU, BY',
   },
 };
 
@@ -186,6 +215,20 @@ export default function RootLayout({
         {/* Canonical URL */}
         <link rel="canonical" href="https://pinkpunk.by" />
 
+        {/* Yandex метатеги для лучшей индексации в России */}
+        <meta name="yandex-verification" content="" />
+        <meta name="yandex" content="index, follow" />
+        <meta name="geo.region" content="RU-BY" />
+        <meta name="geo.placename" content="Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону, Минск" />
+        <meta name="geo.position" content="55.7558;37.6173" />
+        <meta name="ICBM" content="55.7558, 37.6173" />
+        <meta name="language" content="ru-RU" />
+        <meta name="distribution" content="RU, BY" />
+        <meta name="target" content="RU, BY" />
+        {/* Региональные метатеги для Yandex */}
+        <meta name="yandex-city" content="Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону" />
+        <meta name="yandex-region" content="RU" />
+
         {/* Structured Data - Organization Schema */}
         <script
           type="application/ld+json"
@@ -194,10 +237,10 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               "name": "Pink Punk",
-              "alternateName": "Pink Punk Беларусь",
+              "alternateName": "Pink Punk - Оверсайз Одежда с доставкой по России",
               "url": "https://pinkpunk.by",
               "logo": "https://pinkpunk.by/favicon/web-app-manifest-512x512.png",
-              "description": "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем.",
+              "description": "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Доставка по России: Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону и другие города.",
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "BY",
@@ -207,7 +250,33 @@ export default function RootLayout({
               "contactPoint": {
                 "@type": "ContactPoint",
                 "contactType": "Customer Service",
-                "availableLanguage": ["Russian", "Belarusian"]
+                "availableLanguage": ["Russian", "Belarusian"],
+              "areaServed": [
+                {
+                  "@type": "Country",
+                  "name": "Russia"
+                },
+                {
+                  "@type": "Country",
+                  "name": "Belarus"
+                },
+                {
+                  "@type": "City",
+                  "name": "Москва"
+                },
+                {
+                  "@type": "City",
+                  "name": "Санкт-Петербург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Екатеринбург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Ростов-на-Дону"
+                }
+              ]
               },
               "sameAs": [
                 // Добавьте ссылки на соцсети когда будут
@@ -215,10 +284,32 @@ export default function RootLayout({
                 // "https://vk.com/pinkpunk",
                 // "https://t.me/pinkpunk"
               ],
-              "areaServed": {
-                "@type": "Country",
-                "name": "Belarus"
-              },
+              "areaServed": [
+                {
+                  "@type": "Country",
+                  "name": "Belarus"
+                },
+                {
+                  "@type": "Country",
+                  "name": "Russia"
+                },
+                {
+                  "@type": "City",
+                  "name": "Москва"
+                },
+                {
+                  "@type": "City",
+                  "name": "Санкт-Петербург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Екатеринбург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Ростов-на-Дону"
+                }
+              ],
               "brand": {
                 "@type": "Brand",
                 "name": "Pink Punk"
@@ -235,10 +326,10 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "Pink Punk",
-              "alternateName": "Pink Punk - Оверсайз Одежда Беларусь",
+              "alternateName": "Pink Punk - Оверсайз Одежда с доставкой по России",
               "url": "https://pinkpunk.by",
-              "description": "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем.",
-              "inLanguage": ["ru-BY", "ru-RU", "be-BY"],
+              "description": "Белорусский бренд оверсайз одежды для парней и девушек. Унисекс вещи, которые подходят всем. Доставка по России: Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону и другие города.",
+              "inLanguage": ["ru-RU", "ru-BY", "be-BY"],
               "potentialAction": {
                 "@type": "SearchAction",
                 "target": {
@@ -260,7 +351,7 @@ export default function RootLayout({
               "@type": "Store",
               "name": "Pink Punk",
               "image": "https://pinkpunk.by/favicon/web-app-manifest-512x512.png",
-              "description": "Онлайн-магазин оверсайз одежды. Белорусский бренд унисекс одежды для парней и девушек.",
+              "description": "Онлайн-магазин оверсайз одежды. Белорусский бренд унисекс одежды для парней и девушек. Доставка по России: Москва, Санкт-Петербург, Екатеринбург, Ростов-на-Дону и другие города.",
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "BY",
@@ -268,6 +359,32 @@ export default function RootLayout({
               },
               "priceRange": "$$",
               "telephone": "",
+              "areaServed": [
+                {
+                  "@type": "Country",
+                  "name": "Russia"
+                },
+                {
+                  "@type": "Country",
+                  "name": "Belarus"
+                },
+                {
+                  "@type": "City",
+                  "name": "Москва"
+                },
+                {
+                  "@type": "City",
+                  "name": "Санкт-Петербург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Екатеринбург"
+                },
+                {
+                  "@type": "City",
+                  "name": "Ростов-на-Дону"
+                }
+              ],
               "openingHoursSpecification": {
                 "@type": "OpeningHoursSpecification",
                 "dayOfWeek": [
