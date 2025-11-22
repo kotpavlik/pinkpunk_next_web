@@ -45,9 +45,9 @@ const InfoBlocks = memo(function InfoBlocks() {
                     </div>
                     {!isModalOpen && !isMobile && <div>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                            <a href="#catalog">
+                            <Link href="/catalog">
                                 каталог
-                            </a>
+                            </Link>
                         </p>
                         <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                             <Link href="/pinkpunkabout">
