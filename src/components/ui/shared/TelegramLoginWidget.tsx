@@ -216,26 +216,53 @@ export default function TelegramLoginWidget({
         // Fallback механизм 3: слушаем postMessage от iframe
         const messageHandler = (event: MessageEvent) => {
             // Проверяем, что сообщение от Telegram
-            if (event.origin === 'https://oauth.telegram.org' || event.origin === 'https://telegram.org') {
-                console.log('Received postMessage from Telegram:', event.data)
+            if (event.origin === 'https://oauth.telegram.org' || event.origin === 'https://telegram.org' || event.origin.includes('telegram.org')) {
+                console.log('Received postMessage from Telegram:', event.data, 'Origin:', event.origin)
+
+                // Обрабатываем событие unauthorized
+                if (event.data && typeof event.data === 'object' && event.data.event === 'unauthorized') {
+                    console.error('Telegram widget unauthorized - check domain settings in BotFather')
+                    console.log('Current origin:', window.location.origin)
+                    console.log('Bot name:', botName)
+                }
+
                 try {
                     let userData: TelegramUser | null = null
 
                     // Если данные приходят напрямую
                     if (event.data && event.data.user && event.data.user.id && event.data.user.hash) {
+                        console.log('Found user data in postMessage:', event.data.user)
                         userData = event.data.user as TelegramUser
                     }
                     // Если данные в строке
                     else if (typeof event.data === 'string') {
                         userData = parseUserData(event.data)
+                        if (userData) {
+                            console.log('Parsed user data from string:', userData)
+                        }
                     }
-                    // Если данные в объекте
-                    else if (typeof event.data === 'object') {
-                        const text = JSON.stringify(event.data)
-                        userData = parseUserData(text)
+                    // Если данные в объекте (проверяем вложенные структуры)
+                    else if (typeof event.data === 'object' && event.data !== null) {
+                        // Проверяем, есть ли user в корне
+                        if ('user' in event.data && event.data.user) {
+                            const user = (event.data as { user?: TelegramUser }).user
+                            if (user && user.id && user.hash) {
+                                console.log('Found user data in object.user:', user)
+                                userData = user
+                            }
+                        }
+                        // Пытаемся парсить как JSON строку
+                        else {
+                            const text = JSON.stringify(event.data)
+                            userData = parseUserData(text)
+                            if (userData) {
+                                console.log('Parsed user data from object JSON:', userData)
+                            }
+                        }
                     }
 
                     if (userData && !callbackCalledRef.current) {
+                        console.log('Triggering callback from postMessage')
                         triggerCallback(userData)
                     }
                 } catch (e) {
@@ -281,6 +308,13 @@ export default function TelegramLoginWidget({
         // Используем script тег с data-атрибутами (официальный способ)
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
+        console.log('Creating Telegram widget with:', {
+            botName,
+            origin,
+            usePic,
+            callbackSet: !!window.onTelegramAuth
+        })
+
         // Создаем script тег точно как в официальной документации
         const widgetScript = document.createElement('script')
         widgetScript.async = true
@@ -294,7 +328,19 @@ export default function TelegramLoginWidget({
         widgetScript.setAttribute('data-radius', cornerRadius.toString())
         widgetScript.setAttribute('data-lang', lang)
         widgetScript.setAttribute('data-onauth', 'onTelegramAuth(user)')
-        widgetScript.setAttribute('data-auth-url', origin)
+        // data-auth-url должен быть установлен для проверки origin
+        // Если не установлен, Telegram будет использовать текущий origin
+        if (origin) {
+            widgetScript.setAttribute('data-auth-url', origin)
+        }
+
+        // Добавляем обработчик загрузки скрипта для отладки
+        widgetScript.onload = () => {
+            console.log('Telegram widget script loaded')
+        }
+        widgetScript.onerror = () => {
+            console.error('Failed to load Telegram widget script')
+        }
 
         // Добавляем script тег в контейнер
         container.appendChild(widgetScript)
