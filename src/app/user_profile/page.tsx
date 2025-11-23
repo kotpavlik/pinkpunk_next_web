@@ -154,7 +154,6 @@ export default function UserProfile() {
         }
     }
 
-    console.log(user)
 
     return (
         <div className="relative min-h-screen pt-20 pb-20 px-4 md:px-6 lg:px-8">

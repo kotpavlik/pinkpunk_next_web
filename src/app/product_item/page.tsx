@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -35,6 +35,8 @@ function ProductItemContent() {
     const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
     const [isAddingToCart, setIsAddingToCart] = useState(false)
     const [showError, setShowError] = useState(false)
+    const sheetRef = useRef<HTMLDivElement>(null)
+    const dragHandleRef = useRef<HTMLSpanElement>(null)
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -162,7 +164,14 @@ function ProductItemContent() {
     }, [emblaApi, isSheetActive])
 
     // Обработчики для bottom sheet
-    const handleTouchStart = (e: React.TouchEvent) => {
+    const handleTouchStart = useCallback((e: TouchEvent) => {
+        // Проверяем, не был ли клик на span (drag handle)
+        const target = e.target as HTMLElement
+        if (target.tagName === 'SPAN' || target.closest('span')) {
+            // Если клик на span, не обрабатываем здесь - пусть onClick/onTouchStart на span обработает
+            return
+        }
+
         e.preventDefault() // Предотвращаем дефолтное поведение сразу
         e.stopPropagation()
         const touchY = e.touches[0].clientY
@@ -183,7 +192,7 @@ function ProductItemContent() {
                 // Игнорируем ошибки
             }
         }
-    }
+    }, [emblaApi])
 
     // Обработчик для свайпа вниз в области контента
     const handleContentTouchStart = (e: React.TouchEvent) => {
@@ -194,7 +203,9 @@ function ProductItemContent() {
         // Если контент в самом верху и bottom sheet открыт, разрешаем закрытие
         if (scrollTop === 0 && sheetPosition > 0) {
             e.stopPropagation()
-            handleTouchStart(e)
+            // Создаем нативный TouchEvent из React.TouchEvent
+            const nativeEvent = e.nativeEvent as TouchEvent
+            handleTouchStart(nativeEvent)
         }
     }
 
@@ -211,7 +222,8 @@ function ProductItemContent() {
             if (deltaY < 0) {
                 e.preventDefault()
                 e.stopPropagation()
-                handleTouchMove(e)
+                const nativeEvent = e.nativeEvent as TouchEvent
+                handleTouchMove(nativeEvent)
             }
         }
     }
@@ -224,7 +236,7 @@ function ProductItemContent() {
         }
     }
 
-    const handleTouchMove = (e: React.TouchEvent) => {
+    const handleTouchMove = useCallback((e: TouchEvent) => {
         if (!isDragging) return
         e.preventDefault()
         e.stopPropagation()
@@ -239,37 +251,84 @@ function ProductItemContent() {
         // Увеличиваем чувствительность для закрытия (свайп вниз)
         // При свайпе вниз делаем движение более чувствительным
         const sensitivity = deltaY < 0 ? 1.5 : 1 // Увеличиваем чувствительность для закрытия
-        const newPosition = Math.max(0, Math.min(1, sheetPosition + (deltaY * sensitivity / maxHeight)))
-        setSheetPosition(newPosition)
+        setSheetPosition(prev => {
+            const newPosition = Math.max(0, Math.min(1, prev + (deltaY * sensitivity / maxHeight)))
+            return newPosition
+        })
         setStartY(touchY) // Обновляем начальную позицию для следующего движения
-    }
+    }, [isDragging, startY, windowHeight])
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = useCallback(() => {
         setIsDragging(false)
 
         // Определяем направление последнего движения
-        const isSwipeDown = lastDeltaY < 0
+        setLastDeltaY(prev => {
+            const isSwipeDown = prev < 0
 
-        // Если делали свайп вниз, закрываем при меньшем пороге (15%)
-        // Если делали свайп вверх, открываем при большем пороге (25%)
-        if (isSwipeDown) {
-            // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
-            if (sheetPosition < 0.15) {
-                setSheetPosition(0)
-                // Восстанавливаем карусель только если sheet закрыт
-                if (emblaApi) {
-                    emblaApi.reInit({
-                        watchDrag: true,
-                        watchResize: true,
-                    })
+            // Если делали свайп вниз, закрываем при меньшем пороге (15%)
+            // Если делали свайп вверх, открываем при большем пороге (25%)
+            setSheetPosition(current => {
+                if (isSwipeDown) {
+                    // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
+                    if (current < 0.15) {
+                        // Восстанавливаем карусель только если sheet закрыт
+                        if (emblaApi) {
+                            emblaApi.reInit({
+                                watchDrag: true,
+                                watchResize: true,
+                            })
+                        }
+                        return 0
+                    } else {
+                        // Если не закрыли полностью, возвращаем к открытому состоянию
+                        return 1
+                    }
+                } else {
+                    // Свайп вверх - открываем при позиции больше 0.25 (25%)
+                    if (current > 0.25) {
+                        return 1
+                    } else {
+                        // Восстанавливаем карусель только если sheet закрыт
+                        if (emblaApi) {
+                            emblaApi.reInit({
+                                watchDrag: true,
+                                watchResize: true,
+                            })
+                        }
+                        return 0
+                    }
                 }
-            } else {
-                // Если не закрыли полностью, возвращаем к открытому состоянию
-                setSheetPosition(1)
-            }
-        } else {
-            // Свайп вверх - открываем при позиции больше 0.25 (25%)
-            if (sheetPosition > 0.25) {
+            })
+            return 0
+        })
+        setStartY(0)
+    }, [emblaApi])
+
+    // Добавляем нативные обработчики touch событий с { passive: false }
+    useEffect(() => {
+        const sheetElement = sheetRef.current
+        if (!sheetElement) return
+
+        sheetElement.addEventListener('touchstart', handleTouchStart, { passive: false })
+        sheetElement.addEventListener('touchmove', handleTouchMove, { passive: false })
+        sheetElement.addEventListener('touchend', handleTouchEnd, { passive: false })
+
+        return () => {
+            sheetElement.removeEventListener('touchstart', handleTouchStart)
+            sheetElement.removeEventListener('touchmove', handleTouchMove)
+            sheetElement.removeEventListener('touchend', handleTouchEnd)
+        }
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd])
+
+    // Добавляем нативный обработчик для drag handle span
+    useEffect(() => {
+        const dragHandle = dragHandleRef.current
+        if (!dragHandle) return
+
+        const handleDragHandleTouch = (e: TouchEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (sheetPosition === 0) {
                 setSheetPosition(1)
             } else {
                 setSheetPosition(0)
@@ -283,9 +342,12 @@ function ProductItemContent() {
             }
         }
 
-        setStartY(0)
-        setLastDeltaY(0)
-    }
+        dragHandle.addEventListener('touchstart', handleDragHandleTouch, { passive: false })
+
+        return () => {
+            dragHandle.removeEventListener('touchstart', handleDragHandleTouch)
+        }
+    }, [sheetPosition, emblaApi])
 
     // Автоматическое отображение ошибки из корзины
     useEffect(() => {
@@ -741,6 +803,7 @@ function ProductItemContent() {
                 }}
             >
                 <div
+                    ref={sheetRef}
                     className="rounded-t-3xl relative overflow-hidden h-full"
                     style={{
                         background: 'rgba(255, 255, 255, 0.1)',
@@ -752,27 +815,38 @@ function ProductItemContent() {
                         WebkitUserSelect: 'none',
                         userSelect: 'none',
                     }}
-                    onTouchStart={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleTouchStart(e)
-                    }}
-                    onTouchMove={(e) => {
-                        if (isDragging) {
-                            e.preventDefault()
-                        }
-                        e.stopPropagation()
-                        handleTouchMove(e)
-                    }}
-                    onTouchEnd={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleTouchEnd()
-                    }}
                 >
                     {/* Drag handle */}
-                    <div className="sticky top-0   w-full flex items-center justify-center z-10 pt-2 pb-2">
-                        <span className="w-12 h-[3px] bg-[var(--mint-dark)] rounded-full"></span>
+                    <div
+                        className="sticky top-0   w-full flex items-center justify-center z-10 pt-2 pb-2"
+                        onTouchStart={(e) => {
+                            // Если клик на span, не обрабатываем здесь
+                            const target = e.target as HTMLElement
+                            if (target.tagName === 'SPAN' || target.closest('span')) {
+                                return
+                            }
+                        }}
+                    >
+                        <span
+                            ref={dragHandleRef}
+                            className="w-12 h-[3px] bg-[var(--mint-dark)] rounded-full cursor-pointer"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (sheetPosition === 0) {
+                                    setSheetPosition(1)
+                                } else {
+                                    setSheetPosition(0)
+                                    // Восстанавливаем карусель только если sheet закрыт
+                                    if (emblaApi) {
+                                        emblaApi.reInit({
+                                            watchDrag: true,
+                                            watchResize: true,
+                                        })
+                                    }
+                                }
+                            }}
+                        ></span>
                     </div>
 
                     {/* Scrollable content container */}
