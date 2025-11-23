@@ -157,7 +157,7 @@ export default function TelegramLoginModal({
                         botName={cleanBotName}
                         size="large"
                         requestAccess={true}
-                        usePic={true}
+                        usePic={false}
                         cornerRadius={20}
                         lang="ru"
                         className="flex justify-center"

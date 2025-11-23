@@ -359,6 +359,28 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 const { checkTokenForAdmin } = get()
                 await checkTokenForAdmin()
 
+                // После успешной авторизации пытаемся получить фото через Bot API
+                // если photo_url отсутствует в данных от виджета
+                if (!telegramData.photo_url && !userData.photo_url) {
+                    try {
+                        const photoResponse = await UserApi.GetUserPhoto(telegramUser.id)
+                        if (photoResponse.data?.photo_url) {
+                            // Обновляем photo_url в userData
+                            userData.photo_url = photoResponse.data.photo_url
+                            
+                            // Обновляем в state
+                            set(state => {
+                                state.user.photo_url = photoResponse.data.photo_url
+                                saveUserToStorage(state.user)
+                            })
+                        }
+                    } catch (err) {
+                        // Игнорируем ошибку получения фото - не критично
+                        // Фото может быть недоступно из-за настроек приватности
+                        console.log('Could not fetch user photo:', err)
+                    }
+                }
+
                 setStatus('success')
                 return { success: true }
             } else {

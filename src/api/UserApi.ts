@@ -94,6 +94,19 @@ export const UserApi = {
     },
 
     /**
+     * Получает фото пользователя через Telegram Bot API
+     * @param userId - Telegram user ID
+     * @returns Promise с photo_url или null
+     */
+    async GetUserPhoto(userId: number): Promise<AxiosResponse<{ photo_url: string | null }>> {
+        const response = await instance.post<
+            { userId: number },
+            Promise<AxiosResponse<{ photo_url: string | null }>>
+        >('user/get-telegram-photo', { userId });
+        return response;
+    },
+
+    /**
      * Обновляет контактную информацию пользователя (телефон и/или адрес доставки)
      * @param data - объект с userPhoneNumber и/или shippingAddress
      * @returns Promise с обновленными данными пользователя
