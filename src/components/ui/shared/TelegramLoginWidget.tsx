@@ -115,7 +115,6 @@ export default function TelegramLoginWidget({
         // Функция для вызова callback с данными пользователя
         const triggerCallback = (userData: TelegramUser) => {
             if (!callbackCalledRef.current && window.onTelegramAuth) {
-                console.log('Triggering callback manually with user data:', userData)
                 callbackCalledRef.current = true
                 if (fallbackTimeoutRef.current) {
                     clearTimeout(fallbackTimeoutRef.current)
@@ -137,7 +136,7 @@ export default function TelegramLoginWidget({
                     }
                 }
             } catch (e) {
-                console.log('Could not parse user data:', e)
+                // Игнорируем ошибки парсинга
             }
             return null
         }
@@ -152,13 +151,11 @@ export default function TelegramLoginWidget({
 
             // Перехватываем ответ от oauth.telegram.org
             if (url.includes('oauth.telegram.org/auth/get')) {
-                console.log('Intercepted fetch request to oauth.telegram.org')
                 // Клонируем response для чтения без нарушения оригинального потока
                 const clonedResponse = response.clone()
 
                 try {
                     const text = await clonedResponse.text()
-                    console.log('Received response from oauth.telegram.org:', text.substring(0, 200))
                     const userData = parseUserData(text)
 
                     if (userData && !callbackCalledRef.current) {
@@ -170,7 +167,7 @@ export default function TelegramLoginWidget({
                         }, 500) // Небольшая задержка на случай, если виджет еще обрабатывает
                     }
                 } catch (readError) {
-                    console.log('Error reading response:', readError)
+                    // Игнорируем ошибки чтения
                 }
             }
 
@@ -190,12 +187,10 @@ export default function TelegramLoginWidget({
 
         OriginalXHR.prototype.open = function (method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null) {
             if (typeof url === 'string' && url.includes('oauth.telegram.org/auth/get')) {
-                console.log('Intercepted XHR request to oauth.telegram.org')
                 this.addEventListener('load', function () {
                     if (this.readyState === 4 && this.status === 200) {
                         try {
                             const text = this.responseText
-                            console.log('Received XHR response from oauth.telegram.org:', text.substring(0, 200))
                             const userData = parseUserData(text)
                             if (userData && !callbackCalledRef.current) {
                                 setTimeout(() => {
@@ -205,7 +200,7 @@ export default function TelegramLoginWidget({
                                 }, 500)
                             }
                         } catch (e) {
-                            console.log('Error parsing XHR response:', e)
+                            // Игнорируем ошибки парсинга
                         }
                     }
                 })
@@ -217,29 +212,16 @@ export default function TelegramLoginWidget({
         const messageHandler = (event: MessageEvent) => {
             // Проверяем, что сообщение от Telegram
             if (event.origin === 'https://oauth.telegram.org' || event.origin === 'https://telegram.org' || event.origin.includes('telegram.org')) {
-                console.log('Received postMessage from Telegram:', event.data, 'Origin:', event.origin)
-
-                // Обрабатываем событие unauthorized
-                if (event.data && typeof event.data === 'object' && event.data.event === 'unauthorized') {
-                    console.error('Telegram widget unauthorized - check domain settings in BotFather')
-                    console.log('Current origin:', window.location.origin)
-                    console.log('Bot name:', botName)
-                }
-
                 try {
                     let userData: TelegramUser | null = null
 
                     // Если данные приходят напрямую
                     if (event.data && event.data.user && event.data.user.id && event.data.user.hash) {
-                        console.log('Found user data in postMessage:', event.data.user)
                         userData = event.data.user as TelegramUser
                     }
                     // Если данные в строке
                     else if (typeof event.data === 'string') {
                         userData = parseUserData(event.data)
-                        if (userData) {
-                            console.log('Parsed user data from string:', userData)
-                        }
                     }
                     // Если данные в объекте (проверяем вложенные структуры)
                     else if (typeof event.data === 'object' && event.data !== null) {
@@ -247,7 +229,6 @@ export default function TelegramLoginWidget({
                         if ('user' in event.data && event.data.user) {
                             const user = (event.data as { user?: TelegramUser }).user
                             if (user && user.id && user.hash) {
-                                console.log('Found user data in object.user:', user)
                                 userData = user
                             }
                         }
@@ -255,18 +236,14 @@ export default function TelegramLoginWidget({
                         else {
                             const text = JSON.stringify(event.data)
                             userData = parseUserData(text)
-                            if (userData) {
-                                console.log('Parsed user data from object JSON:', userData)
-                            }
                         }
                     }
 
                     if (userData && !callbackCalledRef.current) {
-                        console.log('Triggering callback from postMessage')
                         triggerCallback(userData)
                     }
                 } catch (e) {
-                    console.log('Error handling postMessage:', e)
+                    // Игнорируем ошибки обработки
                 }
             }
         }
@@ -308,13 +285,6 @@ export default function TelegramLoginWidget({
         // Используем script тег с data-атрибутами (официальный способ)
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
-        console.log('Creating Telegram widget with:', {
-            botName,
-            origin,
-            usePic,
-            callbackSet: !!window.onTelegramAuth
-        })
-
         // Создаем script тег точно как в официальной документации
         const widgetScript = document.createElement('script')
         widgetScript.async = true
@@ -332,14 +302,6 @@ export default function TelegramLoginWidget({
         // Если не установлен, Telegram будет использовать текущий origin
         if (origin) {
             widgetScript.setAttribute('data-auth-url', origin)
-        }
-
-        // Добавляем обработчик загрузки скрипта для отладки
-        widgetScript.onload = () => {
-            console.log('Telegram widget script loaded')
-        }
-        widgetScript.onerror = () => {
-            console.error('Failed to load Telegram widget script')
         }
 
         // Добавляем script тег в контейнер
