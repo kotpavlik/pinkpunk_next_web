@@ -10,6 +10,7 @@ import TelegramLoginModal from '../shared/TelegramLoginModal'
 import CartModal from '../shared/CartModal'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
+import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 
 
 export default function Header() {
@@ -215,19 +216,25 @@ export default function Header() {
                                 className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105"
                                 aria-label={isMounted && user.userId ? 'Профиль пользователя' : 'Войти через Telegram'}
                             >
-                                {isMounted && user.userId && (user.photoUrl || user.photo_url) && !imageError ? (
-                                    <div className="relative h-6 w-6 rounded-full overflow-hidden">
-                                        <Image
-                                            src={user.photoUrl || user.photo_url || ''}
-                                            alt={user.firstName || user.username || 'User avatar'}
-                                            fill
-                                            className="object-cover"
-                                            unoptimized
-                                            onError={() => {
-                                                setImageError(true)
-                                            }}
-                                        />
-                                    </div>
+                                {isMounted && user.userId ? (
+                                    (user.photoUrl || user.photo_url) && !imageError ? (
+                                        <div className="relative h-6 w-6 rounded-full overflow-hidden">
+                                            <Image
+                                                src={user.photoUrl || user.photo_url || ''}
+                                                alt={user.firstName || user.username || 'User avatar'}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized
+                                                onError={() => {
+                                                    setImageError(true)
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="h-6 w-6 rounded-full overflow-hidden">
+                                            <AvatarLoader className="w-full h-full" />
+                                        </div>
+                                    )
                                 ) : (
                                     <UserIcon className="h-6 w-6" aria-hidden="true" />
                                 )}

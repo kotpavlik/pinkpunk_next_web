@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
-import { UserIcon, XMarkIcon, CalendarIcon, PhoneIcon, MapPinIcon, PencilIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, CalendarIcon, PhoneIcon, MapPinIcon, PencilIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { CheckBadgeIcon as CheckBadgeIconSolid } from '@heroicons/react/24/solid'
 import ContactInfoModal from '@/components/ui/shared/ContactInfoModal'
 import Loader from '@/components/ui/shared/Loader'
+import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
@@ -199,8 +200,8 @@ export default function UserProfile() {
                                             />
                                         </div>
                                     ) : (
-                                        <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-white/10 border-2 border-[var(--pink-punk)] flex items-center justify-center">
-                                            <UserIcon className="h-12 w-12 md:h-14 md:w-14 text-white/50" />
+                                        <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-white/10 border-2 border-[var(--pink-punk)] flex items-center justify-center overflow-hidden">
+                                            <AvatarLoader className="w-full h-full" />
                                         </div>
                                     )}
                                     {/* Бейдж премиум */}
