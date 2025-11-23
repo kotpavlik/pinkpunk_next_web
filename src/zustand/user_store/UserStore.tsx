@@ -364,13 +364,14 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 if (!telegramData.photo_url && !userData.photo_url) {
                     try {
                         const photoResponse = await UserApi.GetUserPhoto(telegramUser.id)
-                        if (photoResponse.data?.photo_url) {
-                            // Обновляем photo_url в userData
-                            userData.photo_url = photoResponse.data.photo_url
+                        const photoUrl = photoResponse.data?.photo_url
+                        if (photoUrl) {
+                            // Обновляем photo_url в userData (преобразуем null в undefined)
+                            userData.photo_url = photoUrl || undefined
                             
                             // Обновляем в state
                             set(state => {
-                                state.user.photo_url = photoResponse.data.photo_url
+                                state.user.photo_url = photoUrl || undefined
                                 saveUserToStorage(state.user)
                             })
                         }
