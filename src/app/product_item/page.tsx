@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -25,12 +25,8 @@ function ProductItemContent() {
     })
     const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0)
     const [sheetPosition, setSheetPosition] = useState(0) // 0 = свернуто, 1 = развернуто
-    const [isDragging, setIsDragging] = useState(false)
-    const [startY, setStartY] = useState(0)
     const [windowHeight, setWindowHeight] = useState(700) // дефолтная высота для SSR
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
-    const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
-    const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
     const [isAddingToCart, setIsAddingToCart] = useState(false)
@@ -133,8 +129,8 @@ function ProductItemContent() {
 
     // Обновляем флаг активности bottom sheet
     useEffect(() => {
-        setIsSheetActive(sheetPosition > 0 || isDragging)
-    }, [sheetPosition, isDragging])
+        setIsSheetActive(sheetPosition > 0)
+    }, [sheetPosition])
 
     // Отключаем карусель, когда bottom sheet открыт
     useEffect(() => {
@@ -163,162 +159,6 @@ function ProductItemContent() {
         }
     }, [emblaApi, isSheetActive])
 
-    // Обработчики для bottom sheet
-    const handleTouchStart = useCallback((e: TouchEvent) => {
-        // Проверяем, не был ли клик на span (drag handle)
-        const target = e.target as HTMLElement
-        if (target.tagName === 'SPAN' || target.closest('span')) {
-            // Если клик на span, не обрабатываем здесь - пусть onClick/onTouchStart на span обработает
-            return
-        }
-
-        e.preventDefault() // Предотвращаем дефолтное поведение сразу
-        e.stopPropagation()
-        const touchY = e.touches[0].clientY
-        setStartY(touchY)
-
-        // Сразу устанавливаем флаг активности для немедленной блокировки карусели
-        setIsSheetActive(true)
-        setIsDragging(true)
-
-        // Дополнительно блокируем карусель синхронно
-        if (emblaApi) {
-            try {
-                emblaApi.reInit({
-                    watchDrag: false,
-                    watchResize: false,
-                })
-            } catch {
-                // Игнорируем ошибки
-            }
-        }
-    }, [emblaApi])
-
-    // Обработчик для свайпа вниз в области контента
-    const handleContentTouchStart = (e: React.TouchEvent) => {
-        const target = e.currentTarget as HTMLElement
-        const scrollTop = target.scrollTop
-        setContentScrollTop(scrollTop)
-
-        // Если контент в самом верху и bottom sheet открыт, разрешаем закрытие
-        if (scrollTop === 0 && sheetPosition > 0) {
-            e.stopPropagation()
-            // Создаем нативный TouchEvent из React.TouchEvent
-            const nativeEvent = e.nativeEvent as TouchEvent
-            handleTouchStart(nativeEvent)
-        }
-    }
-
-    const handleContentTouchMove = (e: React.TouchEvent) => {
-        const target = e.currentTarget as HTMLElement
-        const scrollTop = target.scrollTop
-
-        // Если контент в самом верху и делаем свайп вниз, закрываем bottom sheet
-        if (scrollTop === 0 && contentScrollTop === 0 && isDragging) {
-            const touchY = e.touches[0].clientY
-            const deltaY = startY - touchY
-
-            // Если свайп вниз (deltaY < 0), закрываем bottom sheet
-            if (deltaY < 0) {
-                e.preventDefault()
-                e.stopPropagation()
-                const nativeEvent = e.nativeEvent as TouchEvent
-                handleTouchMove(nativeEvent)
-            }
-        }
-    }
-
-    const handleContentTouchEnd = (e: React.TouchEvent) => {
-        // Если мы перетаскивали bottom sheet из области контента, завершаем перетаскивание
-        if (isDragging && contentScrollTop === 0 && sheetPosition > 0) {
-            e.stopPropagation()
-            handleTouchEnd()
-        }
-    }
-
-    const handleTouchMove = useCallback((e: TouchEvent) => {
-        if (!isDragging) return
-        e.preventDefault()
-        e.stopPropagation()
-        const touchY = e.touches[0].clientY
-        const deltaY = startY - touchY // Положительное значение = движение вверх (открытие), отрицательное = движение вниз (закрытие)
-
-        // Сохраняем направление движения
-        setLastDeltaY(deltaY)
-
-        // Максимальная высота = 70% экрана
-        const maxHeight = windowHeight * 0.7
-        // Увеличиваем чувствительность для закрытия (свайп вниз)
-        // При свайпе вниз делаем движение более чувствительным
-        const sensitivity = deltaY < 0 ? 1.5 : 1 // Увеличиваем чувствительность для закрытия
-        setSheetPosition(prev => {
-            const newPosition = Math.max(0, Math.min(1, prev + (deltaY * sensitivity / maxHeight)))
-            return newPosition
-        })
-        setStartY(touchY) // Обновляем начальную позицию для следующего движения
-    }, [isDragging, startY, windowHeight])
-
-    const handleTouchEnd = useCallback(() => {
-        setIsDragging(false)
-
-        // Определяем направление последнего движения
-        setLastDeltaY(prev => {
-            const isSwipeDown = prev < 0
-
-            // Если делали свайп вниз, закрываем при меньшем пороге (15%)
-            // Если делали свайп вверх, открываем при большем пороге (25%)
-            setSheetPosition(current => {
-                if (isSwipeDown) {
-                    // Свайп вниз - закрываем при позиции меньше 0.15 (15%)
-                    if (current < 0.15) {
-                        // Восстанавливаем карусель только если sheet закрыт
-                        if (emblaApi) {
-                            emblaApi.reInit({
-                                watchDrag: true,
-                                watchResize: true,
-                            })
-                        }
-                        return 0
-                    } else {
-                        // Если не закрыли полностью, возвращаем к открытому состоянию
-                        return 1
-                    }
-                } else {
-                    // Свайп вверх - открываем при позиции больше 0.25 (25%)
-                    if (current > 0.25) {
-                        return 1
-                    } else {
-                        // Восстанавливаем карусель только если sheet закрыт
-                        if (emblaApi) {
-                            emblaApi.reInit({
-                                watchDrag: true,
-                                watchResize: true,
-                            })
-                        }
-                        return 0
-                    }
-                }
-            })
-            return 0
-        })
-        setStartY(0)
-    }, [emblaApi])
-
-    // Добавляем нативные обработчики touch событий с { passive: false }
-    useEffect(() => {
-        const sheetElement = sheetRef.current
-        if (!sheetElement) return
-
-        sheetElement.addEventListener('touchstart', handleTouchStart, { passive: false })
-        sheetElement.addEventListener('touchmove', handleTouchMove, { passive: false })
-        sheetElement.addEventListener('touchend', handleTouchEnd, { passive: false })
-
-        return () => {
-            sheetElement.removeEventListener('touchstart', handleTouchStart)
-            sheetElement.removeEventListener('touchmove', handleTouchMove)
-            sheetElement.removeEventListener('touchend', handleTouchEnd)
-        }
-    }, [handleTouchStart, handleTouchMove, handleTouchEnd])
 
     // Добавляем нативный обработчик для drag handle span
     useEffect(() => {
@@ -799,7 +639,7 @@ function ProductItemContent() {
                 style={{
                     bottom: '-1px',
                     top: `${80 + (1 - sheetPosition) * (windowHeight - 80 - 20 - 120)}px`,
-                    transition: isDragging ? 'none' : 'top 0.3s ease-out',
+                    transition: 'top 0.3s ease-out',
                 }}
             >
                 <div
@@ -810,7 +650,7 @@ function ProductItemContent() {
                         backdropFilter: 'blur(20px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                         borderTop: '1px solid var(--mint-dark)',
-                        touchAction: isDragging ? 'none' : 'pan-y',
+                        touchAction: 'pan-y',
                         WebkitTouchCallout: 'none',
                         WebkitUserSelect: 'none',
                         userSelect: 'none',
@@ -855,13 +695,6 @@ function ProductItemContent() {
                         style={{
                             maxHeight: 'calc(100% - 100px)',
                             WebkitOverflowScrolling: 'touch',
-                        }}
-                        onTouchStart={handleContentTouchStart}
-                        onTouchMove={handleContentTouchMove}
-                        onTouchEnd={handleContentTouchEnd}
-                        onScroll={(e) => {
-                            const target = e.currentTarget as HTMLElement
-                            setContentScrollTop(target.scrollTop)
                         }}
                     >
                         {/* Content */}
