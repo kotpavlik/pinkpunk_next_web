@@ -88,8 +88,8 @@ export default function TelegramLoginWidget({
 
             try {
                 onAuth(user)
-            } catch {
-                // Игнорируем ошибки
+            } catch (error) {
+                console.error('[TelegramWidget] Ошибка в onAuth:', error)
             }
         }
 
@@ -99,44 +99,40 @@ export default function TelegramLoginWidget({
         }
         window.onTelegramAuth = ourCallbackWrapper
 
-        // Сохраняем ссылку на нашу функцию для сравнения
-        const ourCallbackRef = { current: ourCallbackWrapper }
-
-        // Проверяем доступность функции каждую секунду и восстанавливаем если удалена
+        // Проверяем доступность функции каждые 5 секунд и восстанавливаем если удалена
         // Но НЕ блокируем перезапись - виджет может установить свою функцию
         const checkCallbackInterval = setInterval(() => {
             if (typeof window.onTelegramAuth !== 'function') {
-                const restoredWrapper = (user: TelegramUser) => {
+                // Если функция была удалена, восстанавливаем нашу
+                window.onTelegramAuth = (user: TelegramUser) => {
                     authCallback(user)
                 }
-                window.onTelegramAuth = restoredWrapper
-                ourCallbackRef.current = restoredWrapper
             } else {
+                // Если функция существует, проверяем, не является ли она уже нашей оберткой
                 const currentCallback = window.onTelegramAuth
-                if (currentCallback === ourCallbackRef.current) {
-                    return
-                }
                 try {
                     const callbackString = String(currentCallback)
-                    if (callbackString.includes('authCallback') || callbackString.includes('ourCallbackWrapper')) {
-                        ourCallbackRef.current = currentCallback
+                    // Если это уже наша функция (содержит authCallback), ничего не делаем
+                    if (callbackString.includes('authCallback')) {
                         return
                     }
+                    // Если виджет установил свою функцию, оборачиваем её
+                    const wrappedCallback = (user: TelegramUser) => {
+                        try {
+                            // Вызываем оригинальную функцию виджета
+                            currentCallback(user)
+                        } catch {
+                            // Игнорируем ошибки
+                        }
+                        // Всегда вызываем наш callback
+                        authCallback(user)
+                    }
+                    window.onTelegramAuth = wrappedCallback
                 } catch {
                     // Игнорируем ошибки проверки
                 }
-                const wrappedWrapper = (user: TelegramUser) => {
-                    try {
-                        currentCallback(user)
-                    } catch {
-                        // Игнорируем ошибки
-                    }
-                    authCallback(user)
-                }
-                window.onTelegramAuth = wrappedWrapper
-                ourCallbackRef.current = wrappedWrapper
             }
-        }, 1000)
+        }, 5000)
 
         checkCallbackIntervalRef.current = checkCallbackInterval
 
@@ -164,7 +160,7 @@ export default function TelegramLoginWidget({
             return null
         }
 
-        // Функция для вызова callback с данными пользователя
+        // Функция для вызова callback с данными пользователя (fallback из перехватчиков)
         const triggerCallback = (userData: TelegramUser) => {
             if (callbackCalledRef.current) return
 
@@ -173,17 +169,8 @@ export default function TelegramLoginWidget({
                 timeoutRef.current = null
             }
 
-            callbackCalledRef.current = true
-
-            if (window.onTelegramAuth) {
-                try {
-                    window.onTelegramAuth(userData)
-                } catch {
-                    authCallback(userData)
-                }
-            } else {
-                authCallback(userData)
-            }
+            // Вызываем authCallback напрямую, так как это fallback механизм
+            authCallback(userData)
         }
 
         // Перехватываем fetch запросы для гарантированного вызова callback
