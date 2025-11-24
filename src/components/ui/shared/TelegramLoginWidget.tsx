@@ -128,9 +128,15 @@ export default function TelegramLoginWidget({
 
         // Устанавливаем callback напрямую - позволяем виджету перезаписать при необходимости
         const ourCallbackWrapper = (user: TelegramUser) => {
+            console.log('[TelegramWidget] 🔔 ourCallbackWrapper вызван!')
             authCallback(user, 'window.onTelegramAuth (direct)')
         }
         window.onTelegramAuth = ourCallbackWrapper
+        console.log('[TelegramWidget] 🔧 window.onTelegramAuth установлен:', {
+            type: typeof window.onTelegramAuth,
+            isFunction: typeof window.onTelegramAuth === 'function',
+            functionName: window.onTelegramAuth?.name || 'anonymous'
+        })
 
         // Сохраняем ссылку на нашу функцию для сравнения
         const ourCallbackRef = { current: ourCallbackWrapper }
@@ -239,10 +245,17 @@ export default function TelegramLoginWidget({
 
         // Перехватываем fetch запросы для гарантированного вызова callback
         originalFetchRef.current = window.fetch
+        console.log('[TelegramWidget] 🔧 Оригинальный fetch сохранен')
 
         const fetchInterceptor = async (...args: Parameters<typeof fetch>) => {
             const originalFetch = originalFetchRef.current || window.fetch
             const url = args[0]?.toString() || ''
+
+            // Логируем все запросы к Telegram
+            if (url.includes('telegram.org') || url.includes('oauth.telegram.org')) {
+                console.log('[TelegramWidget] 🌐 Fetch запрос перехвачен:', url)
+            }
+
             const response = await originalFetch(...args)
 
             if (url.includes('oauth.telegram.org/auth/get') && response.ok) {
@@ -276,15 +289,24 @@ export default function TelegramLoginWidget({
 
         fetchInterceptorRef.current = fetchInterceptor
         window.fetch = fetchInterceptor
+        console.log('[TelegramWidget] 🔧 Fetch перехвачен и установлен')
 
         // Перехватываем XMLHttpRequest (виджет может использовать и его)
         const OriginalXHR = window.XMLHttpRequest
         const originalXHROpen = OriginalXHR.prototype.open
         const originalXHRSend = OriginalXHR.prototype.send
+        console.log('[TelegramWidget] 🔧 Оригинальные методы XMLHttpRequest сохранены')
 
         OriginalXHR.prototype.open = function (method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null) {
+            const urlString = typeof url === 'string' ? url : url.toString()
+
+            // Логируем все запросы к Telegram
+            if (urlString.includes('telegram.org') || urlString.includes('oauth.telegram.org')) {
+                console.log('[TelegramWidget] 🌐 XMLHttpRequest.open перехвачен:', method, urlString)
+            }
+
             if (typeof url === 'string' && url.includes('oauth.telegram.org/auth/get')) {
-                console.log('[TelegramWidget] 🌐 Перехвачен XMLHttpRequest к oauth.telegram.org/auth/get')
+                console.log('[TelegramWidget] ✅ Перехвачен XMLHttpRequest к oauth.telegram.org/auth/get')
                 this.addEventListener('load', function () {
                     if (this.readyState === 4 && this.status === 200) {
                         console.log('[TelegramWidget] 📥 XMLHttpRequest успешно завершен')
@@ -320,12 +342,18 @@ export default function TelegramLoginWidget({
             open: originalXHROpen,
             send: originalXHRSend
         }
+        console.log('[TelegramWidget] 🔧 XMLHttpRequest перехвачен и установлен')
 
         // Перехватываем postMessage события (виджет может использовать iframe)
         const messageHandler = (event: MessageEvent) => {
             if (event.origin === 'https://oauth.telegram.org' ||
                 event.origin === 'https://telegram.org' ||
                 event.origin.includes('telegram.org')) {
+                console.log('[TelegramWidget] 📨 Получен postMessage от Telegram', {
+                    origin: event.origin,
+                    dataType: typeof event.data,
+                    data: typeof event.data === 'string' ? event.data.substring(0, 100) : typeof event.data === 'object' ? JSON.stringify(event.data).substring(0, 100) : String(event.data).substring(0, 100)
+                })
                 try {
                     let userData: TelegramUser | null = null
                     let parsedData: Record<string, unknown> | null = null
@@ -394,12 +422,26 @@ export default function TelegramLoginWidget({
         window.addEventListener('message', messageHandler)
 
         // Периодическая проверка наличия данных в DOM (fallback)
+        let checkCounter = 0
         checkIntervalRef.current = setInterval(() => {
+            checkCounter++
             if (callbackCalledRef.current && checkIntervalRef.current) {
                 clearInterval(checkIntervalRef.current)
                 checkIntervalRef.current = null
+                console.log('[TelegramWidget] ✅ Периодическая проверка остановлена - onAuth был вызван')
+            } else if (!callbackCalledRef.current) {
+                // Логируем каждые 5 секунд, что callback еще не был вызван
+                if (checkCounter % 5 === 0) {
+                    console.log('[TelegramWidget] ⏳ Ожидание вызова onAuth...', {
+                        checkNumber: checkCounter,
+                        callbackCalled: callbackCalledRef.current,
+                        windowOnTelegramAuthExists: typeof window.onTelegramAuth === 'function',
+                        windowOnTelegramAuthType: typeof window.onTelegramAuth
+                    })
+                }
             }
         }, 1000)
+        console.log('[TelegramWidget] 🔧 Периодическая проверка запущена')
 
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
