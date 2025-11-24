@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { HandleError } from "@/features/HandleError";
 import { UserApi, TelegramLoginWidgetData } from "@/api/UserApi";
 import { tokenManager } from "@/utils/TokenManager";
+import { isEncryptedTelegramPhotoUrl } from "@/components/ui/shared/TelegramLoginWidget";
 
 // Тип для данных от TelegramLoginWidget
 export interface TelegramUser {
@@ -314,6 +315,8 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             if (telegramUser.username) {
                 telegramData.username = telegramUser.username
             }
+            // Всегда отправляем photo_url на бэкенд, если он есть
+            // Бэкенд сам определит, зашифрован ли он, и обработает соответственно
             if (telegramUser.photo_url) {
                 telegramData.photo_url = telegramUser.photo_url
             }
@@ -360,8 +363,9 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 await checkTokenForAdmin()
 
                 // После успешной авторизации пытаемся получить фото через Bot API
-                // если photo_url отсутствует в данных от виджета
-                if (!telegramData.photo_url && !userData.photo_url) {
+                // если photo_url отсутствует в данных от виджета или была зашифрованной ссылкой
+                const isEncryptedPhoto = telegramUser.photo_url ? isEncryptedTelegramPhotoUrl(telegramUser.photo_url) : false
+                if ((!telegramData.photo_url && !userData.photo_url) || isEncryptedPhoto) {
                     try {
                         const photoResponse = await UserApi.GetUserPhoto(telegramUser.id)
                         const photoUrl = photoResponse.data?.photo_url

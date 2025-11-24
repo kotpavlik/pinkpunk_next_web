@@ -35,6 +35,17 @@ declare global {
     }
 }
 
+/**
+ * Проверяет, является ли photo_url зашифрованной ссылкой от Telegram
+ * Зашифрованные ссылки имеют паттерн: t.me/i/userpic/... или https://t.me/i/userpic/...
+ * @param photoUrl - URL фото для проверки
+ * @returns true если ссылка зашифрована, false если это прямая ссылка или undefined
+ */
+export const isEncryptedTelegramPhotoUrl = (photoUrl?: string): boolean => {
+    if (!photoUrl) return false
+    return photoUrl.includes('t.me/i/userpic') || photoUrl.includes('/i/userpic/')
+}
+
 export default function TelegramLoginWidget({
     botName,
     size = 'large',
@@ -45,15 +56,8 @@ export default function TelegramLoginWidget({
     onAuth,
     className = '',
 }: TelegramLoginWidgetProps) {
-    console.log('[TelegramWidget] 🎨 Компонент TelegramLoginWidget рендерится', {
-        botName,
-        hasOnAuth: !!onAuth
-    })
-
     const containerRef = useRef<HTMLDivElement>(null)
     const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
-
-    console.log('[TelegramWidget] 📝 Widget ID создан:', widgetId.current)
     const callbackCalledRef = useRef(false)
     const fetchInterceptorRef = useRef<typeof fetch | null>(null)
     const originalFetchRef = useRef<typeof fetch | null>(null)
@@ -62,81 +66,38 @@ export default function TelegramLoginWidget({
     const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null)
     const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const checkCallbackIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const onAuthCallCountRef = useRef(0)
-    const onAuthCallSourcesRef = useRef<Array<{ source: string; timestamp: number; userId?: number }>>([])
 
     // Создаем виджет согласно официальной документации Telegram
     useEffect(() => {
-        console.log('[TelegramWidget] 🔵 useEffect запущен')
-
-        if (!containerRef.current) {
-            console.log('[TelegramWidget] ⚠️ containerRef.current не найден')
-            return
-        }
+        if (!containerRef.current) return
 
         const container = containerRef.current
-        console.log('[TelegramWidget] ✅ Контейнер найден')
 
         // Если нет callback, не создаем виджет
-        if (!onAuth) {
-            console.log('[TelegramWidget] ⚠️ onAuth не передан')
-            return
-        }
-
-        console.log('[TelegramWidget] ✅ onAuth передан')
+        if (!onAuth) return
 
         // Сбрасываем флаг вызова callback
         callbackCalledRef.current = false
-        console.log('[TelegramWidget] 🔄 Флаг callbackCalledRef сброшен')
 
         // Устанавливаем глобальный обработчик для callback
         // Важно: устанавливаем ДО создания виджета
         // НЕ блокируем перезапись - виджет Telegram может устанавливать свою функцию
-        const authCallback = (user: TelegramUser, source: string = 'window.onTelegramAuth') => {
-            onAuthCallCountRef.current += 1
-            onAuthCallSourcesRef.current.push({
-                source,
-                timestamp: Date.now(),
-                userId: user.id
-            })
-
-            console.log(`[TelegramWidget] ✅ onAuth вызван #${onAuthCallCountRef.current}`, {
-                source,
-                userId: user.id,
-                username: user.username,
-                timestamp: new Date().toISOString(),
-                totalCalls: onAuthCallCountRef.current,
-                allSources: onAuthCallSourcesRef.current.map(s => s.source)
-            })
-
-            // Логируем данные пользователя
-            console.log('[TelegramWidget] Данные пользователя:', user)
-
-            if (callbackCalledRef.current) {
-                console.log('[TelegramWidget] ⚠️ onAuth уже был вызван ранее, игнорируем повторный вызов')
-                return
-            }
+        const authCallback = (user: TelegramUser) => {
+            if (callbackCalledRef.current) return
             callbackCalledRef.current = true
 
             try {
                 onAuth(user)
-                console.log('[TelegramWidget] ✅ onAuth успешно выполнен')
-            } catch (error) {
-                console.log('[TelegramWidget] ❌ Ошибка при выполнении onAuth:', error)
+            } catch {
+                // Игнорируем ошибки
             }
         }
 
         // Устанавливаем callback напрямую - позволяем виджету перезаписать при необходимости
         const ourCallbackWrapper = (user: TelegramUser) => {
-            console.log('[TelegramWidget] 🔔 ourCallbackWrapper вызван!')
-            authCallback(user, 'window.onTelegramAuth (direct)')
+            authCallback(user)
         }
         window.onTelegramAuth = ourCallbackWrapper
-        console.log('[TelegramWidget] 🔧 window.onTelegramAuth установлен:', {
-            type: typeof window.onTelegramAuth,
-            isFunction: typeof window.onTelegramAuth === 'function',
-            functionName: window.onTelegramAuth?.name || 'anonymous'
-        })
 
         // Сохраняем ссылку на нашу функцию для сравнения
         const ourCallbackRef = { current: ourCallbackWrapper }
@@ -146,43 +107,37 @@ export default function TelegramLoginWidget({
         const checkCallbackInterval = setInterval(() => {
             if (typeof window.onTelegramAuth !== 'function') {
                 const restoredWrapper = (user: TelegramUser) => {
-                    authCallback(user, 'window.onTelegramAuth (restored)')
+                    authCallback(user)
                 }
                 window.onTelegramAuth = restoredWrapper
                 ourCallbackRef.current = restoredWrapper
             } else {
                 const currentCallback = window.onTelegramAuth
-                // Проверяем, не является ли это уже наша функция (сравниваем по ссылке)
                 if (currentCallback === ourCallbackRef.current) {
-                    // Уже наша функция, ничего не делаем
                     return
                 }
-                // Проверяем по строковому представлению (fallback для случаев, когда ссылки разные)
                 try {
                     const callbackString = String(currentCallback)
-                    if (callbackString.includes('authCallback') || callbackString.includes('window.onTelegramAuth (direct)') || callbackString.includes('window.onTelegramAuth (restored)') || callbackString.includes('window.onTelegramAuth (wrapped')) {
-                        // Уже наша функция, обновляем ссылку
+                    if (callbackString.includes('authCallback') || callbackString.includes('ourCallbackWrapper')) {
                         ourCallbackRef.current = currentCallback
                         return
                     }
                 } catch {
                     // Игнорируем ошибки проверки
                 }
-                // Обертываем функцию виджета, чтобы она вызывала наш callback
                 const wrappedWrapper = (user: TelegramUser) => {
                     try {
                         currentCallback(user)
                     } catch {
                         // Игнорируем ошибки
                     }
-                    authCallback(user, 'window.onTelegramAuth (wrapped widget function)')
+                    authCallback(user)
                 }
                 window.onTelegramAuth = wrappedWrapper
                 ourCallbackRef.current = wrappedWrapper
             }
         }, 1000)
 
-        // Сохраняем ссылку на интервал для cleanup
         checkCallbackIntervalRef.current = checkCallbackInterval
 
         // Функция для парсинга данных из ответа Telegram
@@ -210,16 +165,8 @@ export default function TelegramLoginWidget({
         }
 
         // Функция для вызова callback с данными пользователя
-        const triggerCallback = (userData: TelegramUser, source: string) => {
-            console.log(`[TelegramWidget] 🎯 triggerCallback вызван из ${source}`, {
-                userId: userData.id,
-                callbackAlreadyCalled: callbackCalledRef.current
-            })
-
-            if (callbackCalledRef.current) {
-                console.log(`[TelegramWidget] ⚠️ triggerCallback из ${source} - callback уже был вызван, пропускаем`)
-                return
-            }
+        const triggerCallback = (userData: TelegramUser) => {
+            if (callbackCalledRef.current) return
 
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current)
@@ -230,57 +177,36 @@ export default function TelegramLoginWidget({
 
             if (window.onTelegramAuth) {
                 try {
-                    console.log(`[TelegramWidget] 📞 Вызываем window.onTelegramAuth из ${source}`)
                     window.onTelegramAuth(userData)
-                } catch (error) {
-                    console.log(`[TelegramWidget] ❌ Ошибка при вызове window.onTelegramAuth из ${source}:`, error)
-                    console.log(`[TelegramWidget] 🔄 Fallback: вызываем onAuth напрямую из ${source}`)
-                    authCallback(userData, `${source} -> onAuth fallback`)
+                } catch {
+                    authCallback(userData)
                 }
             } else {
-                console.log(`[TelegramWidget] 📞 window.onTelegramAuth не установлен, вызываем onAuth напрямую из ${source}`)
-                authCallback(userData, `${source} -> onAuth direct`)
+                authCallback(userData)
             }
         }
 
         // Перехватываем fetch запросы для гарантированного вызова callback
         originalFetchRef.current = window.fetch
-        console.log('[TelegramWidget] 🔧 Оригинальный fetch сохранен')
 
         const fetchInterceptor = async (...args: Parameters<typeof fetch>) => {
             const originalFetch = originalFetchRef.current || window.fetch
             const url = args[0]?.toString() || ''
-
-            // Логируем все запросы к Telegram
-            if (url.includes('telegram.org') || url.includes('oauth.telegram.org')) {
-                console.log('[TelegramWidget] 🌐 Fetch запрос перехвачен:', url)
-            }
-
             const response = await originalFetch(...args)
 
             if (url.includes('oauth.telegram.org/auth/get') && response.ok) {
-                console.log('[TelegramWidget] 🌐 Перехвачен fetch ответ от oauth.telegram.org/auth/get')
                 const clonedResponse = response.clone()
                 clonedResponse.text().then(text => {
-                    console.log('[TelegramWidget] 📥 Данные получены через fetch, длина:', text.length)
                     const userData = parseUserData(text)
                     if (userData && !callbackCalledRef.current) {
-                        console.log('[TelegramWidget] ⏱️ Устанавливаем таймаут 500ms для вызова callback (fetch fallback)')
                         timeoutRef.current = setTimeout(() => {
                             if (!callbackCalledRef.current) {
-                                console.log('[TelegramWidget] ⏰ Таймаут истек (fetch), виджет не вызвал callback, вызываем вручную')
-                                triggerCallback(userData, 'fetch interceptor timeout')
-                            } else {
-                                console.log('[TelegramWidget] ✅ Callback уже был вызван виджетом (fetch), таймаут отменен')
+                                triggerCallback(userData)
                             }
                         }, 500)
-                    } else if (callbackCalledRef.current) {
-                        console.log('[TelegramWidget] ℹ️ Callback уже был вызван (fetch), пропускаем')
-                    } else {
-                        console.log('[TelegramWidget] ⚠️ Не удалось извлечь данные пользователя из fetch ответа')
                     }
-                }).catch((error) => {
-                    console.log('[TelegramWidget] ❌ Ошибка чтения fetch response:', error)
+                }).catch(() => {
+                    // Игнорируем ошибки
                 })
             }
 
@@ -289,48 +215,28 @@ export default function TelegramLoginWidget({
 
         fetchInterceptorRef.current = fetchInterceptor
         window.fetch = fetchInterceptor
-        console.log('[TelegramWidget] 🔧 Fetch перехвачен и установлен')
 
         // Перехватываем XMLHttpRequest (виджет может использовать и его)
         const OriginalXHR = window.XMLHttpRequest
         const originalXHROpen = OriginalXHR.prototype.open
         const originalXHRSend = OriginalXHR.prototype.send
-        console.log('[TelegramWidget] 🔧 Оригинальные методы XMLHttpRequest сохранены')
 
         OriginalXHR.prototype.open = function (method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null) {
-            const urlString = typeof url === 'string' ? url : url.toString()
-
-            // Логируем все запросы к Telegram
-            if (urlString.includes('telegram.org') || urlString.includes('oauth.telegram.org')) {
-                console.log('[TelegramWidget] 🌐 XMLHttpRequest.open перехвачен:', method, urlString)
-            }
-
             if (typeof url === 'string' && url.includes('oauth.telegram.org/auth/get')) {
-                console.log('[TelegramWidget] ✅ Перехвачен XMLHttpRequest к oauth.telegram.org/auth/get')
                 this.addEventListener('load', function () {
                     if (this.readyState === 4 && this.status === 200) {
-                        console.log('[TelegramWidget] 📥 XMLHttpRequest успешно завершен')
                         try {
                             const text = this.responseText
-                            console.log('[TelegramWidget] 📥 Данные получены через XHR, длина:', text.length)
                             const userData = parseUserData(text)
                             if (userData && !callbackCalledRef.current) {
-                                console.log('[TelegramWidget] ⏱️ Устанавливаем таймаут 500ms для вызова callback (XHR fallback)')
                                 timeoutRef.current = setTimeout(() => {
                                     if (!callbackCalledRef.current) {
-                                        console.log('[TelegramWidget] ⏰ Таймаут истек (XHR), виджет не вызвал callback, вызываем вручную')
-                                        triggerCallback(userData, 'XHR interceptor timeout')
-                                    } else {
-                                        console.log('[TelegramWidget] ✅ Callback уже был вызван виджетом (XHR), таймаут отменен')
+                                        triggerCallback(userData)
                                     }
                                 }, 500)
-                            } else if (callbackCalledRef.current) {
-                                console.log('[TelegramWidget] ℹ️ Callback уже был вызван (XHR), пропускаем')
-                            } else {
-                                console.log('[TelegramWidget] ⚠️ Не удалось извлечь данные пользователя из XHR ответа')
                             }
-                        } catch (error) {
-                            console.log('[TelegramWidget] ❌ Ошибка парсинга XHR данных:', error)
+                        } catch {
+                            // Игнорируем ошибки
                         }
                     }
                 })
@@ -342,18 +248,12 @@ export default function TelegramLoginWidget({
             open: originalXHROpen,
             send: originalXHRSend
         }
-        console.log('[TelegramWidget] 🔧 XMLHttpRequest перехвачен и установлен')
 
         // Перехватываем postMessage события (виджет может использовать iframe)
         const messageHandler = (event: MessageEvent) => {
             if (event.origin === 'https://oauth.telegram.org' ||
                 event.origin === 'https://telegram.org' ||
                 event.origin.includes('telegram.org')) {
-                console.log('[TelegramWidget] 📨 Получен postMessage от Telegram', {
-                    origin: event.origin,
-                    dataType: typeof event.data,
-                    data: typeof event.data === 'string' ? event.data.substring(0, 100) : typeof event.data === 'object' ? JSON.stringify(event.data).substring(0, 100) : String(event.data).substring(0, 100)
-                })
                 try {
                     let userData: TelegramUser | null = null
                     let parsedData: Record<string, unknown> | null = null
@@ -369,7 +269,19 @@ export default function TelegramLoginWidget({
                         parsedData = event.data as Record<string, unknown>
                     }
 
-                    // Игнорируем служебные события
+                    // Обрабатываем событие auth_user - содержит данные пользователя
+                    if (parsedData && parsedData.event === 'auth_user') {
+                        const authData = parsedData.auth_data as Record<string, unknown> | undefined
+                        if (authData && authData.id && authData.hash) {
+                            userData = authData as unknown as TelegramUser
+                            if (!callbackCalledRef.current) {
+                                triggerCallback(userData)
+                            }
+                        }
+                        return
+                    }
+
+                    // Игнорируем другие служебные события
                     if (parsedData && parsedData.event) {
                         return
                     }
@@ -407,10 +319,7 @@ export default function TelegramLoginWidget({
                     }
 
                     if (userData && !callbackCalledRef.current) {
-                        console.log('[TelegramWidget] ✅ Найдены данные пользователя в postMessage, вызываем callback немедленно')
-                        triggerCallback(userData, 'postMessage direct')
-                    } else if (callbackCalledRef.current) {
-                        console.log('[TelegramWidget] ℹ️ Callback уже был вызван (postMessage), пропускаем')
+                        triggerCallback(userData)
                     }
                 } catch {
                     // Игнорируем ошибки
@@ -422,26 +331,12 @@ export default function TelegramLoginWidget({
         window.addEventListener('message', messageHandler)
 
         // Периодическая проверка наличия данных в DOM (fallback)
-        let checkCounter = 0
         checkIntervalRef.current = setInterval(() => {
-            checkCounter++
             if (callbackCalledRef.current && checkIntervalRef.current) {
                 clearInterval(checkIntervalRef.current)
                 checkIntervalRef.current = null
-                console.log('[TelegramWidget] ✅ Периодическая проверка остановлена - onAuth был вызван')
-            } else if (!callbackCalledRef.current) {
-                // Логируем каждые 5 секунд, что callback еще не был вызван
-                if (checkCounter % 5 === 0) {
-                    console.log('[TelegramWidget] ⏳ Ожидание вызова onAuth...', {
-                        checkNumber: checkCounter,
-                        callbackCalled: callbackCalledRef.current,
-                        windowOnTelegramAuthExists: typeof window.onTelegramAuth === 'function',
-                        windowOnTelegramAuthType: typeof window.onTelegramAuth
-                    })
-                }
             }
         }, 1000)
-        console.log('[TelegramWidget] 🔧 Периодическая проверка запущена')
 
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
@@ -471,7 +366,6 @@ export default function TelegramLoginWidget({
 
         // Добавляем script тег в контейнер
         container.appendChild(widgetScript)
-        console.log('[TelegramWidget] ✅ Виджет добавлен в DOM, ожидаем вызова onAuth...')
 
         return () => {
             if (container) {
