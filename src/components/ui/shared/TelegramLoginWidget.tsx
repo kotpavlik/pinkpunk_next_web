@@ -26,11 +26,8 @@ interface TelegramLoginWidgetProps {
 
 declare global {
     interface Window {
-        onTelegramAuth?: (user: TelegramUser) => void
-        Telegram?: {
-            Login?: {
-                auth: (options: Record<string, unknown>, callback: (user: TelegramUser) => void) => void
-            }
+        TelegramLoginWidget?: {
+            dataOnauth: (user: TelegramUser) => void
         }
     }
 }
@@ -57,11 +54,7 @@ export default function TelegramLoginWidget({
     className = '',
 }: TelegramLoginWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null)
-    const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
-    const callbackCalledRef = useRef(false)
-    const checkCallbackIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-    // Создаем виджет согласно официальной документации Telegram
     useEffect(() => {
         if (!containerRef.current) return
 
@@ -70,91 +63,43 @@ export default function TelegramLoginWidget({
         // Если нет callback, не создаем виджет
         if (!onAuth) return
 
-        // Сбрасываем флаг вызова callback
-        callbackCalledRef.current = false
-
-        // Устанавливаем глобальный обработчик для callback
-        // Важно: устанавливаем ДО создания виджета
-        // НЕ блокируем перезапись - виджет Telegram может устанавливать свою функцию
-        const authCallback = (user: TelegramUser) => {
-            if (callbackCalledRef.current) return
-            callbackCalledRef.current = true
-
-            try {
-                onAuth(user)
-            } catch (error) {
-                console.error('[TelegramWidget] Ошибка в onAuth:', error)
-            }
-        }
-
-        // Устанавливаем callback напрямую - позволяем виджету перезаписать при необходимости
-        const ourCallbackWrapper = (user: TelegramUser) => {
-            authCallback(user)
-        }
-        window.onTelegramAuth = ourCallbackWrapper
-
-        // Проверяем доступность функции каждые 5 секунд и восстанавливаем если удалена
-        // Но НЕ блокируем перезапись - виджет может установить свою функцию
-        const checkCallbackInterval = setInterval(() => {
-            if (typeof window.onTelegramAuth !== 'function') {
-                // Если функция была удалена, восстанавливаем нашу
-                window.onTelegramAuth = (user: TelegramUser) => {
-                    authCallback(user)
-                }
-            } else {
-                // Если функция существует, проверяем, не является ли она уже нашей оберткой
-                const currentCallback = window.onTelegramAuth
+        // Устанавливаем глобальный объект для callback (как в рабочем примере)
+        window.TelegramLoginWidget = {
+            dataOnauth: (user: TelegramUser) => {
                 try {
-                    const callbackString = String(currentCallback)
-                    // Если это уже наша функция (содержит authCallback), ничего не делаем
-                    if (callbackString.includes('authCallback')) {
-                        return
-                    }
-                    // Если виджет установил свою функцию, оборачиваем её
-                    const wrappedCallback = (user: TelegramUser) => {
-                        try {
-                            // Вызываем оригинальную функцию виджета
-                            currentCallback(user)
-                        } catch {
-                            // Игнорируем ошибки
-                        }
-                        // Всегда вызываем наш callback
-                        authCallback(user)
-                    }
-                    window.onTelegramAuth = wrappedCallback
-                } catch {
-                    // Игнорируем ошибки проверки
+                    onAuth(user)
+                } catch (error) {
+                    console.error('[TelegramWidget] Ошибка в onAuth:', error)
                 }
             }
-        }, 5000)
-
-        checkCallbackIntervalRef.current = checkCallbackInterval
+        }
 
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
 
-        // Получаем текущий origin для проверки безопасности
-        const origin = typeof window !== 'undefined' ? window.location.origin : ''
-
-        // Создаем script тег точно как в официальной документации
-        // Скрипт виджета сам загрузит библиотеку telegram-widget.js
+        // Создаем script тег точно как в рабочем примере
         const widgetScript = document.createElement('script')
         widgetScript.async = true
         widgetScript.src = 'https://telegram.org/js/telegram-widget.js?22'
         widgetScript.setAttribute('data-telegram-login', botName)
         widgetScript.setAttribute('data-size', size)
+
+        if (cornerRadius !== undefined) {
+            widgetScript.setAttribute('data-radius', cornerRadius.toString())
+        }
+
         if (requestAccess) {
             widgetScript.setAttribute('data-request-access', 'write')
         }
-        widgetScript.setAttribute('data-userpic', usePic ? '1' : '0')
-        widgetScript.setAttribute('data-radius', cornerRadius.toString())
-        widgetScript.setAttribute('data-lang', lang)
-        widgetScript.setAttribute('data-onauth', 'onTelegramAuth(user)')
 
-        // Устанавливаем data-auth-url для проверки origin (важно для безопасности)
-        if (origin) {
-            widgetScript.setAttribute('data-auth-url', origin)
+        widgetScript.setAttribute('data-userpic', usePic.toString())
+
+        if (lang) {
+            widgetScript.setAttribute('data-lang', lang)
         }
+
+        // Используем TelegramLoginWidget.dataOnauth вместо onTelegramAuth
+        widgetScript.setAttribute('data-onauth', 'TelegramLoginWidget.dataOnauth(user)')
 
         // Добавляем script тег в контейнер
         container.appendChild(widgetScript)
@@ -163,13 +108,6 @@ export default function TelegramLoginWidget({
             if (container) {
                 container.innerHTML = ''
             }
-
-            if (checkCallbackIntervalRef.current) {
-                clearInterval(checkCallbackIntervalRef.current)
-                checkCallbackIntervalRef.current = null
-            }
-
-            callbackCalledRef.current = false
         }
     }, [botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
 
@@ -177,7 +115,6 @@ export default function TelegramLoginWidget({
         <div
             ref={containerRef}
             className={`telegram-login-widget ${className}`}
-            id={widgetId.current}
             style={{ minHeight: '60px', minWidth: '280px' }}
         />
     )
