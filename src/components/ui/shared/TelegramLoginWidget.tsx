@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 // Типы данных, которые приходят от Telegram Login Widget
 export interface TelegramUser {
@@ -46,45 +46,13 @@ export default function TelegramLoginWidget({
     className = '',
 }: TelegramLoginWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null)
-    const [scriptLoaded, setScriptLoaded] = useState(false)
     const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
 
-    // Загружаем скрипт Telegram Widget
-    useEffect(() => {
-        // Проверяем, загружен ли скрипт
-        if (document.querySelector('script[src*="telegram-widget.js"]')) {
-            setScriptLoaded(true)
-            return
-        }
-
-        // Загружаем скрипт
-        const script = document.createElement('script')
-        script.src = 'https://telegram.org/js/telegram-widget.js?22'
-        script.async = true
-        script.onload = () => {
-            setScriptLoaded(true)
-        }
-        script.onerror = () => {
-            // Silent error handling
-        }
-        document.body.appendChild(script)
-
-        return () => {
-            // Не удаляем скрипт при размонтировании, так как он может использоваться другими компонентами
-        }
-    }, [])
-
-    // Создаем виджет после загрузки скрипта
+    // Создаем виджет согласно официальной документации Telegram
     useEffect(() => {
         if (!containerRef.current) return
 
         const container = containerRef.current
-
-        // Если скрипт еще не загружен, создаем виджет с задержкой
-        if (!scriptLoaded) {
-            container.innerHTML = '<div className="text-white text-sm">Загрузка...</div>'
-            return
-        }
 
         // Если нет callback, не создаем виджет
         if (!onAuth) {
@@ -100,11 +68,8 @@ export default function TelegramLoginWidget({
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
 
-        // Создаем виджет согласно официальной документации Telegram
-        // Используем script тег с data-атрибутами (официальный способ)
-        const origin = typeof window !== 'undefined' ? window.location.origin : ''
-
         // Создаем script тег точно как в официальной документации
+        // Скрипт виджета сам загрузит библиотеку telegram-widget.js
         const widgetScript = document.createElement('script')
         widgetScript.async = true
         widgetScript.src = 'https://telegram.org/js/telegram-widget.js?22'
@@ -117,11 +82,6 @@ export default function TelegramLoginWidget({
         widgetScript.setAttribute('data-radius', cornerRadius.toString())
         widgetScript.setAttribute('data-lang', lang)
         widgetScript.setAttribute('data-onauth', 'onTelegramAuth(user)')
-        // data-auth-url должен быть установлен для проверки origin
-        // Если не установлен, Telegram будет использовать текущий origin
-        if (origin) {
-            widgetScript.setAttribute('data-auth-url', origin)
-        }
 
         // Добавляем script тег в контейнер
         container.appendChild(widgetScript)
@@ -132,7 +92,7 @@ export default function TelegramLoginWidget({
                 container.innerHTML = ''
             }
         }
-    }, [scriptLoaded, botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
+    }, [botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
 
     return (
         <div
