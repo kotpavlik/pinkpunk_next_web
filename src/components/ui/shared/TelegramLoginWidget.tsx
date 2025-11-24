@@ -45,8 +45,15 @@ export default function TelegramLoginWidget({
     onAuth,
     className = '',
 }: TelegramLoginWidgetProps) {
+    console.log('[TelegramWidget] 🎨 Компонент TelegramLoginWidget рендерится', {
+        botName,
+        hasOnAuth: !!onAuth
+    })
+
     const containerRef = useRef<HTMLDivElement>(null)
     const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
+
+    console.log('[TelegramWidget] 📝 Widget ID создан:', widgetId.current)
     const callbackCalledRef = useRef(false)
     const fetchInterceptorRef = useRef<typeof fetch | null>(null)
     const originalFetchRef = useRef<typeof fetch | null>(null)
@@ -60,15 +67,27 @@ export default function TelegramLoginWidget({
 
     // Создаем виджет согласно официальной документации Telegram
     useEffect(() => {
-        if (!containerRef.current) return
+        console.log('[TelegramWidget] 🔵 useEffect запущен')
+
+        if (!containerRef.current) {
+            console.log('[TelegramWidget] ⚠️ containerRef.current не найден')
+            return
+        }
 
         const container = containerRef.current
+        console.log('[TelegramWidget] ✅ Контейнер найден')
 
         // Если нет callback, не создаем виджет
-        if (!onAuth) return
+        if (!onAuth) {
+            console.log('[TelegramWidget] ⚠️ onAuth не передан')
+            return
+        }
+
+        console.log('[TelegramWidget] ✅ onAuth передан')
 
         // Сбрасываем флаг вызова callback
         callbackCalledRef.current = false
+        console.log('[TelegramWidget] 🔄 Флаг callbackCalledRef сброшен')
 
         // Устанавливаем глобальный обработчик для callback
         // Важно: устанавливаем ДО создания виджета
@@ -410,6 +429,7 @@ export default function TelegramLoginWidget({
 
         // Добавляем script тег в контейнер
         container.appendChild(widgetScript)
+        console.log('[TelegramWidget] ✅ Виджет добавлен в DOM, ожидаем вызова onAuth...')
 
         return () => {
             if (container) {
