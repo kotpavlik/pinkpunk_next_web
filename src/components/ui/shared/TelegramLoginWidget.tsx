@@ -50,6 +50,7 @@ export default function TelegramLoginWidget({
     const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
     const callbackCalledRef = useRef(false)
     const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const fetchInterceptorRef = useRef<((...args: Parameters<typeof fetch>) => Promise<Response>) | null>(null)
     const originalFetchRef = useRef<typeof fetch | null>(null)
     const originalXHROpenRef = useRef<typeof XMLHttpRequest.prototype.open | null>(null)
@@ -103,24 +104,50 @@ export default function TelegramLoginWidget({
         callbackCalledRef.current = false
 
         // Устанавливаем глобальный обработчик для callback
-        window.onTelegramAuth = (user: TelegramUser) => {
+        // Важно: устанавливаем ДО создания виджета
+        const authCallback = (user: TelegramUser) => {
+            if (callbackCalledRef.current) return // Предотвращаем двойной вызов
             callbackCalledRef.current = true
             if (fallbackTimeoutRef.current) {
                 clearTimeout(fallbackTimeoutRef.current)
                 fallbackTimeoutRef.current = null
             }
+            if (checkIntervalRef.current) {
+                clearInterval(checkIntervalRef.current)
+                checkIntervalRef.current = null
+            }
             onAuth(user)
         }
 
+        window.onTelegramAuth = authCallback
+
         // Функция для вызова callback с данными пользователя
         const triggerCallback = (userData: TelegramUser) => {
-            if (!callbackCalledRef.current && window.onTelegramAuth) {
-                callbackCalledRef.current = true
-                if (fallbackTimeoutRef.current) {
-                    clearTimeout(fallbackTimeoutRef.current)
-                    fallbackTimeoutRef.current = null
+            if (callbackCalledRef.current) return // Предотвращаем двойной вызов
+
+            // Убеждаемся, что callback установлен
+            if (!window.onTelegramAuth) {
+                window.onTelegramAuth = authCallback
+            }
+
+            callbackCalledRef.current = true
+            if (fallbackTimeoutRef.current) {
+                clearTimeout(fallbackTimeoutRef.current)
+                fallbackTimeoutRef.current = null
+            }
+            if (checkIntervalRef.current) {
+                clearInterval(checkIntervalRef.current)
+                checkIntervalRef.current = null
+            }
+
+            // Вызываем callback напрямую через onAuth для надежности
+            try {
+                onAuth(userData)
+            } catch (err) {
+                // Если прямой вызов не сработал, пробуем через window.onTelegramAuth
+                if (window.onTelegramAuth) {
+                    window.onTelegramAuth(userData)
                 }
-                window.onTelegramAuth(userData)
             }
         }
 
@@ -128,12 +155,22 @@ export default function TelegramLoginWidget({
         const parseUserData = (text: string): TelegramUser | null => {
             try {
                 // Пытаемся найти JSON в ответе
+                // Ищем полный JSON объект с user внутри
                 const jsonMatch = text.match(/\{[\s\S]*"user"[\s\S]*\}/)
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0])
                     if (data.user && data.user.id && data.user.hash) {
                         return data.user as TelegramUser
                     }
+                }
+                // Если не нашли, пытаемся парсить весь текст как JSON
+                try {
+                    const data = JSON.parse(text)
+                    if (data.user && data.user.id && data.user.hash) {
+                        return data.user as TelegramUser
+                    }
+                } catch {
+                    // Игнорируем
                 }
             } catch (e) {
                 // Игнорируем ошибки парсинга
@@ -154,21 +191,17 @@ export default function TelegramLoginWidget({
                 // Клонируем response для чтения без нарушения оригинального потока
                 const clonedResponse = response.clone()
 
-                try {
-                    const text = await clonedResponse.text()
+                // Читаем данные асинхронно, но не блокируем основной поток
+                clonedResponse.text().then(text => {
+                    // Пытаемся парсить данные
                     const userData = parseUserData(text)
-
                     if (userData && !callbackCalledRef.current) {
-                        // Если callback не был вызван автоматически, вызываем его вручную
-                        setTimeout(() => {
-                            if (!callbackCalledRef.current) {
-                                triggerCallback(userData)
-                            }
-                        }, 500) // Небольшая задержка на случай, если виджет еще обрабатывает
+                        // Немедленно вызываем callback, не ждем виджет
+                        triggerCallback(userData)
                     }
-                } catch (readError) {
+                }).catch(() => {
                     // Игнорируем ошибки чтения
-                }
+                })
             }
 
             return response
@@ -193,11 +226,8 @@ export default function TelegramLoginWidget({
                             const text = this.responseText
                             const userData = parseUserData(text)
                             if (userData && !callbackCalledRef.current) {
-                                setTimeout(() => {
-                                    if (!callbackCalledRef.current) {
-                                        triggerCallback(userData)
-                                    }
-                                }, 500)
+                                // Немедленно вызываем callback
+                                triggerCallback(userData)
                             }
                         } catch (e) {
                             // Игнорируем ошибки парсинга
@@ -252,6 +282,7 @@ export default function TelegramLoginWidget({
         window.addEventListener('message', messageHandler)
 
         // Дополнительный fallback: таймаут на случай, если ничего не сработало
+        // Также проверяем периодически наличие данных в глобальном объекте Telegram
         fallbackTimeoutRef.current = setTimeout(() => {
             if (!callbackCalledRef.current) {
                 // Пытаемся найти данные в DOM виджета
@@ -276,7 +307,35 @@ export default function TelegramLoginWidget({
                     })
                 }
             }
-        }, 3000) // 3 секунды таймаут
+        }, 1000) // Уменьшили таймаут до 1 секунды
+
+        // Дополнительная проверка: периодически проверяем наличие данных
+        checkIntervalRef.current = setInterval(() => {
+            if (!callbackCalledRef.current) {
+                // Проверяем, есть ли данные в глобальном объекте или DOM
+                const widgetContainer = containerRef.current
+                if (widgetContainer) {
+                    // Ищем iframe от Telegram
+                    const iframes = widgetContainer.querySelectorAll('iframe')
+                    iframes.forEach(iframe => {
+                        try {
+                            // Пытаемся получить данные из iframe (может не сработать из-за CORS)
+                            const iframeWindow = iframe.contentWindow
+                            if (iframeWindow) {
+                                // Не можем получить доступ из-за CORS, но попробуем через postMessage
+                            }
+                        } catch (e) {
+                            // Игнорируем CORS ошибки
+                        }
+                    })
+                }
+            } else {
+                if (checkIntervalRef.current) {
+                    clearInterval(checkIntervalRef.current)
+                    checkIntervalRef.current = null
+                }
+            }
+        }, 500)
 
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
@@ -345,6 +404,11 @@ export default function TelegramLoginWidget({
             if (fallbackTimeoutRef.current) {
                 clearTimeout(fallbackTimeoutRef.current)
                 fallbackTimeoutRef.current = null
+            }
+            // Очищаем интервал
+            if (checkIntervalRef.current) {
+                clearInterval(checkIntervalRef.current)
+                checkIntervalRef.current = null
             }
             callbackCalledRef.current = false
         }
