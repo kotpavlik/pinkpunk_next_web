@@ -32,17 +32,6 @@ declare global {
     }
 }
 
-/**
- * Проверяет, является ли photo_url зашифрованной ссылкой от Telegram
- * Зашифрованные ссылки имеют паттерн: t.me/i/userpic/... или https://t.me/i/userpic/...
- * @param photoUrl - URL фото для проверки
- * @returns true если ссылка зашифрована, false если это прямая ссылка или undefined
- */
-export const isEncryptedTelegramPhotoUrl = (photoUrl?: string): boolean => {
-    if (!photoUrl) return false
-    return photoUrl.includes('t.me/i/userpic') || photoUrl.includes('/i/userpic/')
-}
-
 export default function TelegramLoginWidget({
     botName,
     size = 'large',

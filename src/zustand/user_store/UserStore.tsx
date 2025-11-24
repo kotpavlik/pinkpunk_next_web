@@ -6,7 +6,6 @@ import { create } from 'zustand';
 import { HandleError } from "@/features/HandleError";
 import { UserApi, TelegramLoginWidgetData } from "@/api/UserApi";
 import { tokenManager } from "@/utils/TokenManager";
-import { isEncryptedTelegramPhotoUrl } from "@/components/ui/shared/TelegramLoginWidget";
 
 // Тип для данных от TelegramLoginWidget
 export interface TelegramUser {
@@ -362,29 +361,8 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 const { checkTokenForAdmin } = get()
                 await checkTokenForAdmin()
 
-                // После успешной авторизации пытаемся получить фото через Bot API
-                // если photo_url отсутствует в данных от виджета или была зашифрованной ссылкой
-                const isEncryptedPhoto = telegramUser.photo_url ? isEncryptedTelegramPhotoUrl(telegramUser.photo_url) : false
-                if ((!telegramData.photo_url && !userData.photo_url) || isEncryptedPhoto) {
-                    try {
-                        const photoResponse = await UserApi.GetUserPhoto(telegramUser.id)
-                        const photoUrl = photoResponse.data?.photo_url
-                        if (photoUrl) {
-                            // Обновляем photo_url в userData (преобразуем null в undefined)
-                            userData.photo_url = photoUrl || undefined
-                            
-                            // Обновляем в state
-                            set(state => {
-                                state.user.photo_url = photoUrl || undefined
-                                saveUserToStorage(state.user)
-                            })
-                        }
-                    } catch (err) {
-                        // Игнорируем ошибку получения фото - не критично
-                        // Фото может быть недоступно из-за настроек приватности
-                        console.log('Could not fetch user photo:', err)
-                    }
-                }
+                // Примечание: получение фото через Bot API обрабатывается на бэкенде
+                // Если photo_url закодирован или отсутствует, бэкенд сам получит его через Bot API
 
                 setStatus('success')
                 return { success: true }
