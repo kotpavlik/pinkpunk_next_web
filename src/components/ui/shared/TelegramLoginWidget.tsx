@@ -79,6 +79,7 @@ export default function TelegramLoginWidget({
 
         // Устанавливаем глобальный обработчик для callback
         // Важно: устанавливаем ДО создания виджета
+        // НЕ блокируем перезапись - виджет Telegram может устанавливать свою функцию
         const authCallback = (user: TelegramUser) => {
             console.log('[TelegramWidget] ✅✅✅ window.onTelegramAuth вызван виджетом!', {
                 userId: user.id,
@@ -100,28 +101,37 @@ export default function TelegramLoginWidget({
             }
         }
 
-        // Устанавливаем callback с логированием для отслеживания
-        Object.defineProperty(window, 'onTelegramAuth', {
-            get: () => authCallback,
-            set: (value) => {
-                console.log('[TelegramWidget] ⚠️ Кто-то пытается перезаписать window.onTelegramAuth!', value)
-                // Не позволяем перезаписать
-            },
-            configurable: true
-        })
-
-        // Также устанавливаем напрямую для совместимости
+        // Устанавливаем callback напрямую - позволяем виджету перезаписать при необходимости
         window.onTelegramAuth = authCallback
         console.log('[TelegramWidget] 🔧 Установлен window.onTelegramAuth', {
             functionExists: typeof window.onTelegramAuth === 'function',
             functionName: window.onTelegramAuth?.name
         })
 
-        // Проверяем доступность функции каждую секунду
+        // Проверяем доступность функции каждую секунду и восстанавливаем если удалена
+        // Но НЕ блокируем перезапись - виджет может установить свою функцию
         const checkCallbackInterval = setInterval(() => {
             if (typeof window.onTelegramAuth !== 'function') {
-                console.log('[TelegramWidget] ⚠️⚠️⚠️ window.onTelegramAuth был удален или перезаписан! Восстанавливаем...')
+                console.log('[TelegramWidget] ⚠️⚠️⚠️ window.onTelegramAuth был удален! Восстанавливаем...')
                 window.onTelegramAuth = authCallback
+            } else {
+                // Если функция существует, но это не наша - это нормально, виджет может установить свою
+                // Просто убеждаемся, что она вызывает наш callback
+                const currentCallback = window.onTelegramAuth
+                if (currentCallback !== authCallback) {
+                    console.log('[TelegramWidget] ℹ️ window.onTelegramAuth был перезаписан виджетом - это нормально')
+                    // Обертываем функцию виджета, чтобы она вызывала наш callback
+                    window.onTelegramAuth = (user: TelegramUser) => {
+                        console.log('[TelegramWidget] 🔄 Вызываем оригинальную функцию виджета, затем наш callback')
+                        try {
+                            currentCallback(user)
+                        } catch (error) {
+                            console.log('[TelegramWidget] ⚠️ Ошибка при вызове функции виджета:', error)
+                        }
+                        // Вызываем наш callback
+                        authCallback(user)
+                    }
+                }
             }
         }, 1000)
 
@@ -477,6 +487,10 @@ export default function TelegramLoginWidget({
         container.innerHTML = ''
         console.log('[TelegramWidget] 🧹 Контейнер очищен')
 
+        // Получаем текущий origin для проверки безопасности
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        console.log('[TelegramWidget] 🌐 Текущий origin:', origin)
+
         // Создаем script тег точно как в официальной документации
         // Скрипт виджета сам загрузит библиотеку telegram-widget.js
         const widgetScript = document.createElement('script')
@@ -491,6 +505,12 @@ export default function TelegramLoginWidget({
         widgetScript.setAttribute('data-radius', cornerRadius.toString())
         widgetScript.setAttribute('data-lang', lang)
         widgetScript.setAttribute('data-onauth', 'onTelegramAuth(user)')
+
+        // Устанавливаем data-auth-url для проверки origin (важно для безопасности)
+        if (origin) {
+            widgetScript.setAttribute('data-auth-url', origin)
+            console.log('[TelegramWidget] 🔒 Установлен data-auth-url:', origin)
+        }
 
         console.log('[TelegramWidget] 📝 Создан script тег виджета', {
             botName,
