@@ -56,6 +56,11 @@ export default function TelegramLoginWidget({
     const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const checkCallbackIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+    // Отслеживание rate limit
+    const authAttemptsRef = useRef<Array<{ timestamp: number; result: 'success' | 'unauthorized' | 'click' }>>([])
+    const lastUnauthorizedRef = useRef<number | null>(null)
+    const lastSuccessRef = useRef<number | null>(null)
+
     // Создаем виджет согласно официальной документации Telegram
     useEffect(() => {
         console.log('[TelegramWidget] 🔵 Инициализация виджета', { botName, widgetId: widgetId.current })
@@ -383,9 +388,67 @@ export default function TelegramLoginWidget({
                     // Если это служебное событие (resize, ready, etc), игнорируем
                     if (parsedData && parsedData.event) {
                         const eventType = String(parsedData.event)
+                        const now = Date.now()
+
                         console.log('[TelegramWidget] ℹ️ Служебное событие от виджета:', eventType)
+
                         if (eventType === 'unauthorized') {
-                            console.log('[TelegramWidget] ⚠️ Виджет сообщил: unauthorized - возможно авторизация не прошла')
+                            lastUnauthorizedRef.current = now
+                            authAttemptsRef.current.push({ timestamp: now, result: 'unauthorized' })
+
+                            // Анализируем паттерн попыток
+                            const recentAttempts = authAttemptsRef.current.filter(
+                                a => now - a.timestamp < 60000 // Последняя минута
+                            )
+                            const unauthorizedAttempts = recentAttempts.filter(a => a.result === 'unauthorized')
+                            const successAttempts = recentAttempts.filter(a => a.result === 'success')
+
+                            // Вычисляем время с последнего успеха
+                            const timeSinceLastSuccess = lastSuccessRef.current
+                                ? Math.floor((now - lastSuccessRef.current) / 1000)
+                                : null
+
+                            // Вычисляем время с последнего unauthorized (если не первый)
+                            const previousUnauthorized = authAttemptsRef.current
+                                .filter(a => a.result === 'unauthorized' && a.timestamp < now)
+                                .sort((a, b) => b.timestamp - a.timestamp)[0]
+                            const timeSinceLastUnauthorized = previousUnauthorized
+                                ? Math.floor((now - previousUnauthorized.timestamp) / 1000)
+                                : null
+
+                            // Определяем, это rate limit или нет
+                            const isLikelyRateLimit = unauthorizedAttempts.length >= 3 &&
+                                recentAttempts.length >= 3 &&
+                                unauthorizedAttempts.length === recentAttempts.length
+
+                            console.log('[TelegramWidget] ⚠️⚠️⚠️ UNAUTHORIZED - Детальный анализ:', {
+                                attemptNumber: unauthorizedAttempts.length,
+                                totalAttemptsLastMinute: recentAttempts.length,
+                                unauthorizedInLastMinute: unauthorizedAttempts.length,
+                                successInLastMinute: successAttempts.length,
+                                timeSinceLastSuccess: timeSinceLastSuccess ? `${timeSinceLastSuccess}s` : 'never',
+                                timeSinceLastUnauthorized: timeSinceLastUnauthorized ? `${timeSinceLastUnauthorized}s` : 'first',
+                                isLikelyRateLimit,
+                                recommendation: isLikelyRateLimit
+                                    ? '🚫 Похоже на RATE LIMIT! Подождите 30-60 секунд'
+                                    : '⚠️ Возможна другая проблема'
+                            })
+
+                            // Если это похоже на rate limit, вычисляем примерное время блокировки
+                            if (isLikelyRateLimit && previousUnauthorized) {
+                                const timeBetweenAttempts = timeSinceLastUnauthorized || 0
+                                const estimatedBlockDuration = Math.max(30, timeBetweenAttempts * 2) // Минимум 30 секунд
+                                console.log('[TelegramWidget] 📊 Оценка длительности rate limit:', {
+                                    timeBetweenAttempts: `${timeSinceLastUnauthorized}s`,
+                                    estimatedBlockDuration: `${estimatedBlockDuration}s`,
+                                    waitUntil: new Date(now + estimatedBlockDuration * 1000).toLocaleTimeString()
+                                })
+                            }
+
+                            // Очищаем старые записи (старше 5 минут)
+                            authAttemptsRef.current = authAttemptsRef.current.filter(
+                                a => now - a.timestamp < 300000
+                            )
                         }
                         return // Не обрабатываем служебные события
                     }
