@@ -48,14 +48,6 @@ export default function TelegramLoginWidget({
     const containerRef = useRef<HTMLDivElement>(null)
     const [scriptLoaded, setScriptLoaded] = useState(false)
     const widgetId = useRef(`telegram-login-${Math.random().toString(36).substr(2, 9)}`)
-    const callbackCalledRef = useRef(false)
-    const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const fetchInterceptorRef = useRef<((...args: Parameters<typeof fetch>) => Promise<Response>) | null>(null)
-    const originalFetchRef = useRef<typeof fetch | null>(null)
-    const originalXHROpenRef = useRef<typeof XMLHttpRequest.prototype.open | null>(null)
-    const originalXHRSendRef = useRef<typeof XMLHttpRequest.prototype.send | null>(null)
-    const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null)
 
     // Загружаем скрипт Telegram Widget
     useEffect(() => {
@@ -90,7 +82,6 @@ export default function TelegramLoginWidget({
 
         // Если скрипт еще не загружен, создаем виджет с задержкой
         if (!scriptLoaded) {
-            // Очищаем контейнер
             container.innerHTML = '<div className="text-white text-sm">Загрузка...</div>'
             return
         }
@@ -100,242 +91,11 @@ export default function TelegramLoginWidget({
             return
         }
 
-        // Флаг для отслеживания вызова callback
-        callbackCalledRef.current = false
-
         // Устанавливаем глобальный обработчик для callback
         // Важно: устанавливаем ДО создания виджета
-        const authCallback = (user: TelegramUser) => {
-            if (callbackCalledRef.current) return // Предотвращаем двойной вызов
-            callbackCalledRef.current = true
-            if (fallbackTimeoutRef.current) {
-                clearTimeout(fallbackTimeoutRef.current)
-                fallbackTimeoutRef.current = null
-            }
-            if (checkIntervalRef.current) {
-                clearInterval(checkIntervalRef.current)
-                checkIntervalRef.current = null
-            }
+        window.onTelegramAuth = (user: TelegramUser) => {
             onAuth(user)
         }
-
-        window.onTelegramAuth = authCallback
-
-        // Функция для вызова callback с данными пользователя
-        const triggerCallback = (userData: TelegramUser) => {
-            if (callbackCalledRef.current) return // Предотвращаем двойной вызов
-
-            // Убеждаемся, что callback установлен
-            if (!window.onTelegramAuth) {
-                window.onTelegramAuth = authCallback
-            }
-
-            callbackCalledRef.current = true
-            if (fallbackTimeoutRef.current) {
-                clearTimeout(fallbackTimeoutRef.current)
-                fallbackTimeoutRef.current = null
-            }
-            if (checkIntervalRef.current) {
-                clearInterval(checkIntervalRef.current)
-                checkIntervalRef.current = null
-            }
-
-            // Вызываем callback напрямую через onAuth для надежности
-            try {
-                onAuth(userData)
-            } catch (err) {
-                // Если прямой вызов не сработал, пробуем через window.onTelegramAuth
-                if (window.onTelegramAuth) {
-                    window.onTelegramAuth(userData)
-                }
-            }
-        }
-
-        // Функция для парсинга данных из ответа
-        const parseUserData = (text: string): TelegramUser | null => {
-            try {
-                // Пытаемся найти JSON в ответе
-                // Ищем полный JSON объект с user внутри
-                const jsonMatch = text.match(/\{[\s\S]*"user"[\s\S]*\}/)
-                if (jsonMatch) {
-                    const data = JSON.parse(jsonMatch[0])
-                    if (data.user && data.user.id && data.user.hash) {
-                        return data.user as TelegramUser
-                    }
-                }
-                // Если не нашли, пытаемся парсить весь текст как JSON
-                try {
-                    const data = JSON.parse(text)
-                    if (data.user && data.user.id && data.user.hash) {
-                        return data.user as TelegramUser
-                    }
-                } catch {
-                    // Игнорируем
-                }
-            } catch (e) {
-                // Игнорируем ошибки парсинга
-            }
-            return null
-        }
-
-        // Fallback механизм 1: перехватываем fetch запросы
-        originalFetchRef.current = window.fetch
-
-        const fetchInterceptor = async (...args: Parameters<typeof fetch>) => {
-            const originalFetch = originalFetchRef.current || window.fetch
-            const response = await originalFetch(...(args as Parameters<typeof fetch>))
-            const url = args[0]?.toString() || ''
-
-            // Перехватываем ответ от oauth.telegram.org
-            if (url.includes('oauth.telegram.org/auth/get')) {
-                // Клонируем response для чтения без нарушения оригинального потока
-                const clonedResponse = response.clone()
-
-                // Читаем данные асинхронно, но не блокируем основной поток
-                clonedResponse.text().then(text => {
-                    // Пытаемся парсить данные
-                    const userData = parseUserData(text)
-                    if (userData && !callbackCalledRef.current) {
-                        // Немедленно вызываем callback, не ждем виджет
-                        triggerCallback(userData)
-                    }
-                }).catch(() => {
-                    // Игнорируем ошибки чтения
-                })
-            }
-
-            return response
-        }
-
-        // Сохраняем ссылку на перехватчик
-        fetchInterceptorRef.current = fetchInterceptor
-
-        // Перехватываем fetch
-        window.fetch = fetchInterceptor
-
-        // Fallback механизм 2: перехватываем XMLHttpRequest через прототип
-        const OriginalXHR = window.XMLHttpRequest
-        originalXHROpenRef.current = OriginalXHR.prototype.open
-        originalXHRSendRef.current = OriginalXHR.prototype.send
-
-        OriginalXHR.prototype.open = function (method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null) {
-            if (typeof url === 'string' && url.includes('oauth.telegram.org/auth/get')) {
-                this.addEventListener('load', function () {
-                    if (this.readyState === 4 && this.status === 200) {
-                        try {
-                            const text = this.responseText
-                            const userData = parseUserData(text)
-                            if (userData && !callbackCalledRef.current) {
-                                // Немедленно вызываем callback
-                                triggerCallback(userData)
-                            }
-                        } catch (e) {
-                            // Игнорируем ошибки парсинга
-                        }
-                    }
-                })
-            }
-            return originalXHROpenRef.current!.call(this, method, url, async, username, password)
-        }
-
-        // Fallback механизм 3: слушаем postMessage от iframe
-        const messageHandler = (event: MessageEvent) => {
-            // Проверяем, что сообщение от Telegram
-            if (event.origin === 'https://oauth.telegram.org' || event.origin === 'https://telegram.org' || event.origin.includes('telegram.org')) {
-                try {
-                    let userData: TelegramUser | null = null
-
-                    // Если данные приходят напрямую
-                    if (event.data && event.data.user && event.data.user.id && event.data.user.hash) {
-                        userData = event.data.user as TelegramUser
-                    }
-                    // Если данные в строке
-                    else if (typeof event.data === 'string') {
-                        userData = parseUserData(event.data)
-                    }
-                    // Если данные в объекте (проверяем вложенные структуры)
-                    else if (typeof event.data === 'object' && event.data !== null) {
-                        // Проверяем, есть ли user в корне
-                        if ('user' in event.data && event.data.user) {
-                            const user = (event.data as { user?: TelegramUser }).user
-                            if (user && user.id && user.hash) {
-                                userData = user
-                            }
-                        }
-                        // Пытаемся парсить как JSON строку
-                        else {
-                            const text = JSON.stringify(event.data)
-                            userData = parseUserData(text)
-                        }
-                    }
-
-                    if (userData && !callbackCalledRef.current) {
-                        triggerCallback(userData)
-                    }
-                } catch (e) {
-                    // Игнорируем ошибки обработки
-                }
-            }
-        }
-
-        messageHandlerRef.current = messageHandler
-        window.addEventListener('message', messageHandler)
-
-        // Дополнительный fallback: таймаут на случай, если ничего не сработало
-        // Также проверяем периодически наличие данных в глобальном объекте Telegram
-        fallbackTimeoutRef.current = setTimeout(() => {
-            if (!callbackCalledRef.current) {
-                // Пытаемся найти данные в DOM виджета
-                const widgetContainer = containerRef.current
-                if (widgetContainer) {
-                    // Ищем скрытые данные или пытаемся извлечь из iframe
-                    const scripts = widgetContainer.querySelectorAll('script')
-                    scripts.forEach(script => {
-                        const scriptContent = script.textContent || script.innerHTML
-                        const jsonMatch = scriptContent.match(/\{[\s\S]*"user"[\s\S]*\}/)
-                        if (jsonMatch) {
-                            try {
-                                const data = JSON.parse(jsonMatch[0])
-                                if (data.user && data.user.id && data.user.hash && window.onTelegramAuth) {
-                                    callbackCalledRef.current = true
-                                    window.onTelegramAuth(data.user as TelegramUser)
-                                }
-                            } catch (e) {
-                                // Игнорируем ошибки
-                            }
-                        }
-                    })
-                }
-            }
-        }, 1000) // Уменьшили таймаут до 1 секунды
-
-        // Дополнительная проверка: периодически проверяем наличие данных
-        checkIntervalRef.current = setInterval(() => {
-            if (!callbackCalledRef.current) {
-                // Проверяем, есть ли данные в глобальном объекте или DOM
-                const widgetContainer = containerRef.current
-                if (widgetContainer) {
-                    // Ищем iframe от Telegram
-                    const iframes = widgetContainer.querySelectorAll('iframe')
-                    iframes.forEach(iframe => {
-                        try {
-                            // Пытаемся получить данные из iframe (может не сработать из-за CORS)
-                            const iframeWindow = iframe.contentWindow
-                            if (iframeWindow) {
-                                // Не можем получить доступ из-за CORS, но попробуем через postMessage
-                            }
-                        } catch (e) {
-                            // Игнорируем CORS ошибки
-                        }
-                    })
-                }
-            } else {
-                if (checkIntervalRef.current) {
-                    clearInterval(checkIntervalRef.current)
-                    checkIntervalRef.current = null
-                }
-            }
-        }, 500)
 
         // Очищаем контейнер перед созданием нового виджета
         container.innerHTML = ''
@@ -371,46 +131,6 @@ export default function TelegramLoginWidget({
             if (container) {
                 container.innerHTML = ''
             }
-            // Восстанавливаем оригинальный fetch
-            if (fetchInterceptorRef.current && originalFetchRef.current && window.fetch === fetchInterceptorRef.current) {
-                try {
-                    window.fetch = originalFetchRef.current
-                } catch (e) {
-                    // Игнорируем ошибки
-                }
-            }
-            fetchInterceptorRef.current = null
-            originalFetchRef.current = null
-
-            // Восстанавливаем оригинальный XMLHttpRequest
-            if (originalXHROpenRef.current && originalXHRSendRef.current) {
-                try {
-                    window.XMLHttpRequest.prototype.open = originalXHROpenRef.current
-                    window.XMLHttpRequest.prototype.send = originalXHRSendRef.current
-                } catch (e) {
-                    // Игнорируем ошибки
-                }
-            }
-            originalXHROpenRef.current = null
-            originalXHRSendRef.current = null
-
-            // Удаляем обработчик postMessage
-            if (messageHandlerRef.current) {
-                window.removeEventListener('message', messageHandlerRef.current)
-            }
-            messageHandlerRef.current = null
-
-            // Очищаем таймаут
-            if (fallbackTimeoutRef.current) {
-                clearTimeout(fallbackTimeoutRef.current)
-                fallbackTimeoutRef.current = null
-            }
-            // Очищаем интервал
-            if (checkIntervalRef.current) {
-                clearInterval(checkIntervalRef.current)
-                checkIntervalRef.current = null
-            }
-            callbackCalledRef.current = false
         }
     }, [scriptLoaded, botName, size, requestAccess, usePic, cornerRadius, lang, onAuth])
 
