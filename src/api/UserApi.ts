@@ -19,6 +19,7 @@ export interface TelegramLoginWidgetData {
 export const UserApi = {
     async InitialUser(user: UserType): Promise<AxiosResponse> {
         const response = await instance.post<UserType, Promise<AxiosResponse>>('user/check_user', user)
+        console.log(response)
         return response
 
     },
@@ -69,6 +70,7 @@ export const UserApi = {
             typeof body,
             Promise<AxiosResponse<UserType & { accessToken?: string; refreshToken?: string; expiresIn?: number }>>
         >('auth/telegram-login-widget', body);
+        console.log(response)
         return response;
     },
 
