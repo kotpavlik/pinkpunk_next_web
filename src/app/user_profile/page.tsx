@@ -442,7 +442,7 @@ export default function UserProfile() {
                                         Оформите первый заказ в нашем магазине и начните получать удовольствие от покупок!
                                     </p>
                                     <button
-                                        onClick={() => router.push('/')}
+                                        onClick={() => router.push('/catalog')}
                                         className="mt-6 px-6 py-3 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] text-white font-bold rounded-xl transition-all transform hover:scale-105 hover:shadow-lg"
                                     >
                                         Перейти к покупкам
