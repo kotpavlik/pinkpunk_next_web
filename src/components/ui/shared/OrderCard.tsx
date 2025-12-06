@@ -184,7 +184,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {order.items && order.items.length > 0 && order.items.slice(0, 4).map((item, index) => (
-                            item.product.photos && item.product.photos.length > 0 ? (
+                            item.product && item.product.photos && item.product.photos.length > 0 ? (
                                 <div key={index} className="w-10 h-10 flex-shrink-0 rounded overflow-hidden border border-white/10">
                                     <LazyImage
                                         src={item.product.photos[0]}
@@ -401,6 +401,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                         <h5 className="text-white font-semibold mb-3 text-base">Товары:</h5>
                                         <div className="space-y-2">
                                             {order.items.map((item, index) => {
+                                                if (!item.product) return null
                                                 const firstPhoto = item.product.photos?.[0]
                                                 return (
                                                     <div key={index} className="bg-white/5 p-3 rounded-lg">
