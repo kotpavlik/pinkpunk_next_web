@@ -72,47 +72,47 @@ export const ProductApi = {
         return response
     },
 
-    // async UpdateProduct(id: string, product: UpdateProductRequest, photos?: File[]): Promise<AxiosResponse<ProductResponse>> {
-    //     // Если есть файлы, используем FormData
-    //     if (photos && photos.length > 0) {
-    //         const formData = new FormData()
+    async UpdateProduct(id: string, product: UpdateProductRequest, photos?: File[]): Promise<AxiosResponse<ProductResponse>> {
+        // Если есть файлы, используем FormData
+        if (photos && photos.length > 0) {
+            const formData = new FormData()
             
-    //         if (product.productId) formData.append('productId', product.productId)
-    //         if (product.name) formData.append('name', product.name)
-    //         if (product.description) formData.append('description', product.description)
-    //         if (product.size) formData.append('size', product.size)
-    //         if (product.category) formData.append('category', product.category)
-    //         if (product.price !== undefined) formData.append('price', String(product.price))
-    //         if (product.stockQuantity !== undefined) formData.append('stockQuantity', String(product.stockQuantity))
-    //         if (product.isActive !== undefined) formData.append('isActive', String(product.isActive))
-    //         if (product.removePhotos) formData.append('removePhotos', JSON.stringify(product.removePhotos))
+            if (product.productId) formData.append('productId', product.productId)
+            if (product.name) formData.append('name', product.name)
+            if (product.description) formData.append('description', product.description)
+            if (product.size) formData.append('size', product.size)
+            if (product.category) formData.append('category', product.category)
+            if (product.price !== undefined) formData.append('price', String(product.price))
+            if (product.stockQuantity !== undefined) formData.append('stockQuantity', String(product.stockQuantity))
+            if (product.isActive !== undefined) formData.append('isActive', String(product.isActive))
+            if (product.removePhotos) formData.append('removePhotos', JSON.stringify(product.removePhotos))
             
-    //         photos.forEach((file) => formData.append('photos', file))
+            photos.forEach((file) => formData.append('photos', file))
 
-    //         const response = await instance.patch(`products/${id}`, formData, {
-    //             headers: { 'Content-Type': 'multipart/form-data' }
-    //         })
-    //         return response
-    //     } else {
-    //         // Если файлов нет, отправляем JSON с числовыми значениями
-    //         const jsonData: Partial<UpdateProductRequest> = {}
+            const response = await instance.patch(`products/${id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            return response
+        } else {
+            // Если файлов нет, отправляем JSON с числовыми значениями
+            const jsonData: Partial<UpdateProductRequest> = {}
             
-    //         if (product.productId) jsonData.productId = product.productId
-    //         if (product.name) jsonData.name = product.name
-    //         if (product.description) jsonData.description = product.description
-    //         if (product.size) jsonData.size = product.size
-    //         if (product.category) jsonData.category = product.category
-    //         if (product.price !== undefined) jsonData.price = Number(product.price)
-    //         if (product.stockQuantity !== undefined) jsonData.stockQuantity = Number(product.stockQuantity)
-    //         if (product.isActive !== undefined) jsonData.isActive = product.isActive
-    //         if (product.removePhotos) jsonData.removePhotos = product.removePhotos
+            if (product.productId) jsonData.productId = product.productId
+            if (product.name) jsonData.name = product.name
+            if (product.description) jsonData.description = product.description
+            if (product.size) jsonData.size = product.size
+            if (product.category) jsonData.category = product.category
+            if (product.price !== undefined) jsonData.price = Number(product.price)
+            if (product.stockQuantity !== undefined) jsonData.stockQuantity = Number(product.stockQuantity)
+            if (product.isActive !== undefined) jsonData.isActive = product.isActive
+            if (product.removePhotos) jsonData.removePhotos = product.removePhotos
 
-    //         const response = await instance.patch(`products/${id}`, jsonData, {
-    //             headers: { 'Content-Type': 'application/json' }
-    //         })
-    //         return response
-    //     }
-    // },
+            const response = await instance.patch(`products/${id}`, jsonData, {
+                headers: { 'Content-Type': 'application/json' }
+            })
+            return response
+        }
+    },
 
     // async DeleteProduct(id: string): Promise<AxiosResponse<{ deleted: boolean, folderDeleted: boolean }>> {
     //     const response = await instance.delete(`products/${id}`)

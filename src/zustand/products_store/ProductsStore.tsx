@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { AxiosError } from 'axios';
 
 import { useAppStore } from '../app_store/AppStore';
-import { ProductApi, ProductResponse } from '@/api/ProductApi';
+import { ProductApi, ProductResponse, UpdateProductRequest } from '@/api/ProductApi';
 import { HandleError } from '@/features/HandleError';
 
 export type ClothingSize = 's' | 'm' | 'l' | 'xl';
@@ -14,7 +14,7 @@ export type ProductsStateType = {
     getProducts: (includeInactive?: boolean) => Promise<void>
     getProductById: (id: string) => Promise<void>
     // createProduct: (product: RequestProductType) => Promise<void>
-    // updateProduct: (id: string, product: UpdateProductRequest, photos?: File[]) => Promise<void>
+    updateProduct: (id: string, product: UpdateProductRequest, photos?: File[]) => Promise<void>
     // deleteProduct: (id: string) => Promise<boolean>
 };
 
@@ -75,27 +75,27 @@ export const useProductsStore = create<ProductsStateType>()(
         //     }
         // },
 
-        // updateProduct: async (id: string, product: UpdateProductRequest, photos?: File[]) => {
-        //     const { setStatus } = useAppStore.getState()
-        //     try {
-        //         setStatus("loading")
-        //         const response = await ProductApi.UpdateProduct(id, product, photos)
-        //         set((state) => {
-        //             const index = state.products.findIndex(p => p._id === id)
-        //             if (index !== -1) {
-        //                 state.products[index] = response.data
-        //             }
-        //             if (state.currentProduct?._id === id) {
-        //                 state.currentProduct = response.data
-        //             }
-        //         })
-        //         setStatus("success")
-        //     } catch (error) {
-        //         const err = error as Error | AxiosError
-        //         HandleError(err)
-        //         setStatus("failed")
-        //     }
-        // },
+        updateProduct: async (id: string, product: UpdateProductRequest, photos?: File[]) => {
+            const { setStatus } = useAppStore.getState()
+            try {
+                setStatus("loading")
+                const response = await ProductApi.UpdateProduct(id, product, photos)
+                set((state) => {
+                    const index = state.products.findIndex(p => p._id === id)
+                    if (index !== -1) {
+                        state.products[index] = response.data
+                    }
+                    if (state.currentProduct?._id === id) {
+                        state.currentProduct = response.data
+                    }
+                })
+                setStatus("success")
+            } catch (error) {
+                const err = error as Error | AxiosError
+                HandleError(err)
+                setStatus("failed")
+            }
+        },
 
         // deleteProduct: async (id: string) => {
         //     const { setStatus } = useAppStore.getState()

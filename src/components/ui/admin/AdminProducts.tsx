@@ -3,16 +3,19 @@
 import { useState, useEffect } from "react";
 import * as yup from 'yup';
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
-import { RequestProductType } from "@/api/ProductApi";
-import { ClothingSize } from "@/zustand/products_store/ProductsStore";
+import { RequestProductType, ProductResponse, UpdateProductRequest } from "@/api/ProductApi";
+import { ClothingSize, useProductsStore } from "@/zustand/products_store/ProductsStore";
 import { useAppStore } from "@/zustand/app_store/AppStore";
 import { ProductApi } from "@/api/ProductApi";
+import Image from 'next/image';
 
 type AdminProductsProps = {
     onClose: () => void
+    product?: ProductResponse | null
+    onSuccess?: () => void
 }
 
-const productSchema = yup.object().shape({
+const createProductSchema = (isEditMode: boolean) => yup.object().shape({
     productId: yup
         .string()
         .required('ProductId обязателен')
@@ -45,15 +48,19 @@ const productSchema = yup.object().shape({
         .number()
         .min(0, 'Количество не может быть отрицательным')
         .integer('Количество должно быть целым числом'),
-    photos: yup
-        .array()
-        .min(3, 'Нужно выбрать минимум 3 фото')
-        .required('Фотографии обязательны')
+    photos: isEditMode
+        ? yup.array() // При редактировании фото не обязательны
+        : yup
+            .array()
+            .min(3, 'Нужно выбрать минимум 3 фото')
+            .required('Фотографии обязательны')
 });
 
-export const AdminProducts = ({ onClose }: AdminProductsProps) => {
+export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProps) => {
     const { categories, getCategories } = useCategoriesStore()
     const { status, error, setStatus } = useAppStore()
+    const { updateProduct } = useProductsStore()
+    const isEditMode = !!product
 
     const [form, setForm] = useState<RequestProductType>({
         productId: "",
@@ -67,10 +74,24 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
         photos: []
     })
 
+    const [existingPhotos, setExistingPhotos] = useState<string[]>([])
+    const [photosToRemove, setPhotosToRemove] = useState<string[]>([])
     const [errors, setErrors] = useState<{ [key: string]: string | undefined }>({})
     const [showSuccess, setShowSuccess] = useState(false)
     const [processingPhotos, setProcessingPhotos] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Функция для получения URL изображения
+    const getImageUrl = (photoUrl: string) => {
+        if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+            return photoUrl
+        }
+        if (photoUrl.startsWith('/')) {
+            const baseURL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pinkpunknestbot-production.up.railway.app'
+            return `${baseURL}${photoUrl}`
+        }
+        return photoUrl
+    }
 
     useEffect(() => {
         getCategories()
@@ -79,7 +100,43 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
         setIsSubmitting(false)
         setProcessingPhotos(false)
         setErrors({})
-    }, [getCategories, setStatus])
+        
+        // Если режим редактирования, заполняем форму данными товара
+        if (product) {
+            const categoryId = typeof product.category === 'string' 
+                ? product.category 
+                : product.category._id
+            
+            setForm({
+                productId: product.productId,
+                name: product.name,
+                description: product.description || "",
+                size: product.size,
+                stockQuantity: product.stockQuantity,
+                price: product.price,
+                category: categoryId,
+                isActive: product.isActive,
+                photos: []
+            })
+            setExistingPhotos(product.photos || [])
+            setPhotosToRemove([])
+        } else {
+            // Режим создания - сбрасываем форму
+            setForm({
+                productId: "",
+                name: "",
+                description: "",
+                size: "s",
+                stockQuantity: 0,
+                price: 0,
+                category: "",
+                isActive: true,
+                photos: []
+            })
+            setExistingPhotos([])
+            setPhotosToRemove([])
+        }
+    }, [getCategories, setStatus, product])
 
     useEffect(() => {
         if (status === 'success' && isSubmitting) {
@@ -99,7 +156,8 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
 
     const validateField = async (fieldName: string, value: string | number | File[]) => {
         try {
-            await productSchema.validateAt(fieldName, { [fieldName]: value });
+            const schema = createProductSchema(isEditMode)
+            await schema.validateAt(fieldName, { [fieldName]: value });
             return null;
         } catch (error) {
             if (error instanceof yup.ValidationError) {
@@ -165,28 +223,73 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
         }
     }
 
+    const handleRemovePhoto = (photoUrl: string) => {
+        setExistingPhotos(prev => prev.filter(p => p !== photoUrl))
+        setPhotosToRemove(prev => [...prev, photoUrl])
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setErrors({})
 
         try {
-            await productSchema.validate(form, { abortEarly: false })
+            const schema = createProductSchema(isEditMode)
+            await schema.validate(form, { abortEarly: false })
             setShowSuccess(false)
             setIsSubmitting(true)
 
-            const response = await ProductApi.CreateProduct(form)
+            if (isEditMode && product) {
+                // Режим редактирования
+                const updateData: UpdateProductRequest = {
+                    productId: form.productId,
+                    name: form.name,
+                    description: form.description,
+                    size: form.size,
+                    category: form.category,
+                    price: form.price,
+                    stockQuantity: form.stockQuantity,
+                    isActive: form.isActive,
+                }
 
-            if (response) {
-                // Успешное создание
+                if (photosToRemove.length > 0) {
+                    updateData.removePhotos = photosToRemove
+                }
+
+                await updateProduct(product._id, updateData, form.photos.length > 0 ? form.photos : undefined)
+
+                // Успешное редактирование
                 setStatus('success')
                 setShowSuccess(true)
-                setForm({ productId: "", name: "", description: "", size: "s", stockQuantity: 0, price: 0, category: "", isActive: true, photos: [] })
+                
+                // Вызываем callback успеха
+                if (onSuccess) {
+                    setTimeout(() => {
+                        onSuccess()
+                    }, 1500)
+                } else {
+                    setTimeout(() => {
+                        setShowSuccess(false)
+                        setStatus('idle')
+                        onClose()
+                    }, 1500)
+                }
+            } else {
+                // Режим создания
+                const response = await ProductApi.CreateProduct(form)
 
-                // Скрываем модалку через 2 секунды
-                setTimeout(() => {
-                    setShowSuccess(false)
-                    setStatus('idle')
-                }, 2000)
+                if (response) {
+                    // Успешное создание
+                    setStatus('success')
+                    setShowSuccess(true)
+                    setForm({ productId: "", name: "", description: "", size: "s", stockQuantity: 0, price: 0, category: "", isActive: true, photos: [] })
+
+                    // Скрываем модалку через 2 секунды
+                    setTimeout(() => {
+                        setShowSuccess(false)
+                        setStatus('idle')
+                        onClose()
+                    }, 1500)
+                }
             }
         } catch (error) {
             if (error instanceof yup.ValidationError) {
@@ -199,7 +302,7 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                 setErrors(yupErrors)
             } else {
                 setStatus('failed')
-                setErrors({ general: 'Произошла ошибка при создании товара' })
+                setErrors({ general: isEditMode ? 'Произошла ошибка при редактировании товара' : 'Произошла ошибка при создании товара' })
             }
         } finally {
             setIsSubmitting(false)
@@ -217,13 +320,17 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
 
     return (
         <div className="p-4 bg-white/5 backdrop-blur-md border border-white/10 relative">
-            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik mb-4">Добавить товар</h1>
+            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik mb-4">
+                {isEditMode ? 'Редактировать товар' : 'Добавить товар'}
+            </h1>
 
             {isSubmitting && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10">
                     <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 shadow-2xl flex items-center gap-3">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--mint-bright)]"></div>
-                        <span className="text-white font-semibold">Создаем товар...</span>
+                        <span className="text-white font-semibold">
+                            {isEditMode ? 'Сохраняем изменения...' : 'Создаем товар...'}
+                        </span>
                     </div>
                 </div>
             )}
@@ -242,10 +349,13 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                         placeholder="Введите Product ID (3-25 символов, латиница, цифры)"
                         value={form.productId}
                         onChange={handleChange}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isEditMode}
                         className={getFieldStyles(!!errors.productId)}
                         maxLength={25}
                     />
+                    {isEditMode && (
+                        <p className="text-xs text-white/50 mt-1">Product ID нельзя изменить</p>
+                    )}
                     {errors.productId && (
                         <p className="absolute top-full left-0 right-0 text-[var(--pink-punk)] text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
                             {errors.productId}
@@ -364,7 +474,41 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                 </div>
 
                 <div className="relative">
-                    <label className="block text-sm font-medium mb-1 text-white/70">Фотографии товара *</label>
+                    <label className="block text-sm font-medium mb-1 text-white/70">
+                        Фотографии товара {!isEditMode && '*'}
+                    </label>
+                    
+                    {/* Существующие фото (только в режиме редактирования) */}
+                    {isEditMode && existingPhotos.length > 0 && (
+                        <div className="mb-4">
+                            <p className="text-xs text-white/60 mb-2">Текущие фотографии:</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {existingPhotos.map((photoUrl, idx) => (
+                                    <div key={idx} className="relative group">
+                                        <div className="relative aspect-square w-full">
+                                            <Image
+                                                src={getImageUrl(photoUrl)}
+                                                alt={`Фото ${idx + 1}`}
+                                                fill
+                                                className="object-cover rounded"
+                                                sizes="(max-width: 768px) 33vw, 150px"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemovePhoto(photoUrl)}
+                                            className="absolute top-1 right-1 w-6 h-6 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
@@ -388,9 +532,14 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                         <p className="text-xs text-white/60">
                             Форматы: JPEG, PNG, WebP
                         </p>
+                        {!isEditMode && (
+                            <p className="text-xs text-white/60">
+                                Минимум 3 фотографии
+                            </p>
+                        )}
                         {form.photos.length > 0 && (
                             <p className="text-xs text-[var(--mint-bright)] mt-1">
-                                Выбрано: {form.photos.length} {form.photos.length === 1 ? 'фото' : form.photos.length < 5 ? 'фото' : 'фотографий'}
+                                Выбрано новых: {form.photos.length} {form.photos.length === 1 ? 'фото' : form.photos.length < 5 ? 'фото' : 'фотографий'}
                             </p>
                         )}
                     </div>
@@ -417,7 +566,12 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                         }`}
                     disabled={processingPhotos || isSubmitting || Object.values(errors).some(error => error)}
                 >
-                    {processingPhotos ? 'Обрабатываем фотографии...' : isSubmitting ? 'Создаем товар...' : 'Создать товар'}
+                    {processingPhotos 
+                        ? 'Обрабатываем фотографии...' 
+                        : isSubmitting 
+                            ? (isEditMode ? 'Сохраняем изменения...' : 'Создаем товар...')
+                            : (isEditMode ? 'Сохранить изменения' : 'Создать товар')
+                    }
                 </button>
             </form>
 
@@ -429,7 +583,9 @@ export const AdminProducts = ({ onClose }: AdminProductsProps) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <span className="font-bold text-lg">Продукт создан!</span>
+                        <span className="font-bold text-lg">
+                            {isEditMode ? 'Товар обновлен!' : 'Продукт создан!'}
+                        </span>
                     </div>
                 </div>
             )}

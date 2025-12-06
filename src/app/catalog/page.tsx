@@ -10,6 +10,7 @@ import { useCartStore } from "@/zustand/cart_store/CartStore";
 import Loader from "@/components/ui/shared/Loader";
 import TelegramLoginModal from "@/components/ui/shared/TelegramLoginModal";
 import { ProductResponse } from "@/api/ProductApi";
+import { AdminProducts } from "@/components/ui/admin/AdminProducts";
 
 const Catalog = () => {
     const { products, getProducts } = useProductsStore()
@@ -23,6 +24,8 @@ const Catalog = () => {
     const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
     const [isAddingToCart, setIsAddingToCart] = useState<{ [key: string]: boolean }>({})
     const [showError, setShowError] = useState(false)
+    const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     // notifications removed in this page version; handled elsewhere if needed
 
@@ -237,6 +240,27 @@ const Catalog = () => {
                                                     />
                                                 )}
 
+                                                {/* Edit button for admin (left top corner) */}
+                                                {isAdmin && (
+                                                    <div className="absolute top-3 left-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                                setEditingProduct(product)
+                                                                setIsEditModalOpen(true)
+                                                            }}
+                                                            className="p-2 rounded-md bg-[var(--mint-dark)]/70 hover:bg-[var(--mint-dark)]/90 backdrop-blur-sm border border-white/10 shadow-md"
+                                                            aria-label="Редактировать товар"
+                                                        >
+                                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                )}
+
                                                 {/* Add to cart button (always visible on mobile, hover on md+) */}
                                                 <div className="absolute top-3 right-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
                                                     <button
@@ -298,6 +322,39 @@ const Catalog = () => {
                     }
                 }}
             />
+
+            {/* Модалка редактирования товара */}
+            {isEditModalOpen && editingProduct && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
+                    <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={() => {
+                                setIsEditModalOpen(false)
+                                setEditingProduct(null)
+                            }}
+                            className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
+                            aria-label="Закрыть"
+                        >
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <AdminProducts
+                            product={editingProduct}
+                            onClose={() => {
+                                setIsEditModalOpen(false)
+                                setEditingProduct(null)
+                            }}
+                            onSuccess={async () => {
+                                // Обновляем каталог после успешного редактирования
+                                await getProducts(isAdmin)
+                                setIsEditModalOpen(false)
+                                setEditingProduct(null)
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Сообщение об ошибке */}
             {cartError && showError && (
