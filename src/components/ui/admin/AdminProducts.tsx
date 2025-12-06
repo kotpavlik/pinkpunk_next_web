@@ -104,13 +104,13 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         setIsSubmitting(false)
         setProcessingPhotos(false)
         setErrors({})
-        
+
         // Если режим редактирования, заполняем форму данными товара
         if (product) {
-            const categoryId = typeof product.category === 'string' 
-                ? product.category 
+            const categoryId = typeof product.category === 'string'
+                ? product.category
                 : product.category._id
-            
+
             setForm({
                 productId: product.productId,
                 name: product.name,
@@ -261,41 +261,46 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
 
                 await updateProduct(product._id, updateData, form.photos.length > 0 ? form.photos : undefined)
 
-                // Успешное редактирование
+                // Успешное редактирование - сначала убираем загрузку
+                setIsSubmitting(false)
+                // Затем показываем сообщение об успехе
                 setStatus('success')
                 setShowSuccess(true)
-                
+
                 // Вызываем callback успеха
                 if (onSuccess) {
                     setTimeout(() => {
                         onSuccess()
-                    }, 1500)
+                    }, 2000)
                 } else {
                     setTimeout(() => {
                         setShowSuccess(false)
                         setStatus('idle')
                         onClose()
-                    }, 1500)
+                    }, 2000)
                 }
             } else {
                 // Режим создания
                 const response = await ProductApi.CreateProduct(form)
 
                 if (response) {
-                    // Успешное создание
+                    // Успешное создание - сначала убираем загрузку
+                    setIsSubmitting(false)
+                    // Затем показываем сообщение об успехе
                     setStatus('success')
                     setShowSuccess(true)
                     setForm({ productId: "", name: "", description: "", size: "s", stockQuantity: 0, price: 0, category: "", isActive: true, photos: [] })
 
-                    // Скрываем модалку через 2 секунды
+                    // Скрываем сообщение об успехе через 2 секунды
                     setTimeout(() => {
                         setShowSuccess(false)
                         setStatus('idle')
                         onClose()
-                    }, 1500)
+                    }, 2000)
                 }
             }
         } catch (error) {
+            setIsSubmitting(false)
             if (error instanceof yup.ValidationError) {
                 const yupErrors: { [key: string]: string } = {}
                 error.inner.forEach((err) => {
@@ -308,8 +313,6 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                 setStatus('failed')
                 setErrors({ general: isEditMode ? 'Произошла ошибка при редактировании товара' : 'Произошла ошибка при создании товара' })
             }
-        } finally {
-            setIsSubmitting(false)
         }
     }, [form, photosToRemove, isEditMode, product, updateProduct, setStatus, onSuccess, onClose])
 
@@ -489,7 +492,7 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                     <label className="block text-sm font-medium mb-1 text-white/70">
                         Фотографии товара {!isEditMode && '*'}
                     </label>
-                    
+
                     {/* Существующие фото (только в режиме редактирования) */}
                     {isEditMode && existingPhotos.length > 0 && (
                         <div className="mb-4">
@@ -576,11 +579,10 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                         <button
                             type="submit"
                             disabled={isSubmitting || processingPhotos || Object.values(errors).some(error => error)}
-                            className={`w-full px-6 py-3 font-bold transition-all duration-200 ${
-                                processingPhotos || isSubmitting || Object.values(errors).some(error => error)
+                            className={`w-full px-6 py-3 font-bold transition-all duration-200 ${processingPhotos || isSubmitting || Object.values(errors).some(error => error)
                                     ? 'bg-white/20 text-white/50 cursor-not-allowed'
                                     : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
-                            }`}
+                                }`}
                         >
                             {processingPhotos
                                 ? 'Обрабатываем фотографии...'
@@ -593,7 +595,7 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                 )}
             </form>
 
-            {showSuccess && status === 'success' && (
+            {showSuccess && status === 'success' && !isSubmitting && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md z-[10000]">
                     <div className="bg-[var(--mint-bright)] text-black px-8 py-6 shadow-2xl flex items-center gap-3">
                         <div className="w-8 h-8 bg-black/20 flex items-center justify-center">
