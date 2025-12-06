@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import * as yup from 'yup';
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
 import { RequestProductType, ProductResponse, UpdateProductRequest } from "@/api/ProductApi";
@@ -13,6 +13,10 @@ type AdminProductsProps = {
     onClose: () => void
     product?: ProductResponse | null
     onSuccess?: () => void
+    onGetSubmitHandler?: (handler: (e: React.FormEvent) => Promise<void>) => void
+    onGetIsSubmitting?: (getter: () => boolean) => void
+    onGetProcessingPhotos?: (getter: () => boolean) => void
+    onGetErrors?: (getter: () => { [key: string]: string | undefined }) => void
 }
 
 const createProductSchema = (isEditMode: boolean) => yup.object().shape({
@@ -56,7 +60,7 @@ const createProductSchema = (isEditMode: boolean) => yup.object().shape({
             .required('Фотографии обязательны')
 });
 
-export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProps) => {
+export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler, onGetIsSubmitting, onGetProcessingPhotos, onGetErrors }: AdminProductsProps) => {
     const { categories, getCategories } = useCategoriesStore()
     const { status, error, setStatus } = useAppStore()
     const { updateProduct } = useProductsStore()
@@ -228,7 +232,7 @@ export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProp
         setPhotosToRemove(prev => [...prev, photoUrl])
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
         setErrors({})
 
@@ -307,7 +311,7 @@ export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProp
         } finally {
             setIsSubmitting(false)
         }
-    }
+    }, [form, photosToRemove, isEditMode, product, updateProduct, setStatus, onSuccess, onClose])
 
     const sizeOptions: ClothingSize[] = ['s', 'm', 'l', 'xl']
 
@@ -319,11 +323,7 @@ export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProp
     }
 
     return (
-        <div className="p-4 bg-white/5 backdrop-blur-md border border-white/10 relative">
-            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik mb-4">
-                {isEditMode ? 'Редактировать товар' : 'Добавить товар'}
-            </h1>
-
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 relative">
             {isSubmitting && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10">
                     <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 shadow-2xl flex items-center gap-3">
@@ -335,7 +335,7 @@ export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProp
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-white">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4 text-white">
                 {errors.general && (
                     <div className="bg-red-500/20 border border-red-500/50 p-3 text-red-200 text-sm">
                         {errors.general}
@@ -557,22 +557,6 @@ export const AdminProducts = ({ onClose, product, onSuccess }: AdminProductsProp
                         <span className="text-sm font-medium text-white/70">Товар активен</span>
                     </label>
                 </div>
-
-                <button
-                    type="submit"
-                    className={`px-6 py-3 font-bold transition-all duration-200 ${processingPhotos || isSubmitting || Object.values(errors).some(error => error)
-                        ? 'bg-white/20 text-white/50 cursor-not-allowed'
-                        : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
-                        }`}
-                    disabled={processingPhotos || isSubmitting || Object.values(errors).some(error => error)}
-                >
-                    {processingPhotos 
-                        ? 'Обрабатываем фотографии...' 
-                        : isSubmitting 
-                            ? (isEditMode ? 'Сохраняем изменения...' : 'Создаем товар...')
-                            : (isEditMode ? 'Сохранить изменения' : 'Создать товар')
-                    }
-                </button>
             </form>
 
             {showSuccess && status === 'success' && (

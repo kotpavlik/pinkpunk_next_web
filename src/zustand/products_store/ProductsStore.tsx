@@ -15,7 +15,7 @@ export type ProductsStateType = {
     getProductById: (id: string) => Promise<void>
     // createProduct: (product: RequestProductType) => Promise<void>
     updateProduct: (id: string, product: UpdateProductRequest, photos?: File[]) => Promise<void>
-    // deleteProduct: (id: string) => Promise<boolean>
+    deleteProduct: (id: string) => Promise<boolean>
 };
 
 export const useProductsStore = create<ProductsStateType>()(
@@ -97,34 +97,34 @@ export const useProductsStore = create<ProductsStateType>()(
             }
         },
 
-        // deleteProduct: async (id: string) => {
-        //     const { setStatus } = useAppStore.getState()
-        //     try {
-        //         setStatus("loading")
-        //         const response = await ProductApi.DeleteProduct(id)
+        deleteProduct: async (id: string) => {
+            const { setStatus } = useAppStore.getState()
+            try {
+                setStatus("loading")
+                const response = await ProductApi.DeleteProduct(id)
 
-        //         // Проверяем ответ от сервера
-        //         if (response.data && response.data.deleted === true) {
-        //             // Обновляем состояние только если сервер подтвердил удаление
-        //             set((state) => {
-        //                 state.products = state.products.filter(p => p._id !== id)
-        //                 if (state.currentProduct?._id === id) {
-        //                     state.currentProduct = null
-        //                 }
-        //             })
-        //             setStatus("success")
-        //             return true // Возвращаем успех
-        //         } else {
-        //             // Если сервер не подтвердил удаление
-        //             setStatus("failed")
-        //             throw new Error("Сервер не подтвердил удаление продукта")
-        //         }
-        //     } catch (error) {
-        //         const err = error as Error | AxiosError
-        //         HandleError(err)
-        //         setStatus("failed")
-        //         throw error // Пробрасываем ошибку дальше
-        //     }
-        // }
+                // Проверяем ответ от сервера
+                if (response.data && response.data.deleted === true) {
+                    // Обновляем состояние только если сервер подтвердил удаление
+                    set((state) => {
+                        state.products = state.products.filter(p => p._id !== id)
+                        if (state.currentProduct?._id === id) {
+                            state.currentProduct = null
+                        }
+                    })
+                    setStatus("success")
+                    return true // Возвращаем успех
+                } else {
+                    // Если сервер не подтвердил удаление
+                    setStatus("failed")
+                    throw new Error("Сервер не подтвердил удаление продукта")
+                }
+            } catch (error) {
+                const err = error as Error | AxiosError
+                HandleError(err)
+                setStatus("failed")
+                throw error // Пробрасываем ошибку дальше
+            }
+        }
     }))
 )

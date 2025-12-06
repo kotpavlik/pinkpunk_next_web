@@ -13,7 +13,7 @@ import { ProductResponse } from "@/api/ProductApi";
 import { AdminProducts } from "@/components/ui/admin/AdminProducts";
 
 const Catalog = () => {
-    const { products, getProducts } = useProductsStore()
+    const { products, getProducts, deleteProduct } = useProductsStore()
     const { user, isAuthenticated } = useUserStore()
     const { addToCart, error: cartError, setError: setCartError, isLoading: isCartLoading } = useCartStore()
     const isAdmin = useUserStore((state) => state.user.isAdmin)
@@ -26,6 +26,13 @@ const Catalog = () => {
     const [showError, setShowError] = useState(false)
     const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [submitHandler, setSubmitHandler] = useState<((e: React.FormEvent) => Promise<void>) | null>(null)
+    const [getIsSubmitting, setGetIsSubmitting] = useState<(() => boolean) | null>(null)
+    const [getProcessingPhotos, setGetProcessingPhotos] = useState<(() => boolean) | null>(null)
+    const [getErrors, setGetErrors] = useState<(() => { [key: string]: string | undefined }) | null>(null)
+    const [deletingProduct, setDeletingProduct] = useState<ProductResponse | null>(null)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // notifications removed in this page version; handled elsewhere if needed
 
@@ -240,9 +247,9 @@ const Catalog = () => {
                                                     />
                                                 )}
 
-                                                {/* Edit button for admin (left top corner) */}
+                                                {/* Edit and Delete buttons for admin (left top corner) */}
                                                 {isAdmin && (
-                                                    <div className="absolute top-3 left-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
+                                                    <div className="absolute top-3 left-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 flex gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
@@ -256,6 +263,21 @@ const Catalog = () => {
                                                         >
                                                             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                                setDeletingProduct(product)
+                                                                setIsDeleteModalOpen(true)
+                                                            }}
+                                                            className="p-2 rounded-md bg-[var(--pink-punk)]/70 hover:bg-[var(--pink-punk)]/90 backdrop-blur-sm border border-white/10 shadow-md"
+                                                            aria-label="Удалить товар"
+                                                        >
+                                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                             </svg>
                                                         </button>
                                                     </div>
@@ -325,33 +347,147 @@ const Catalog = () => {
 
             {/* Модалка редактирования товара */}
             {isEditModalOpen && editingProduct && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
-                    <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <button
-                            onClick={() => {
-                                setIsEditModalOpen(false)
-                                setEditingProduct(null)
-                            }}
-                            className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
-                            aria-label="Закрыть"
-                        >
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                        <AdminProducts
-                            product={editingProduct}
-                            onClose={() => {
-                                setIsEditModalOpen(false)
-                                setEditingProduct(null)
-                            }}
-                            onSuccess={async () => {
-                                // Обновляем каталог после успешного редактирования
-                                await getProducts(isAdmin)
-                                setIsEditModalOpen(false)
-                                setEditingProduct(null)
-                            }}
-                        />
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={(e) => {
+                        // Закрываем модалку при клике вне её области
+                        if (e.target === e.currentTarget) {
+                            setIsEditModalOpen(false)
+                            setEditingProduct(null)
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-2xl max-h-[90vh] bg-white/5 backdrop-blur-md border border-white/10 rounded-lg flex flex-col overflow-hidden">
+                        {/* Header - фиксированный */}
+                        <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
+                            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">
+                                Редактировать товар
+                            </h1>
+                            <button
+                                onClick={() => {
+                                    setIsEditModalOpen(false)
+                                    setEditingProduct(null)
+                                }}
+                                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
+                                aria-label="Закрыть"
+                            >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Прокручиваемая область формы */}
+                        <div className="flex-1 overflow-y-auto">
+                            <AdminProducts
+                                product={editingProduct}
+                                onClose={() => {
+                                    setIsEditModalOpen(false)
+                                    setEditingProduct(null)
+                                }}
+                                onSuccess={async () => {
+                                    // Обновляем каталог после успешного редактирования
+                                    await getProducts(isAdmin)
+                                    setIsEditModalOpen(false)
+                                    setEditingProduct(null)
+                                }}
+                                onGetSubmitHandler={setSubmitHandler}
+                                onGetIsSubmitting={setGetIsSubmitting}
+                                onGetProcessingPhotos={setGetProcessingPhotos}
+                                onGetErrors={setGetErrors}
+                            />
+                        </div>
+
+                        {/* Footer - фиксированный с кнопкой сохранения */}
+                        <div className="p-4 border-t border-white/10 flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (submitHandler) {
+                                        const formEvent = {
+                                            preventDefault: () => { },
+                                            stopPropagation: () => { },
+                                        } as unknown as React.FormEvent
+                                        await submitHandler(formEvent)
+                                    }
+                                }}
+                                disabled={
+                                    (getProcessingPhotos?.() ?? false) ||
+                                    (getIsSubmitting?.() ?? false) ||
+                                    (getErrors?.() ? Object.values(getErrors()).some(error => error) : false)
+                                }
+                                className={`w-full px-6 py-3 font-bold transition-all duration-200 ${(getProcessingPhotos?.() ?? false) ||
+                                    (getIsSubmitting?.() ?? false) ||
+                                    (getErrors?.() ? Object.values(getErrors()).some(error => error) : false)
+                                    ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                                    : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
+                                    }`}
+                            >
+                                {getProcessingPhotos?.()
+                                    ? 'Обрабатываем фотографии...'
+                                    : getIsSubmitting?.()
+                                        ? 'Сохраняем изменения...'
+                                        : 'Сохранить изменения'
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Модалка подтверждения удаления товара */}
+            {isDeleteModalOpen && deletingProduct && (
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={(e) => {
+                        // Закрываем модалку при клике вне её области
+                        if (e.target === e.currentTarget && !isDeleting) {
+                            setIsDeleteModalOpen(false)
+                            setDeletingProduct(null)
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-sm bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
+                        <h3 className="text-white font-semibold mb-4 text-xl font-durik">
+                            Подтверждение удаления
+                        </h3>
+                        <p className="text-white/80 text-sm mb-6">
+                            Вы точно хотите удалить товар <span className="text-[var(--mint-bright)] font-bold">{deletingProduct.name}</span>?
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setDeletingProduct(null)
+                                }}
+                                className="px-4 py-2 rounded-md bg-white/10 text-white/90 hover:bg-white/15 text-sm font-blauer-nue transition-colors"
+                                disabled={isDeleting}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!deletingProduct) return
+                                    try {
+                                        setIsDeleting(true)
+                                        await deleteProduct(deletingProduct._id)
+                                        // Обновляем каталог после успешного удаления
+                                        await getProducts(isAdmin)
+                                        setIsDeleteModalOpen(false)
+                                        setDeletingProduct(null)
+                                    } catch (error) {
+                                        // Ошибка уже обработана в HandleError
+                                        console.error('Ошибка при удалении товара:', error)
+                                    } finally {
+                                        setIsDeleting(false)
+                                    }
+                                }}
+                                className="px-4 py-2 rounded-md bg-[var(--pink-punk)] text-white disabled:opacity-60 disabled:cursor-not-allowed text-sm font-blauer-nue transition-colors hover:opacity-90"
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Удаление...' : 'Удалить'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

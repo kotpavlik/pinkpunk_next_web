@@ -114,8 +114,8 @@ export const ProductApi = {
         }
     },
 
-    // async DeleteProduct(id: string): Promise<AxiosResponse<{ deleted: boolean, folderDeleted: boolean }>> {
-    //     const response = await instance.delete(`products/${id}`)
-    //     return response
-    // }
+    async DeleteProduct(id: string): Promise<AxiosResponse<{ deleted: boolean, folderDeleted: boolean }>> {
+        const response = await instance.delete(`products/${id}`)
+        return response
+    }
 }
