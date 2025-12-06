@@ -322,8 +322,20 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         return `${baseStyles} ${errorStyles} ${disabledStyles}`.trim()
     }
 
+    // Определяем, используется ли компонент в модалке (когда переданы пропсы для управления извне)
+    const isInModal = !!onGetSubmitHandler
+
     return (
         <div className="bg-white/5 backdrop-blur-md border border-white/10 relative">
+            {/* Заголовок и кнопка - только если не в модалке и режим создания */}
+            {!isInModal && !isEditMode && (
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                    <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">
+                        Добавить товар
+                    </h1>
+                </div>
+            )}
+
             {isSubmitting && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10">
                     <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 shadow-2xl flex items-center gap-3">
@@ -557,6 +569,28 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                         <span className="text-sm font-medium text-white/70">Товар активен</span>
                     </label>
                 </div>
+
+                {/* Кнопка отправки - только если не в модалке */}
+                {!isInModal && (
+                    <div className="pt-4 border-t border-white/10">
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || processingPhotos || Object.values(errors).some(error => error)}
+                            className={`w-full px-6 py-3 font-bold transition-all duration-200 ${
+                                processingPhotos || isSubmitting || Object.values(errors).some(error => error)
+                                    ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                                    : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
+                            }`}
+                        >
+                            {processingPhotos
+                                ? 'Обрабатываем фотографии...'
+                                : isSubmitting
+                                    ? (isEditMode ? 'Сохраняем изменения...' : 'Создаем товар...')
+                                    : (isEditMode ? 'Сохранить изменения' : 'Создать товар')
+                            }
+                        </button>
+                    </div>
+                )}
             </form>
 
             {showSuccess && status === 'success' && (
