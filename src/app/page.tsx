@@ -1,12 +1,15 @@
 'use client'
 import { useEffect, useState } from "react"
 import CarouselSection from "@/components/ui/shared/CarouselSection"
+import CarouselSectionSkeleton from "@/components/ui/shared/CarouselSectionSkeleton"
 import { useProductsStore } from "@/zustand/products_store/ProductsStore"
+import { useAppStore } from "@/zustand/app_store/AppStore"
 
 export default function Home() {
   const [isVisible, setVisible] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
   const { products, getProducts } = useProductsStore()
+  const status = useAppStore((state) => state.status)
 
   useEffect(() => {
     const timerId = setTimeout(() => setVisible(true), 300)
@@ -72,7 +75,15 @@ export default function Home() {
         </div>
       </section>
 
-      {filteredProducts.length > 0 && (
+      {/* Показываем скелетон при загрузке или если нет товаров */}
+      {status === 'loading' || filteredProducts.length === 0 ? (
+        <CarouselSectionSkeleton
+          title="КАТАЛОГ"
+          viewAllLink="/catalog"
+          slidesToShow={{ mobile: 1, tablet: 3, desktop: 4 }}
+          slideHeight="h-[80vh]"
+        />
+      ) : (
         <CarouselSection
           title="КАТАЛОГ"
           viewAllLink="/catalog"
