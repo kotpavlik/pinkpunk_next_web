@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import * as yup from 'yup'
-import Modal from '@/features/modal/Modal'
 import { useCategoriesStore } from '@/zustand/products_store/CategoriesStore'
 import { CreateCategoryRequest } from '@/api/CategoriesApi'
 import { useAppStore } from '@/zustand/app_store/AppStore'
@@ -292,37 +291,106 @@ const AdminCategories = () => {
                 ))}
             </div>
             {isCreateOpen && (
-                <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Новая категория">
-                    <CategoryForm
-                        onClose={() => setIsCreateOpen(false)}
-                        onSubmit={(dto) => {
-                            createCategory(dto)
-                            setShowSuccess(true)
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
                             setIsCreateOpen(false)
-                        }}
-                    />
-                </Modal>
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">
+                                Новая категория
+                            </h1>
+                            <button
+                                onClick={() => setIsCreateOpen(false)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
+                                aria-label="Закрыть"
+                            >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <CategoryForm
+                            onClose={() => setIsCreateOpen(false)}
+                            onSubmit={(dto) => {
+                                createCategory(dto)
+                                setShowSuccess(true)
+                                setIsCreateOpen(false)
+                            }}
+                        />
+                    </div>
+                </div>
             )}
             {editId && editCategory && (
-                <Modal isOpen={!!editId} onClose={() => setEditId(null)} title="Редактирование категории">
-                    <CategoryForm
-                        initial={{ name: editCategory.name, slug: editCategory.slug, sortOrder: editCategory.sortOrder, isActive: editCategory.isActive }}
-                        onClose={() => setEditId(null)}
-                        onSubmit={(dto) => {
-                            updateCategory(editCategory._id, dto)
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
                             setEditId(null)
-                        }}
-                    />
-                </Modal>
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">
+                                Редактирование категории
+                            </h1>
+                            <button
+                                onClick={() => setEditId(null)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
+                                aria-label="Закрыть"
+                            >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <CategoryForm
+                            initial={{ name: editCategory.name, slug: editCategory.slug, sortOrder: editCategory.sortOrder, isActive: editCategory.isActive }}
+                            onClose={() => setEditId(null)}
+                            onSubmit={(dto) => {
+                                updateCategory(editCategory._id, dto)
+                                setEditId(null)
+                            }}
+                        />
+                    </div>
+                </div>
             )}
             {deleteId && (
-                <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Удалить категорию">
-                    <ConfirmDelete
-                        name={deleteCategoryName}
-                        onClose={() => setDeleteId(null)}
-                        onConfirm={() => { deleteCategory(deleteId); setDeleteId(null); }}
-                    />
-                </Modal>
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setDeleteId(null)
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">
+                                Удалить категорию
+                            </h1>
+                            <button
+                                onClick={() => setDeleteId(null)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transition-colors"
+                                aria-label="Закрыть"
+                            >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <ConfirmDelete
+                            name={deleteCategoryName}
+                            onClose={() => setDeleteId(null)}
+                            onConfirm={() => { deleteCategory(deleteId); setDeleteId(null); }}
+                        />
+                    </div>
+                </div>
             )}
             {showSuccess && status === 'success' && (
                 <div className="fixed top-4 right-4 bg-[var(--mint-bright)] text-black px-6 py-3 shadow-2xl z-[10000]">
