@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
 import { ProductResponse } from "@/api/ProductApi";
 import { ClothingSize } from "@/zustand/products_store/ProductsStore";
@@ -44,6 +44,9 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
     const [showSuccess, setShowSuccess] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    // Используем ref для стабильной ссылки на handleSubmit
+    const handleSubmitRef = useRef<(() => Promise<void>) | null>(null)
+
     // Функция для получения URL изображения
     const getImageUrl = (photoUrl: string) => {
         if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
@@ -82,6 +85,13 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
 
     // Обработчик отправки формы
     const handleSubmit = useCallback(async () => {
+        // Проверяем, что все необходимые функции доступны
+        if (!validateForm || !createProduct || !updateProductData) {
+            console.error('Не все необходимые функции инициализированы')
+            setErrors({ general: 'Ошибка инициализации формы' })
+            return
+        }
+
         setErrors({})
 
         // Валидация формы
@@ -151,12 +161,27 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         }
     }, [form, photosToRemove, isEditMode, product, validateForm, createProduct, updateProductData, setStatus, onSuccess, onClose, setErrors, setForm])
 
+    // Сохраняем handleSubmit в ref для стабильной ссылки
+    useEffect(() => {
+        handleSubmitRef.current = handleSubmit
+    }, [handleSubmit])
+
     // Передаем функции наружу для использования в header/footer
     useEffect(() => {
-        if (onGetSubmitHandler && handleSubmit && typeof handleSubmit === 'function') {
-            onGetSubmitHandler(handleSubmit)
+        if (onGetSubmitHandler) {
+            // Создаем стабильную обертку, которая всегда вызывает актуальную версию handleSubmit
+            const submitFn = async () => {
+                try {
+                    if (handleSubmitRef.current) {
+                        await handleSubmitRef.current()
+                    }
+                } catch (error) {
+                    console.error('Ошибка при отправке формы:', error)
+                }
+            }
+            onGetSubmitHandler(submitFn)
         }
-    }, [onGetSubmitHandler, handleSubmit])
+    }, [onGetSubmitHandler])
 
     useEffect(() => {
         if (onGetIsSubmitting) {
