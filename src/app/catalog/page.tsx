@@ -414,10 +414,10 @@ const Catalog = () => {
                                     setIsEditModalOpen(false)
                                     setEditingProduct(null)
                                 }}
-                                onGetSubmitHandler={setSubmitHandler}
-                                onGetIsSubmitting={setGetIsSubmitting}
-                                onGetProcessingPhotos={setGetProcessingPhotos}
-                                onGetErrors={setGetErrors}
+                                onGetSubmitHandler={(handler) => setSubmitHandler(() => handler)}
+                                onGetIsSubmitting={(getter) => setGetIsSubmitting(() => getter)}
+                                onGetProcessingPhotos={(getter) => setGetProcessingPhotos(() => getter)}
+                                onGetErrors={(getter) => setGetErrors(() => getter)}
                             />
                         </div>
 
