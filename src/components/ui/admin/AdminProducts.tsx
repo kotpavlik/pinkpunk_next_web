@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
 import { ProductResponse } from "@/api/ProductApi";
 import { ClothingSize } from "@/zustand/products_store/ProductsStore";
@@ -43,9 +43,6 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
 
     const [showSuccess, setShowSuccess] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-
-    // Используем ref для стабильной ссылки на handleSubmit
-    const handleSubmitRef = useRef<(() => Promise<void>) | null>(null)
 
     // Функция для получения URL изображения
     const getImageUrl = (photoUrl: string) => {
@@ -161,27 +158,22 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         }
     }, [form, photosToRemove, isEditMode, product, validateForm, createProduct, updateProductData, setStatus, onSuccess, onClose, setErrors, setForm])
 
-    // Сохраняем handleSubmit в ref для стабильной ссылки
-    useEffect(() => {
-        handleSubmitRef.current = handleSubmit
-    }, [handleSubmit])
-
-    // Передаем функции наружу для использования в header/footer
+    // Передаем handleSubmit наружу для использования в header/footer
     useEffect(() => {
         if (onGetSubmitHandler) {
-            // Создаем стабильную обертку, которая всегда вызывает актуальную версию handleSubmit
+            console.log('Передаем handleSubmit через onGetSubmitHandler, handleSubmit:', handleSubmit, typeof handleSubmit)
+            // Создаем обертку, которая всегда вызывает актуальную handleSubmit
             const submitFn = async () => {
-                try {
-                    if (handleSubmitRef.current) {
-                        await handleSubmitRef.current()
-                    }
-                } catch (error) {
-                    console.error('Ошибка при отправке формы:', error)
+                console.log('submitFn вызван, handleSubmit:', handleSubmit)
+                if (handleSubmit && typeof handleSubmit === 'function') {
+                    await handleSubmit()
+                } else {
+                    console.error('handleSubmit не определена в submitFn')
                 }
             }
             onGetSubmitHandler(submitFn)
         }
-    }, [onGetSubmitHandler])
+    }, [onGetSubmitHandler, handleSubmit])
 
     useEffect(() => {
         if (onGetIsSubmitting) {

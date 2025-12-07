@@ -54,6 +54,13 @@ const Catalog = () => {
         checkAdminStatus()
     }, [isAuthenticated, user.token, validateToken])
 
+    // Сбрасываем submitHandler при открытии новой модалки редактирования
+    useEffect(() => {
+        if (isEditModalOpen && editingProduct) {
+            setSubmitHandler(null)
+        }
+    }, [editingProduct, isEditModalOpen])
+
     useEffect(() => {
         const loadProducts = async () => {
             try {
