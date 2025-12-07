@@ -74,7 +74,7 @@ export default function AdminHeader() {
                         onClick={() => setShowLogoutMenu(false)}
                     />
                     {/* Само меню */}
-                    <div 
+                    <div
                         className="fixed w-56 bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-lg z-[10001]"
                         style={{
                             top: `${menuPosition.top}px`,
@@ -117,7 +117,6 @@ export default function AdminHeader() {
                 </>,
                 document.body
             )}
-            </div>
         </header>
     )
 }
