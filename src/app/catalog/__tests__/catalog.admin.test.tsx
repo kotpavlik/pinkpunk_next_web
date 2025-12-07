@@ -10,8 +10,8 @@ import userEvent from '@testing-library/user-event'
 let Catalog: React.ComponentType
 
 beforeAll(async () => {
-    const module = await import('../../catalog/page')
-    Catalog = module.default
+    const catalogModule = await import('../../catalog/page')
+    Catalog = catalogModule.default
 })
 import { ProductResponse } from '@/api/ProductApi'
 import { useProductsStore } from '@/zustand/products_store/ProductsStore'
@@ -58,7 +58,15 @@ jest.mock('@/zustand/products_store/CategoriesStore', () => ({
     useCategoriesStore: jest.fn()
 }))
 jest.mock('@/components/ui/admin/AdminProducts', () => ({
-    AdminProducts: ({ product, onClose, onSuccess, onGetSubmitHandler, onGetIsSubmitting, onGetProcessingPhotos, onGetErrors }: any) => {
+    AdminProducts: ({ product, onClose, onSuccess, onGetSubmitHandler, onGetIsSubmitting, onGetProcessingPhotos, onGetErrors }: {
+        product?: ProductResponse | null;
+        onClose: () => void;
+        onSuccess?: () => void;
+        onGetSubmitHandler?: (handler: () => Promise<void>) => void;
+        onGetIsSubmitting?: (getter: () => boolean) => void;
+        onGetProcessingPhotos?: (getter: () => boolean) => void;
+        onGetErrors?: (getter: () => { [key: string]: string | undefined }) => void;
+    }) => {
         // Используем useLayoutEffect для синхронной установки функций до первого рендера
         useLayoutEffect(() => {
             if (onGetSubmitHandler) {
