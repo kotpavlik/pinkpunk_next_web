@@ -1,8 +1,7 @@
 /**
- * Тесты для компонента AdminProducts в режиме редактирования
+ * Тесты для компонента AdminProducts
  * 
- * Для запуска тестов установите зависимости:
- * npm install --save-dev @testing-library/react @testing-library/jest-dom @testing-library/user-event
+ * Обновлено для работы с новой архитектурой с разделением ответственности
  */
 
 import React from 'react'
@@ -12,14 +11,14 @@ import { AdminProducts } from '../AdminProducts'
 import { ProductResponse } from '@/api/ProductApi'
 import { useCategoriesStore } from '@/zustand/products_store/CategoriesStore'
 import { useAppStore } from '@/zustand/app_store/AppStore'
-import { useProductsStore } from '@/zustand/products_store/ProductsStore'
-import { ProductApi } from '@/api/ProductApi'
+import { useProductForm } from '@/hooks/useProductForm'
+import { useProductSubmission } from '@/hooks/useProductSubmission'
 
 // Мокируем зависимости
 jest.mock('@/zustand/products_store/CategoriesStore')
 jest.mock('@/zustand/app_store/AppStore')
-jest.mock('@/zustand/products_store/ProductsStore')
-jest.mock('@/api/ProductApi')
+jest.mock('@/hooks/useProductForm')
+jest.mock('@/hooks/useProductSubmission')
 jest.mock('next/image', () => ({
     __esModule: true,
     default: ({ src, alt }: { src: string; alt: string }) => (
@@ -45,7 +44,13 @@ const mockProduct: ProductResponse = {
 describe('AdminProducts - Режим редактирования', () => {
     const mockOnClose = jest.fn()
     const mockOnSuccess = jest.fn()
-    const mockUpdateProduct = jest.fn()
+    const mockUpdateProductData = jest.fn()
+    const mockSetForm = jest.fn()
+    const mockSetErrors = jest.fn()
+    const mockHandleChange = jest.fn()
+    const mockHandleFiles = jest.fn()
+    const mockHandleRemovePhoto = jest.fn()
+    const mockValidateForm = jest.fn()
 
     beforeEach(() => {
         jest.clearAllMocks()
@@ -64,19 +69,35 @@ describe('AdminProducts - Режим редактирования', () => {
             setStatus: jest.fn()
         })
 
-        ;(useProductsStore as jest.Mock).mockReturnValue({
-            updateProduct: mockUpdateProduct
+        ;(useProductForm as jest.Mock).mockReturnValue({
+            form: {
+                productId: 'TEST123',
+                name: 'Test Product',
+                description: 'Test Description',
+                size: 'm',
+                category: 'cat1',
+                price: 1000,
+                stockQuantity: 10,
+                isActive: true,
+                photos: []
+            },
+            setForm: mockSetForm,
+            existingPhotos: ['/photo1.jpg', '/photo2.jpg', '/photo3.jpg'],
+            photosToRemove: [],
+            errors: {},
+            setErrors: mockSetErrors,
+            processingPhotos: false,
+            isEditMode: true,
+            validateForm: mockValidateForm,
+            handleChange: mockHandleChange,
+            handleFiles: mockHandleFiles,
+            handleRemovePhoto: mockHandleRemovePhoto,
         })
 
-        ;(ProductApi.CreateProduct as jest.Mock).mockResolvedValue({
-            data: mockProduct
+        ;(useProductSubmission as jest.Mock).mockReturnValue({
+            createProduct: jest.fn(),
+            updateProductData: mockUpdateProductData
         })
-    })
-
-    it('должен отображать заголовок "Редактировать товар" в режиме редактирования', () => {
-        render(<AdminProducts product={mockProduct} onClose={mockOnClose} />)
-        
-        expect(screen.getByText('Редактировать товар')).toBeInTheDocument()
     })
 
     it('должен предзаполнять форму данными товара', () => {
@@ -99,13 +120,13 @@ describe('AdminProducts - Режим редактирования', () => {
     it('должен отображать текущие фотографии товара', () => {
         render(<AdminProducts product={mockProduct} onClose={mockOnClose} />)
         
-        // Проверяем, что отображается текст о текущих фотографиях
         expect(screen.getByText(/Текущие фотографии/i)).toBeInTheDocument()
     })
 
-    it('должен вызывать updateProduct при сохранении изменений', async () => {
+    it('должен вызывать updateProductData при сохранении изменений', async () => {
         const user = userEvent.setup()
-        mockUpdateProduct.mockResolvedValue(undefined)
+        mockUpdateProductData.mockResolvedValue({ success: true })
+        mockValidateForm.mockResolvedValue({ isValid: true, errors: {} })
 
         render(
             <AdminProducts 
@@ -114,112 +135,64 @@ describe('AdminProducts - Режим редактирования', () => {
                 onSuccess={mockOnSuccess}
             />
         )
-
-        // Изменяем название
-        const nameInput = screen.getByDisplayValue('Test Product')
-        await user.clear(nameInput)
-        await user.type(nameInput, 'Updated Product')
 
         // Нажимаем кнопку сохранения
         const submitButton = screen.getByText('Сохранить изменения')
         await user.click(submitButton)
 
         await waitFor(() => {
-            expect(mockUpdateProduct).toHaveBeenCalled()
+            expect(mockValidateForm).toHaveBeenCalled()
+            expect(mockUpdateProductData).toHaveBeenCalled()
         })
     })
 
-    it('должен вызывать onSuccess после успешного обновления', async () => {
+    it('должен показывать ошибки валидации при невалидной форме', async () => {
         const user = userEvent.setup()
-        mockUpdateProduct.mockResolvedValue(undefined)
-        
-        // Мокаем setStatus чтобы он устанавливал статус success
-        const setStatusMock = jest.fn((status) => {
-            if (status === 'success') {
-                // Симулируем изменение статуса
-                ;(useAppStore as jest.Mock).mockReturnValue({
-                    status: 'success',
-                    error: null,
-                    setStatus: setStatusMock
-                })
-            }
-        })
-        ;(useAppStore as jest.Mock).mockReturnValue({
-            status: 'idle',
-            error: null,
-            setStatus: setStatusMock
+        mockValidateForm.mockResolvedValue({ 
+            isValid: false, 
+            errors: { name: 'Название обязательно' } 
         })
 
-        render(
-            <AdminProducts 
-                product={mockProduct} 
-                onClose={mockOnClose}
-                onSuccess={mockOnSuccess}
-            />
-        )
-
-        const nameInput = screen.getByDisplayValue('Test Product')
-        await user.clear(nameInput)
-        await user.type(nameInput, 'Updated Product')
-
-        const submitButton = screen.getByText('Сохранить изменения')
-        await user.click(submitButton)
-
-        // Проверяем, что updateProduct был вызван
-        await waitFor(() => {
-            expect(mockUpdateProduct).toHaveBeenCalled()
-        })
-    })
-
-    it('должен показывать сообщение об успешном обновлении', async () => {
-        const user = userEvent.setup()
-        mockUpdateProduct.mockResolvedValue(undefined)
-        
-        // Мокаем setStatus чтобы он устанавливал статус success
-        const setStatusMock = jest.fn()
-        ;(useAppStore as jest.Mock).mockReturnValue({
-            status: 'success',
-            error: null,
-            setStatus: setStatusMock
-        })
-
-        render(
-            <AdminProducts 
-                product={mockProduct} 
-                onClose={mockOnClose}
-            />
-        )
-
-        const nameInput = screen.getByDisplayValue('Test Product')
-        await user.clear(nameInput)
-        await user.type(nameInput, 'Updated Product')
-
-        const submitButton = screen.getByText('Сохранить изменения')
-        await user.click(submitButton)
-
-        // Проверяем, что updateProduct был вызван
-        await waitFor(() => {
-            expect(mockUpdateProduct).toHaveBeenCalled()
-        })
-    })
-
-    it('должен обрабатывать удаление фотографий', async () => {
-        const user = userEvent.setup()
         render(<AdminProducts product={mockProduct} onClose={mockOnClose} />)
 
-        // Находим кнопку удаления фото (если она есть)
-        const removeButtons = screen.queryAllByRole('button', { name: /удалить/i })
-        
-        // Если есть кнопки удаления, проверяем их функциональность
-        if (removeButtons.length > 0) {
-            await user.click(removeButtons[0])
-            // Проверяем, что фото было удалено из списка
-        }
+        const submitButton = screen.getByText('Сохранить изменения')
+        await user.click(submitButton)
+
+        await waitFor(() => {
+            expect(mockValidateForm).toHaveBeenCalled()
+            expect(mockSetErrors).toHaveBeenCalledWith({ name: 'Название обязательно' })
+        })
+    })
+
+    it('должен обрабатывать ошибки при обновлении', async () => {
+        const user = userEvent.setup()
+        mockValidateForm.mockResolvedValue({ isValid: true, errors: {} })
+        mockUpdateProductData.mockResolvedValue({ 
+            success: false, 
+            error: 'Ошибка обновления' 
+        })
+
+        render(<AdminProducts product={mockProduct} onClose={mockOnClose} />)
+
+        const submitButton = screen.getByText('Сохранить изменения')
+        await user.click(submitButton)
+
+        await waitFor(() => {
+            expect(mockSetErrors).toHaveBeenCalledWith(
+                expect.objectContaining({ general: expect.stringContaining('Ошибка') })
+            )
+        })
     })
 })
 
 describe('AdminProducts - Режим создания', () => {
     const mockOnClose = jest.fn()
+    const mockCreateProduct = jest.fn()
+    const mockSetForm = jest.fn()
+    const mockSetErrors = jest.fn()
+    const mockHandleChange = jest.fn()
+    const mockHandleFiles = jest.fn()
+    const mockValidateForm = jest.fn()
 
     beforeEach(() => {
         jest.clearAllMocks()
@@ -236,6 +209,36 @@ describe('AdminProducts - Режим создания', () => {
             error: null,
             setStatus: jest.fn()
         })
+
+        ;(useProductForm as jest.Mock).mockReturnValue({
+            form: {
+                productId: '',
+                name: '',
+                description: '',
+                size: 's',
+                category: '',
+                price: 0,
+                stockQuantity: 0,
+                isActive: true,
+                photos: []
+            },
+            setForm: mockSetForm,
+            existingPhotos: [],
+            photosToRemove: [],
+            errors: {},
+            setErrors: mockSetErrors,
+            processingPhotos: false,
+            isEditMode: false,
+            validateForm: mockValidateForm,
+            handleChange: mockHandleChange,
+            handleFiles: mockHandleFiles,
+            handleRemovePhoto: jest.fn(),
+        })
+
+        ;(useProductSubmission as jest.Mock).mockReturnValue({
+            createProduct: mockCreateProduct,
+            updateProductData: jest.fn()
+        })
     })
 
     it('должен отображать заголовок "Добавить товар" в режиме создания', () => {
@@ -250,5 +253,37 @@ describe('AdminProducts - Режим создания', () => {
         const nameInput = screen.getByPlaceholderText(/Введите название товара/i) as HTMLInputElement
         expect(nameInput.value).toBe('')
     })
-})
 
+    it('должен вызывать createProduct при создании товара', async () => {
+        const user = userEvent.setup()
+        mockCreateProduct.mockResolvedValue({ success: true })
+        mockValidateForm.mockResolvedValue({ isValid: true, errors: {} })
+
+        render(<AdminProducts onClose={mockOnClose} />)
+
+        const submitButton = screen.getByText('Создать товар')
+        await user.click(submitButton)
+
+        await waitFor(() => {
+            expect(mockValidateForm).toHaveBeenCalled()
+            expect(mockCreateProduct).toHaveBeenCalled()
+        })
+    })
+
+    it('должен показывать ошибки валидации при создании', async () => {
+        const user = userEvent.setup()
+        mockValidateForm.mockResolvedValue({ 
+            isValid: false, 
+            errors: { photos: 'Нужно выбрать минимум 3 фото' } 
+        })
+
+        render(<AdminProducts onClose={mockOnClose} />)
+
+        const submitButton = screen.getByText('Создать товар')
+        await user.click(submitButton)
+
+        await waitFor(() => {
+            expect(mockSetErrors).toHaveBeenCalledWith({ photos: 'Нужно выбрать минимум 3 фото' })
+        })
+    })
+})

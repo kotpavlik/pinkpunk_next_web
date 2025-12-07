@@ -1,88 +1,47 @@
 'use client'
 
 import { useState, useEffect, useCallback } from "react";
-import * as yup from 'yup';
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
-import { RequestProductType, ProductResponse, UpdateProductRequest } from "@/api/ProductApi";
-import { ClothingSize, useProductsStore } from "@/zustand/products_store/ProductsStore";
+import { ProductResponse } from "@/api/ProductApi";
+import { ClothingSize } from "@/zustand/products_store/ProductsStore";
 import { useAppStore } from "@/zustand/app_store/AppStore";
-import { ProductApi } from "@/api/ProductApi";
 import Image from 'next/image';
+import { useProductForm } from "@/hooks/useProductForm";
+import { useProductSubmission } from "@/hooks/useProductSubmission";
 
 type AdminProductsProps = {
     onClose: () => void
     product?: ProductResponse | null
     onSuccess?: () => void
-    onGetSubmitHandler?: (handler: (e: React.FormEvent) => Promise<void>) => void
+    onGetSubmitHandler?: (handler: () => Promise<void>) => void
     onGetIsSubmitting?: (getter: () => boolean) => void
     onGetProcessingPhotos?: (getter: () => boolean) => void
     onGetErrors?: (getter: () => { [key: string]: string | undefined }) => void
 }
 
-const createProductSchema = (isEditMode: boolean) => yup.object().shape({
-    productId: yup
-        .string()
-        .required('ProductId обязателен')
-        .min(3, 'ProductId должен содержать минимум 3 символа')
-        .max(25, 'ProductId не должен превышать 25 символов')
-        .matches(/^[a-zA-Z0-9]+$/, 'ProductId может содержать только латиницу и цифры')
-        .test('no-spaces', 'ProductId не должен содержать пробелы', value => !value?.includes(' ')),
-    name: yup
-        .string()
-        .required('Название обязательно')
-        .min(3, 'Название должно содержать минимум 3 символа')
-        .max(25, 'Название не должно превышать 25 символов'),
-    description: yup
-        .string()
-        .max(100, 'Описание не должно превышать 100 символов'),
-    price: yup
-        .number()
-        .required('Цена обязательна')
-        .positive('Цена должна быть положительной')
-        .integer('Цена должна быть целым числом')
-        .max(99999, 'Цена не должна превышать 5 цифр'),
-    category: yup
-        .string()
-        .required('Выберите категорию'),
-    size: yup
-        .string()
-        .oneOf(['s', 'm', 'l', 'xl'], 'Неверный размер')
-        .required('Размер обязателен'),
-    stockQuantity: yup
-        .number()
-        .min(0, 'Количество не может быть отрицательным')
-        .integer('Количество должно быть целым числом'),
-    photos: isEditMode
-        ? yup.array() // При редактировании фото не обязательны
-        : yup
-            .array()
-            .min(3, 'Нужно выбрать минимум 3 фото')
-            .required('Фотографии обязательны')
-});
-
 export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler, onGetIsSubmitting, onGetProcessingPhotos, onGetErrors }: AdminProductsProps) => {
     const { categories, getCategories } = useCategoriesStore()
     const { status, error, setStatus } = useAppStore()
-    const { updateProduct } = useProductsStore()
-    const isEditMode = !!product
 
-    const [form, setForm] = useState<RequestProductType>({
-        productId: "",
-        name: "",
-        description: "",
-        size: "s",
-        stockQuantity: 0,
-        price: 0,
-        category: "",
-        isActive: true,
-        photos: []
-    })
+    // Используем кастомные хуки для разделения ответственности
+    const {
+        form,
+        setForm,
+        existingPhotos,
+        photosToRemove,
+        errors,
+        setErrors,
+        processingPhotos,
+        isEditMode,
+        validateForm,
+        handleChange,
+        handleFiles,
+        handleRemovePhoto,
+    } = useProductForm(product)
 
-    const [existingPhotos, setExistingPhotos] = useState<string[]>([])
-    const [photosToRemove, setPhotosToRemove] = useState<string[]>([])
-    const [errors, setErrors] = useState<{ [key: string]: string | undefined }>({})
+    const { createProduct, updateProductData } = useProductSubmission()
+
     const [showSuccess, setShowSuccess] = useState(false)
-    const [processingPhotos, setProcessingPhotos] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Функция для получения URL изображения
@@ -102,45 +61,8 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         setStatus('idle')
         setShowSuccess(false)
         setIsSubmitting(false)
-        setProcessingPhotos(false)
         setErrors({})
-
-        // Если режим редактирования, заполняем форму данными товара
-        if (product) {
-            const categoryId = typeof product.category === 'string'
-                ? product.category
-                : product.category._id
-
-            setForm({
-                productId: product.productId,
-                name: product.name,
-                description: product.description || "",
-                size: product.size,
-                stockQuantity: product.stockQuantity,
-                price: product.price,
-                category: categoryId,
-                isActive: product.isActive,
-                photos: []
-            })
-            setExistingPhotos(product.photos || [])
-            setPhotosToRemove([])
-        } else {
-            // Режим создания - сбрасываем форму
-            setForm({
-                productId: "",
-                name: "",
-                description: "",
-                size: "s",
-                stockQuantity: 0,
-                price: 0,
-                category: "",
-                isActive: true,
-                photos: []
-            })
-            setExistingPhotos([])
-            setPhotosToRemove([])
-        }
-    }, [getCategories, setStatus, product])
+    }, [getCategories, setStatus, setErrors])
 
     useEffect(() => {
         if (status === 'success' && isSubmitting) {
@@ -158,135 +80,53 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         }
     }, [status, isSubmitting])
 
-    const validateField = async (fieldName: string, value: string | number | File[]) => {
-        try {
-            const schema = createProductSchema(isEditMode)
-            await schema.validateAt(fieldName, { [fieldName]: value });
-            return null;
-        } catch (error) {
-            if (error instanceof yup.ValidationError) {
-                return error.message;
-            }
-            return 'Ошибка валидации';
-        }
-    }
-
-    const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target
-
-        if (name === 'price' || name === 'stockQuantity') {
-            const numeric = Number(value)
-            setForm(prev => ({ ...prev, [name]: isNaN(numeric) ? 0 : numeric }))
-            const error = await validateField(name, numeric)
-            setErrors(prev => ({ ...prev, [name]: error || undefined }))
-        } else {
-            setForm(prev => ({ ...prev, [name]: value }))
-            const error = await validateField(name, value)
-            setErrors(prev => ({ ...prev, [name]: error || undefined }))
-        }
-    }
-
-    const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || [])
-        if (files.length === 0) {
-            setForm(prev => ({ ...prev, photos: [] }))
-            return
-        }
-
-        // Простая проверка типа файла
-        const invalidTypeFiles = files.filter(file => {
-            const validTypes = ['image/jpeg', 'image/png', 'image/webp']
-            return !validTypes.includes(file.type)
-        })
-
-        if (invalidTypeFiles.length > 0) {
-            setErrors({ photos: `Неподдерживаемые форматы: ${invalidTypeFiles.map(f => f.name).join(', ')}. Разрешены только JPEG, PNG, WebP` })
-            return
-        }
-
-        setProcessingPhotos(true)
-        try {
-            // Проверяем размер файлов (максимум 8MB каждый)
-            const MAX_SIZE = 8 * 1024 * 1024
-            const largeFiles = files.filter(file => file.size > MAX_SIZE)
-
-            if (largeFiles.length > 0) {
-                const fileInfo = largeFiles.map(f => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} МБ)`).join(', ')
-                setErrors({ photos: `Файлы слишком большие: ${fileInfo}. Максимальный размер: 8 МБ` })
-                return
-            }
-
-            setForm(prev => ({ ...prev, photos: files }))
-            if (files.length >= 3) {
-                setErrors(prev => ({ ...prev, photos: undefined }))
-            }
-        } catch {
-            setErrors({ photos: 'Ошибка при обработке фотографий' })
-        } finally {
-            setProcessingPhotos(false)
-        }
-    }
-
-    const handleRemovePhoto = (photoUrl: string) => {
-        setExistingPhotos(prev => prev.filter(p => p !== photoUrl))
-        setPhotosToRemove(prev => [...prev, photoUrl])
-    }
-
-    const handleSubmit = useCallback(async (e: React.FormEvent) => {
-        e.preventDefault()
+    // Обработчик отправки формы
+    const handleSubmit = useCallback(async () => {
         setErrors({})
 
-        try {
-            const schema = createProductSchema(isEditMode)
-            await schema.validate(form, { abortEarly: false })
-            setShowSuccess(false)
-            setIsSubmitting(true)
+        // Валидация формы
+        const validation = await validateForm()
+        if (!validation.isValid) {
+            setErrors(validation.errors)
+            return
+        }
 
+        setShowSuccess(false)
+        setIsSubmitting(true)
+
+        try {
             if (isEditMode && product) {
                 // Режим редактирования
-                const updateData: UpdateProductRequest = {
-                    productId: form.productId,
-                    name: form.name,
-                    description: form.description,
-                    size: form.size,
-                    category: form.category,
-                    price: form.price,
-                    stockQuantity: form.stockQuantity,
-                    isActive: form.isActive,
-                }
+                const result = await updateProductData(product._id, form, photosToRemove)
 
-                if (photosToRemove.length > 0) {
-                    updateData.removePhotos = photosToRemove
-                }
+                if (result.success) {
+                    setIsSubmitting(false)
+                    setStatus('success')
+                    setShowSuccess(true)
 
-                await updateProduct(product._id, updateData, form.photos.length > 0 ? form.photos : undefined)
-
-                // Успешное редактирование - сначала убираем загрузку
-                setIsSubmitting(false)
-                // Затем показываем сообщение об успехе
-                setStatus('success')
-                setShowSuccess(true)
-
-                // Вызываем callback успеха
-                if (onSuccess) {
-                    setTimeout(() => {
-                        onSuccess()
-                    }, 2000)
+                    // Вызываем callback успеха
+                    if (onSuccess) {
+                        setTimeout(() => {
+                            onSuccess()
+                        }, 2000)
+                    } else {
+                        setTimeout(() => {
+                            setShowSuccess(false)
+                            setStatus('idle')
+                            onClose()
+                        }, 2000)
+                    }
                 } else {
-                    setTimeout(() => {
-                        setShowSuccess(false)
-                        setStatus('idle')
-                        onClose()
-                    }, 2000)
+                    setIsSubmitting(false)
+                    setStatus('failed')
+                    setErrors({ general: result.error || 'Произошла ошибка при редактировании товара' })
                 }
             } else {
                 // Режим создания
-                const response = await ProductApi.CreateProduct(form)
+                const result = await createProduct(form)
 
-                if (response) {
-                    // Успешное создание - сначала убираем загрузку
+                if (result.success) {
                     setIsSubmitting(false)
-                    // Затем показываем сообщение об успехе
                     setStatus('success')
                     setShowSuccess(true)
                     setForm({ productId: "", name: "", description: "", size: "s", stockQuantity: 0, price: 0, category: "", isActive: true, photos: [] })
@@ -297,28 +137,23 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                         setStatus('idle')
                         onClose()
                     }, 2000)
+                } else {
+                    setIsSubmitting(false)
+                    setStatus('failed')
+                    setErrors({ general: result.error || 'Произошла ошибка при создании товара' })
                 }
             }
         } catch (error) {
             setIsSubmitting(false)
-            if (error instanceof yup.ValidationError) {
-                const yupErrors: { [key: string]: string } = {}
-                error.inner.forEach((err) => {
-                    if (err.path) {
-                        yupErrors[err.path] = err.message
-                    }
-                })
-                setErrors(yupErrors)
-            } else {
-                setStatus('failed')
-                setErrors({ general: isEditMode ? 'Произошла ошибка при редактировании товара' : 'Произошла ошибка при создании товара' })
-            }
+            setStatus('failed')
+            const errorMessage = error instanceof Error ? error.message : 'Произошла ошибка'
+            setErrors({ general: isEditMode ? `Ошибка при редактировании товара: ${errorMessage}` : `Ошибка при создании товара: ${errorMessage}` })
         }
-    }, [form, photosToRemove, isEditMode, product, updateProduct, setStatus, onSuccess, onClose])
+    }, [form, photosToRemove, isEditMode, product, validateForm, createProduct, updateProductData, setStatus, onSuccess, onClose, setErrors, setForm])
 
-    // Передаем функции наружу для использования в header/footer (после объявления handleSubmit)
+    // Передаем функции наружу для использования в header/footer
     useEffect(() => {
-        if (onGetSubmitHandler) {
+        if (onGetSubmitHandler && handleSubmit && typeof handleSubmit === 'function') {
             onGetSubmitHandler(handleSubmit)
         }
     }, [onGetSubmitHandler, handleSubmit])
@@ -375,7 +210,7 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-4 text-white">
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="p-4 space-y-4 text-white">
                 {errors.general && (
                     <div className="bg-red-500/20 border border-red-500/50 p-3 text-red-200 text-sm">
                         {errors.general}
@@ -645,4 +480,3 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         </div>
     )
 }
-

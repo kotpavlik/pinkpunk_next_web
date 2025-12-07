@@ -28,7 +28,7 @@ const Catalog = () => {
     const [showError, setShowError] = useState(false)
     const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const [submitHandler, setSubmitHandler] = useState<((e: React.FormEvent) => Promise<void>) | null>(null)
+    const [submitHandler, setSubmitHandler] = useState<(() => Promise<void>) | null>(null)
     const [getIsSubmitting, setGetIsSubmitting] = useState<(() => boolean) | null>(null)
     const [getProcessingPhotos, setGetProcessingPhotos] = useState<(() => boolean) | null>(null)
     const [getErrors, setGetErrors] = useState<(() => { [key: string]: string | undefined }) | null>(null)
@@ -418,13 +418,15 @@ const Catalog = () => {
                         <div className="p-4 border-t border-white/10 flex-shrink-0">
                             <button
                                 type="button"
-                                onClick={async () => {
-                                    if (submitHandler) {
-                                        const formEvent = {
-                                            preventDefault: () => { },
-                                            stopPropagation: () => { },
-                                        } as unknown as React.FormEvent
-                                        await submitHandler(formEvent)
+                                onClick={async (e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    if (submitHandler && typeof submitHandler === 'function') {
+                                        try {
+                                            await submitHandler()
+                                        } catch (error) {
+                                            console.error('Ошибка при сохранении изменений:', error)
+                                        }
                                     }
                                 }}
                                 disabled={
