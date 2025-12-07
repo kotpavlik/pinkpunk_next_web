@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCategoriesStore } from "@/zustand/products_store/CategoriesStore";
 import { ProductResponse } from "@/api/ProductApi";
 import { ClothingSize } from "@/zustand/products_store/ProductsStore";
@@ -158,22 +158,21 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         }
     }, [form, photosToRemove, isEditMode, product, validateForm, createProduct, updateProductData, setStatus, onSuccess, onClose, setErrors, setForm])
 
+    // Используем ref для хранения актуальной версии handleSubmit
+    const handleSubmitRef = useRef(handleSubmit)
+    useEffect(() => {
+        handleSubmitRef.current = handleSubmit
+    }, [handleSubmit])
+
     // Передаем handleSubmit наружу для использования в header/footer
     useEffect(() => {
         if (onGetSubmitHandler) {
-            console.log('Передаем handleSubmit через onGetSubmitHandler, handleSubmit:', handleSubmit, typeof handleSubmit)
-            // Создаем обертку, которая всегда вызывает актуальную handleSubmit
-            const submitFn = async () => {
-                console.log('submitFn вызван, handleSubmit:', handleSubmit)
-                if (handleSubmit && typeof handleSubmit === 'function') {
-                    await handleSubmit()
-                } else {
-                    console.error('handleSubmit не определена в submitFn')
-                }
-            }
-            onGetSubmitHandler(submitFn)
+            // Передаем стабильную функцию, которая вызывает актуальную версию handleSubmit
+            onGetSubmitHandler(async () => {
+                await handleSubmitRef.current()
+            })
         }
-    }, [onGetSubmitHandler, handleSubmit])
+    }, [onGetSubmitHandler])
 
     useEffect(() => {
         if (onGetIsSubmitting) {
