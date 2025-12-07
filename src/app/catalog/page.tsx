@@ -7,6 +7,7 @@ import { useProductsStore } from "@/zustand/products_store/ProductsStore";
 import { useUserStore } from "@/zustand/user_store/UserStore";
 import { useAppStore } from "@/zustand/app_store/AppStore";
 import { useCartStore } from "@/zustand/cart_store/CartStore";
+import { useAdminLoginStore } from "@/zustand/admin_login_store/AdminLoginStore";
 import Loader from "@/components/ui/shared/Loader";
 import TelegramLoginModal from "@/components/ui/shared/TelegramLoginModal";
 import { ProductResponse } from "@/api/ProductApi";
@@ -17,6 +18,7 @@ const Catalog = () => {
     const { user, isAuthenticated } = useUserStore()
     const { addToCart, error: cartError, setError: setCartError, isLoading: isCartLoading } = useCartStore()
     const isAdmin = useUserStore((state) => state.user.isAdmin)
+    const { validateToken } = useAdminLoginStore()
     const status = useAppStore((state) => state.status)
     const [isLoading, setIsLoading] = useState(true)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -37,6 +39,20 @@ const Catalog = () => {
     // notifications removed in this page version; handled elsewhere if needed
 
     // no-op placeholders removed
+
+    // Проверяем статус админа при загрузке страницы, если пользователь авторизован
+    useEffect(() => {
+        const checkAdminStatus = async () => {
+            if (isAuthenticated() && user.token) {
+                try {
+                    await validateToken()
+                } catch {
+                    // Ошибка проверки токена - не критично, просто не устанавливаем isAdmin
+                }
+            }
+        }
+        checkAdminStatus()
+    }, [isAuthenticated, user.token, validateToken])
 
     useEffect(() => {
         const loadProducts = async () => {

@@ -316,6 +316,31 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
         }
     }, [form, photosToRemove, isEditMode, product, updateProduct, setStatus, onSuccess, onClose])
 
+    // Передаем функции наружу для использования в header/footer (после объявления handleSubmit)
+    useEffect(() => {
+        if (onGetSubmitHandler) {
+            onGetSubmitHandler(handleSubmit)
+        }
+    }, [onGetSubmitHandler, handleSubmit])
+
+    useEffect(() => {
+        if (onGetIsSubmitting) {
+            onGetIsSubmitting(() => isSubmitting)
+        }
+    }, [onGetIsSubmitting, isSubmitting])
+
+    useEffect(() => {
+        if (onGetProcessingPhotos) {
+            onGetProcessingPhotos(() => processingPhotos)
+        }
+    }, [onGetProcessingPhotos, processingPhotos])
+
+    useEffect(() => {
+        if (onGetErrors) {
+            onGetErrors(() => errors)
+        }
+    }, [onGetErrors, errors])
+
     const sizeOptions: ClothingSize[] = ['s', 'm', 'l', 'xl']
 
     const getFieldStyles = (hasError: boolean) => {
@@ -580,8 +605,8 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                             type="submit"
                             disabled={isSubmitting || processingPhotos || Object.values(errors).some(error => error)}
                             className={`w-full px-6 py-3 font-bold transition-all duration-200 ${processingPhotos || isSubmitting || Object.values(errors).some(error => error)
-                                    ? 'bg-white/20 text-white/50 cursor-not-allowed'
-                                    : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
+                                ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                                : 'bg-[var(--mint-bright)] text-black hover:opacity-90'
                                 }`}
                         >
                             {processingPhotos
