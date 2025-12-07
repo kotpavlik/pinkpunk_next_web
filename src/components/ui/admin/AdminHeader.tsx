@@ -46,7 +46,7 @@ export default function AdminHeader() {
                         )}
                     </button>
                     {showLogoutMenu && (
-                        <div className="absolute right-0 top-full mt-2 w-56 bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl z-50">
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl z-[10001]">
                             <div className="py-2">
                                 <button
                                     onClick={handleLogoutDevice}
