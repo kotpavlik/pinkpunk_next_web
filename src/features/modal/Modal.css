@@ -1,4 +1,4 @@
-/* Modal Container - только для мобильных */
+/* Modal Container */
 .modal-container {
   position: fixed;
   top: 0;
@@ -11,13 +11,6 @@
   justify-content: center;
   padding: 1rem;
   transition: opacity 500ms ease-out;
-}
-
-/* Скрываем модалку на планшетах и десктопе */
-@media (min-width: 640px) {
-  .modal-container {
-    display: none;
-  }
 }
 
 .modal-container.closed {
