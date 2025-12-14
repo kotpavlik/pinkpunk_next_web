@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
       },
     ],
     qualities: [75, 80, 95, 100],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   webpack(config) {
     config.module.rules.push({

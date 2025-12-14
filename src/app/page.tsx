@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react"
 import CarouselSection from "@/components/ui/shared/CarouselSection"
 import CarouselSectionSkeleton from "@/components/ui/shared/CarouselSectionSkeleton"
+import CountdownWidgetVIP from "@/components/ui/shared/CountdownWidgetVIP"
+import CountdownWidgetAll from "@/components/ui/shared/CountdownWidgetAll"
 import { useProductsStore } from "@/zustand/products_store/ProductsStore"
 import { useAppStore } from "@/zustand/app_store/AppStore"
 
@@ -58,6 +60,15 @@ export default function Home() {
         />
         <div className="absolute inset-0 w-full h-full bg-black/50 z-10">
         </div>
+
+        {/* Новогодние виджеты поверх видео - занимают половину экрана каждый */}
+        <div className="absolute top-20 left-0 right-0 z-30 px-4">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+            <CountdownWidgetVIP />
+            <CountdownWidgetAll />
+          </div>
+        </div>
+
         <div className="absolute inset-0 w-full h-full flex items-end justify-center overflow-hidden z-20" >
           <div className="text-2xl w-[300px] font-blauer-nue font-bold text-center "
             style={{
@@ -67,7 +78,7 @@ export default function Home() {
               padding: '25px 25px 0 25px',
               borderRadius: '25px 25px 0 0',
               height: `${blockHeight}svh`,
-              transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
+              transform: isVisible ? 'translateY(50%)' : 'translateY(100%)',
               transition: 'transform 1s ease-in-out, height 0.3s ease-out',
             }}>
             АУТЕНТИЧНОСТЬ РОЖДАЕТСЯ ЗДЕСЬ
