@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { UserApi } from '@/api/UserApi'
+import { OrderApi } from '@/api/OrderApi'
 import { UserType } from '@/zustand/user_store/UserStore'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 
@@ -19,8 +20,53 @@ const AdminUsers = () => {
     const loadUsers = async () => {
         try {
             setStatus('loading')
-            const response = await UserApi.GetAllUsers()
-            setUsers(response.data)
+            
+            // Загружаем пользователей и заказы параллельно
+            const [usersResponse, ordersResponse] = await Promise.all([
+                UserApi.GetAllUsers(),
+                OrderApi.getAllOrders().catch((err) => {
+                    console.error('Ошибка загрузки заказов:', err)
+                    return [] // Если заказы не загрузятся, возвращаем пустой массив
+                })
+            ])
+
+            console.log('📊 Загружено пользователей:', usersResponse.data.length)
+            console.log('📦 Загружено заказов:', ordersResponse.length)
+
+            // Рассчитываем статистику по заказам для каждого пользователя
+            const userStats = new Map<string, { totalOrders: number; totalSpent: number }>()
+            
+            ordersResponse.forEach(order => {
+                const userId = order.userId
+                if (!userStats.has(userId)) {
+                    userStats.set(userId, { totalOrders: 0, totalSpent: 0 })
+                }
+                const stats = userStats.get(userId)!
+                stats.totalOrders++
+                stats.totalSpent += order.totalAmount || 0
+            })
+
+            console.log('📈 Статистика по пользователям:', Array.from(userStats.entries()).map(([id, stats]) => ({ id, ...stats })))
+
+            // Добавляем статистику к пользователям
+            // Пробуем сопоставить по _id (MongoDB ID) или по userId (Telegram ID в виде строки)
+            const usersWithStats = usersResponse.data.map(user => {
+                const statsByMongoId = userStats.get(user._id || '')
+                const statsByTelegramId = userStats.get(user.userId?.toString() || '')
+                const stats = statsByMongoId || statsByTelegramId || { totalOrders: 0, totalSpent: 0 }
+                
+                if (stats.totalOrders > 0) {
+                    console.log(`✅ Пользователь ${user.firstName} ${user.lastName} (${user._id}): ${stats.totalOrders} заказов на ${stats.totalSpent.toFixed(2)} BYN`)
+                }
+                
+                return {
+                    ...user,
+                    totalOrders: stats.totalOrders,
+                    totalSpent: stats.totalSpent
+                }
+            })
+
+            setUsers(usersWithStats)
             setStatus('success')
         } catch (error) {
             console.error('Ошибка загрузки пользователей:', error)
