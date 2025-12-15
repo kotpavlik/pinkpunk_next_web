@@ -2,13 +2,14 @@
 
 import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import useEmblaCarousel from 'embla-carousel-react'
 import { useProductsStore } from '@/zustand/products_store/ProductsStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import Loader from '@/components/ui/shared/Loader'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
+import ProductImage from '@/components/ui/product/ProductImage'
+import { useImagePreload } from '@/hooks/useImagePreload'
 
 function ProductItemContent() {
     const router = useRouter()
@@ -49,6 +50,10 @@ function ProductItemContent() {
         }
         return photoUrl
     }
+
+    // Предзагрузка всех изображений товара в фоне
+    const imageUrls = currentProduct?.photos?.map(photo => getImageUrl(photo)) || []
+    useImagePreload(imageUrls)
 
     useEffect(() => {
         if (productId) {
@@ -107,13 +112,28 @@ function ProductItemContent() {
         }
     }, [])
 
-    // Сброс индекса при смене товара
+    // Сброс индекса при смене товара и валидация
     useEffect(() => {
         if (currentProduct?.photos && currentProduct.photos.length > 0) {
             setSelectedIndex(0)
             setCurrentCarouselIndex(0)
+        } else {
+            setSelectedIndex(0)
+            setCurrentCarouselIndex(0)
         }
     }, [currentProduct?._id, currentProduct?.photos])
+
+    // Валидация selectedIndex - убеждаемся что индекс всегда в пределах массива
+    useEffect(() => {
+        if (currentProduct?.photos && currentProduct.photos.length > 0) {
+            if (selectedIndex >= currentProduct.photos.length) {
+                setSelectedIndex(0)
+            }
+            if (currentCarouselIndex >= currentProduct.photos.length) {
+                setCurrentCarouselIndex(0)
+            }
+        }
+    }, [currentProduct?.photos, selectedIndex, currentCarouselIndex])
 
     // Отслеживание изменений в карусели
     useEffect(() => {
@@ -543,7 +563,7 @@ function ProductItemContent() {
                                                 touchAction: isSheetActive ? 'none' : 'auto',
                                             }}
                                         >
-                                            <Image
+                                            <ProductImage
                                                 src={getImageUrl(photo)}
                                                 alt={`${currentProduct.name} ${idx + 1}`}
                                                 fill
@@ -551,10 +571,7 @@ function ProductItemContent() {
                                                 className="object-cover w-full h-full"
                                                 priority={idx === 0}
                                                 quality={95}
-                                                style={{
-                                                    pointerEvents: isSheetActive ? 'none' : 'auto',
-                                                    touchAction: isSheetActive ? 'none' : 'auto',
-                                                }}
+                                                showSkeleton={idx === 0}
                                             />
                                         </div>
                                     ))}
@@ -576,17 +593,18 @@ function ProductItemContent() {
                             </div>
                             {/* Desktop: static image */}
                             <div className="hidden md:block relative w-full h-full">
-                                {currentProduct.photos[selectedIndex] && (
+                                {currentProduct.photos && currentProduct.photos.length > 0 && currentProduct.photos[selectedIndex] && (
                                     <div className="relative w-full h-full">
-                                        <Image
+                                        <ProductImage
                                             key={selectedIndex}
                                             src={getImageUrl(currentProduct.photos[selectedIndex])}
                                             alt={`${currentProduct.name} ${selectedIndex + 1}`}
                                             fill
                                             sizes="50vw"
-                                            className="object-contain object-top transition-opacity duration-700 ease-in-out"
+                                            className="object-contain object-top"
                                             priority={selectedIndex === 0}
                                             quality={95}
+                                            showSkeleton={true}
                                         />
                                     </div>
                                 )}
@@ -605,13 +623,14 @@ function ProductItemContent() {
                                             : 'border-white/20 bg-white/5 hover:border-white/40'
                                             }`}
                                     >
-                                        <Image
+                                        <ProductImage
                                             src={getImageUrl(photo)}
                                             alt={`${currentProduct.name} миниатюра ${idx + 1}`}
                                             fill
                                             sizes="96px"
                                             className="object-cover"
                                             quality={80}
+                                            showSkeleton={false}
                                         />
                                     </button>
                                 ))}
