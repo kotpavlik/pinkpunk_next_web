@@ -25,17 +25,9 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    qualities: [75, 80, 95, 100],
-    minimumCacheTTL: 31536000, // 1 год в секундах
+    // Отключаем оптимизацию полностью для избежания timeout ошибок
+    unoptimized: true,
     dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // Отключаем оптимизацию для i.ibb.co, чтобы избежать timeout ошибок
-    unoptimized: false, // Оставляем оптимизацию включенной для остальных
-    loader: 'default', // Используем стандартный loader Next.js
   },
   webpack(config) {
     config.module.rules.push({
