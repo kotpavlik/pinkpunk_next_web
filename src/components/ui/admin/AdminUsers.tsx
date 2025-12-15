@@ -109,7 +109,7 @@ const AdminUsers = () => {
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-3">
                     <div className="text-xs text-white/60 mb-1">Общий доход</div>
-                    <div className="text-xl font-bold text-[var(--mint-bright)]">
+                    <div className="text-lg md:text-xl font-bold text-[var(--mint-bright)] break-words">
                         {users.reduce((sum, u) => sum + (u.totalSpent || 0), 0).toFixed(2)} BYN
                     </div>
                 </div>
@@ -131,34 +131,34 @@ const AdminUsers = () => {
                             onClick={() => setSelectedUser(user)}
                         >
                             <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                         {user.photo_url && (
                                             <img
                                                 src={user.photo_url}
                                                 alt={user.username || 'User'}
-                                                className="w-10 h-10 rounded-full"
+                                                className="w-10 h-10 rounded-full flex-shrink-0"
                                             />
                                         )}
-                                        <div>
-                                            <div className="font-semibold text-white flex items-center gap-2">
-                                                {user.firstName} {user.lastName}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-semibold text-white flex items-center gap-2 flex-wrap">
+                                                <span className="break-words">{user.firstName} {user.lastName}</span>
                                                 {user.isAdmin && (
-                                                    <span className="text-xs px-2 py-0.5 bg-[var(--pink-punk)] text-white rounded">ADMIN</span>
+                                                    <span className="text-xs px-2 py-0.5 bg-[var(--pink-punk)] text-white rounded whitespace-nowrap">ADMIN</span>
                                                 )}
                                                 {user.isPremium && (
-                                                    <span className="text-xs px-2 py-0.5 bg-[var(--mint-bright)] text-black rounded">PREMIUM</span>
+                                                    <span className="text-xs px-2 py-0.5 bg-[var(--mint-bright)] text-black rounded whitespace-nowrap">PREMIUM</span>
                                                 )}
                                             </div>
-                                            <div className="text-sm text-white/60">@{user.username || 'без username'}</div>
+                                            <div className="text-sm text-white/60 truncate">@{user.username || 'без username'}</div>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                        <div className="text-white/70">
+                                        <div className="text-white/70 break-words">
                                             <span className="text-white/50">ID:</span> {user.userId}
                                         </div>
                                         {user.userPhoneNumber && (
-                                            <div className="text-white/70">
+                                            <div className="text-white/70 break-words">
                                                 <span className="text-white/50">Телефон:</span> {user.userPhoneNumber}
                                             </div>
                                         )}
@@ -168,12 +168,12 @@ const AdminUsers = () => {
                                             </div>
                                         )}
                                         {user.totalSpent !== undefined && (
-                                            <div className="text-white/70">
+                                            <div className="text-white/70 break-words">
                                                 <span className="text-white/50">Потрачено:</span> <span className="text-[var(--mint-bright)] font-semibold">{user.totalSpent.toFixed(2)} BYN</span>
                                             </div>
                                         )}
                                         {user.lastActivity && (
-                                            <div className="text-white/70">
+                                            <div className="text-white/70 break-words">
                                                 <span className="text-white/50">Последняя активность:</span> {formatDate(user.lastActivity)}
                                             </div>
                                         )}
@@ -228,25 +228,25 @@ const AdminUsers = () => {
                                     <img
                                         src={selectedUser.photo_url}
                                         alt={selectedUser.username || 'User'}
-                                        className="w-20 h-20 rounded-full"
+                                        className="w-20 h-20 rounded-full flex-shrink-0"
                                     />
                                 )}
-                                <div className="flex-1">
-                                    <h2 className="text-2xl font-bold text-white mb-2">
+                                <div className="flex-1 min-w-0">
+                                    <h2 className="text-xl md:text-2xl font-bold text-white mb-2 break-words">
                                         {selectedUser.firstName} {selectedUser.lastName}
                                     </h2>
-                                    <div className="flex gap-2 mb-2">
+                                    <div className="flex gap-2 mb-2 flex-wrap">
                                         {selectedUser.isAdmin && (
-                                            <span className="px-3 py-1 bg-[var(--pink-punk)] text-white text-sm rounded">ADMIN</span>
+                                            <span className="px-3 py-1 bg-[var(--pink-punk)] text-white text-sm rounded whitespace-nowrap">ADMIN</span>
                                         )}
                                         {selectedUser.isPremium && (
-                                            <span className="px-3 py-1 bg-[var(--mint-bright)] text-black text-sm rounded">PREMIUM</span>
+                                            <span className="px-3 py-1 bg-[var(--mint-bright)] text-black text-sm rounded whitespace-nowrap">PREMIUM</span>
                                         )}
                                         {selectedUser.owner && (
-                                            <span className="px-3 py-1 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--mint-bright)] text-white text-sm rounded">OWNER</span>
+                                            <span className="px-3 py-1 bg-[var(--pink-punk)] text-white text-sm rounded whitespace-nowrap">OWNER</span>
                                         )}
                                     </div>
-                                    <div className="text-white/70">@{selectedUser.username || 'без username'}</div>
+                                    <div className="text-white/70 truncate">@{selectedUser.username || 'без username'}</div>
                                 </div>
                             </div>
 
@@ -255,13 +255,13 @@ const AdminUsers = () => {
                                 <h3 className="text-lg font-bold text-[var(--mint-bright)] mb-3">Детали</h3>
                                 
                                 {/* ID с кнопкой копирования */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-white/50">MongoDB ID:</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-white font-mono text-sm">{selectedUser._id}</span>
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="text-white/50 flex-shrink-0">MongoDB ID:</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-white font-mono text-xs md:text-sm break-all">{selectedUser._id}</span>
                                         <button
                                             onClick={() => copyToClipboard(selectedUser._id || '', 'mongodb_id')}
-                                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                                            className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
                                             title="Копировать"
                                         >
                                             {showCopied === 'mongodb_id' ? (
@@ -275,13 +275,13 @@ const AdminUsers = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between">
-                                    <span className="text-white/50">Telegram ID:</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-white">{selectedUser.userId}</span>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-white/50 flex-shrink-0">Telegram ID:</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-white break-words">{selectedUser.userId}</span>
                                         <button
                                             onClick={() => copyToClipboard(selectedUser.userId?.toString() || '', 'telegram_id')}
-                                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                                            className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
                                             title="Копировать"
                                         >
                                             {showCopied === 'telegram_id' ? (
@@ -296,20 +296,20 @@ const AdminUsers = () => {
                                 </div>
 
                                 {selectedUser.languageCode && (
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-white/50">Язык:</span>
-                                        <span className="text-white">{selectedUser.languageCode}</span>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-white/50 flex-shrink-0">Язык:</span>
+                                        <span className="text-white break-words">{selectedUser.languageCode}</span>
                                     </div>
                                 )}
 
                                 {selectedUser.userPhoneNumber && (
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-white/50">Телефон:</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-white">{selectedUser.userPhoneNumber}</span>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-white/50 flex-shrink-0">Телефон:</span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-white break-words">{selectedUser.userPhoneNumber}</span>
                                             <button
                                                 onClick={() => copyToClipboard(selectedUser.userPhoneNumber || '', 'phone')}
-                                                className="p-1 hover:bg-white/10 rounded transition-colors"
+                                                className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
                                                 title="Копировать"
                                             >
                                                 {showCopied === 'phone' ? (
@@ -325,9 +325,9 @@ const AdminUsers = () => {
                                 )}
 
                                 {selectedUser.lastActivity && (
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-white/50">Последняя активность:</span>
-                                        <span className="text-white">{formatDate(selectedUser.lastActivity)}</span>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <span className="text-white/50 flex-shrink-0">Последняя активность:</span>
+                                        <span className="text-white text-right break-words">{formatDate(selectedUser.lastActivity)}</span>
                                     </div>
                                 )}
 
@@ -347,25 +347,25 @@ const AdminUsers = () => {
                                     <h3 className="text-lg font-bold text-[var(--mint-bright)] mb-3">Статистика покупок</h3>
                                     
                                     {selectedUser.totalOrders !== undefined && (
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-white/50">Количество заказов:</span>
-                                            <span className="text-white text-2xl font-bold">{selectedUser.totalOrders}</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-white/50 flex-shrink-0">Количество заказов:</span>
+                                            <span className="text-white text-xl md:text-2xl font-bold">{selectedUser.totalOrders}</span>
                                         </div>
                                     )}
 
                                     {selectedUser.totalSpent !== undefined && (
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-white/50">Общая сумма покупок:</span>
-                                            <span className="text-[var(--mint-bright)] text-2xl font-bold">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-white/50 flex-shrink-0">Общая сумма покупок:</span>
+                                            <span className="text-[var(--mint-bright)] text-xl md:text-2xl font-bold break-words text-right">
                                                 {selectedUser.totalSpent.toFixed(2)} BYN
                                             </span>
                                         </div>
                                     )}
 
                                     {selectedUser.totalOrders !== undefined && selectedUser.totalOrders > 0 && selectedUser.totalSpent !== undefined && (
-                                        <div className="flex items-center justify-between pt-2 border-t border-white/20">
-                                            <span className="text-white/50">Средний чек:</span>
-                                            <span className="text-white font-semibold">
+                                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/20">
+                                            <span className="text-white/50 flex-shrink-0">Средний чек:</span>
+                                            <span className="text-white font-semibold break-words text-right">
                                                 {(selectedUser.totalSpent / selectedUser.totalOrders).toFixed(2)} BYN
                                             </span>
                                         </div>
@@ -378,14 +378,14 @@ const AdminUsers = () => {
                                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-4">
                                     <h3 className="text-lg font-bold text-[var(--mint-bright)] mb-3">Адрес доставки</h3>
                                     <div className="space-y-2 text-white/70">
-                                        <div><span className="text-white/50">Имя:</span> {selectedUser.shippingAddress.fullName}</div>
-                                        <div><span className="text-white/50">Телефон:</span> {selectedUser.shippingAddress.phone}</div>
-                                        <div><span className="text-white/50">Адрес:</span> {selectedUser.shippingAddress.address}</div>
-                                        <div><span className="text-white/50">Город:</span> {selectedUser.shippingAddress.city}</div>
-                                        <div><span className="text-white/50">Индекс:</span> {selectedUser.shippingAddress.postalCode}</div>
-                                        <div><span className="text-white/50">Страна:</span> {selectedUser.shippingAddress.country}</div>
+                                        <div className="break-words"><span className="text-white/50">Имя:</span> {selectedUser.shippingAddress.fullName}</div>
+                                        <div className="break-words"><span className="text-white/50">Телефон:</span> {selectedUser.shippingAddress.phone}</div>
+                                        <div className="break-words"><span className="text-white/50">Адрес:</span> {selectedUser.shippingAddress.address}</div>
+                                        <div className="break-words"><span className="text-white/50">Город:</span> {selectedUser.shippingAddress.city}</div>
+                                        <div className="break-words"><span className="text-white/50">Индекс:</span> {selectedUser.shippingAddress.postalCode}</div>
+                                        <div className="break-words"><span className="text-white/50">Страна:</span> {selectedUser.shippingAddress.country}</div>
                                         {selectedUser.shippingAddress.notes && (
-                                            <div><span className="text-white/50">Примечания:</span> {selectedUser.shippingAddress.notes}</div>
+                                            <div className="break-words"><span className="text-white/50">Примечания:</span> {selectedUser.shippingAddress.notes}</div>
                                         )}
                                     </div>
                                 </div>
@@ -399,10 +399,10 @@ const AdminUsers = () => {
                                     </h3>
                                     <div className="space-y-2">
                                         {selectedUser.my_referers.map((referral, index) => (
-                                            <div key={index} className="flex items-center gap-2 text-white/70">
-                                                <span className="text-white/50">{index + 1}.</span>
-                                                <span>{referral.firstName} {referral.lastName}</span>
-                                                <span className="text-white/50">@{referral.username}</span>
+                                            <div key={index} className="flex items-center gap-2 text-white/70 flex-wrap">
+                                                <span className="text-white/50 flex-shrink-0">{index + 1}.</span>
+                                                <span className="break-words">{referral.firstName} {referral.lastName}</span>
+                                                <span className="text-white/50 break-words">@{referral.username}</span>
                                             </div>
                                         ))}
                                     </div>
