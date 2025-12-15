@@ -49,6 +49,8 @@ export type UserType = {
     token?: string // JWT токен для аутентификации
     userPhoneNumber?: string // Номер телефона пользователя
     shippingAddress?: ShippingAddress // Адрес доставки
+    totalOrders?: number // Общее количество заказов
+    totalSpent?: number // Общая сумма потраченных средств
 }
 export type UserStateType = {
     user: UserType

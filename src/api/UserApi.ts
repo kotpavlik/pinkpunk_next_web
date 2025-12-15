@@ -164,6 +164,15 @@ export const UserApi = {
             Promise<AxiosResponse<UserType>>
         >('user/update-contact-info', requestBody);
         return response;
+    },
+
+    /**
+     * Получает список всех пользователей (только для администраторов)
+     * @returns Promise с массивом всех пользователей
+     */
+    async GetAllUsers(): Promise<AxiosResponse<UserType[]>> {
+        const response = await instance.get<UserType[], Promise<AxiosResponse<UserType[]>>>('user/all');
+        return response;
     }
 
 }

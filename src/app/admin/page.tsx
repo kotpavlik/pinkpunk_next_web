@@ -13,19 +13,21 @@ import AdminCategories from '@/components/ui/admin/AdminCategories'
 import { AdminProducts } from '@/components/ui/admin/AdminProducts'
 import { AdminWorkWithUserOrders } from '@/components/ui/admin/AdminWorkWithUserOrders'
 import { SessionManager } from '@/components/ui/admin/SessionManager'
+import AdminUsers from '@/components/ui/admin/AdminUsers'
 
 const tabs = [
     { id: 'categories' as const, label: 'Категории' },
     { id: 'products' as const, label: 'Товары' },
     { id: 'orders' as const, label: 'Заказы' },
     { id: 'sessions' as const, label: 'Сессии' },
+    { id: 'users' as const, label: 'Пользователи' },
 ]
 
 export default function AdminPage() {
     const { user } = useUserStore()
     const { validateToken, isCheckingToken } = useAdminLoginStore()
     const [isInitialized, setIsInitialized] = useState(false)
-    const [activeTab, setActiveTab] = useState<'categories' | 'products' | 'orders' | 'sessions'>('categories')
+    const [activeTab, setActiveTab] = useState<'categories' | 'products' | 'orders' | 'sessions' | 'users'>('categories')
     const [isTabModalOpen, setIsTabModalOpen] = useState(false)
     const [isClosing, setIsClosing] = useState(false)
     const [mounted, setMounted] = useState(false)
@@ -82,7 +84,7 @@ export default function AdminPage() {
         }
     }, [isTabModalOpen, handleCloseModal])
 
-    const handleTabSelect = (tabId: 'categories' | 'products' | 'orders' | 'sessions') => {
+    const handleTabSelect = (tabId: 'categories' | 'products' | 'orders' | 'sessions' | 'users') => {
         setActiveTab(tabId)
         handleCloseModal()
     }
@@ -149,6 +151,7 @@ export default function AdminPage() {
                             {activeTab === 'products' && (<AdminProducts onClose={() => { }} />)}
                             {activeTab === 'orders' && <AdminWorkWithUserOrders />}
                             {activeTab === 'sessions' && <SessionManager />}
+                            {activeTab === 'users' && <AdminUsers />}
                         </div>
                     </div>
                 </div>
