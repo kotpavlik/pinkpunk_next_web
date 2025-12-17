@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { durikFont, cabinetGroteskFont, blauerNueFont } from "@/fonts/fonts";
 import Header from "@/components/ui/header/Header";
-import Footer from "@/components/ui/footer/Footer";
+import ConditionalFooter from "@/components/ui/footer/ConditionalFooter";
 import TokenEventHandler from "@/components/ui/shared/TokenEventHandler";
 
 // CabinetGrotesk - основной шрифт для латиницы
@@ -409,7 +409,7 @@ export default function RootLayout({
         <TokenEventHandler />
         <Header />
         {children}
-        <Footer />
+        <ConditionalFooter />
       </body>
     </html>
   );

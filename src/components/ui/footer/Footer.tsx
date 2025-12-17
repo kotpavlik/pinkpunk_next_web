@@ -6,6 +6,7 @@ import MarqueeText from './MarqueeText'
 import { useScrollBlur } from '@/hooks/useScrollBlur'
 import React, { useState, useRef } from 'react'
 import AdminLoginModal from '@/components/ui/admin/AdminLoginModal'
+import Link from 'next/link'
 
 const Footer = React.memo(function Footer() {
     const { blurStyles } = useScrollBlur()
@@ -46,7 +47,12 @@ const Footer = React.memo(function Footer() {
 
                 <MapSection />
                 <div className="flex md:flex-row flex-col md:items-center mx-4 my-2 mb-4 md:justify-around justify-center text-start text-sm text-gray-500 ">
-                    <div className="">политика конфиденциальности</div>
+                    <Link
+                        href="/privacy-policy"
+                        className="hover:text-[var(--mint-bright)] transition-colors cursor-pointer"
+                    >
+                        политика конфиденциальности
+                    </Link>
                     <div className=" ">
                         разработка и дизайн: <span
                             className='cursor-default select-none'
