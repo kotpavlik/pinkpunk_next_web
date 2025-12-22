@@ -33,7 +33,8 @@ export default function CountdownWidgetAll() {
 
   useEffect(() => {
     // Даты для виджета "Для всех"
-    const startDate = new Date('2025-12-23T00:00:00')
+    // СТАРТ: 22 декабря 2025, 00:00
+    const startDate = new Date('2025-12-22T00:00:00')
     const endDate = new Date('2025-12-31T00:00:00')
 
     const calculateTime = () => {
