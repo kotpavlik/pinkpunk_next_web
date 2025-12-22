@@ -230,6 +230,8 @@ export default function CarouselSection({
               const secondPhoto = product.photos && product.photos.length > 1 ? product.photos[1] : null
               if (!firstPhoto) return null
 
+              const isSoldOut = product.stockQuantity === 0
+
               return (
                 <Link
                   key={product._id}
@@ -260,15 +262,25 @@ export default function CarouselSection({
                       />
                     )}
 
+                    {/* SOLD OUT overlay */}
+                    {isSoldOut && (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
+                        <span className="font-blauer-nue text-[var(--pink-punk)] text-xl md:text-2xl font-bold tracking-[0.2em] uppercase">
+                          sold out
+                        </span>
+                      </div>
+                    )}
+
                     {/* Add to cart button on hover */}
-                    <div className="absolute top-3 right-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
+                    <div className="absolute top-3 right-3 z-30 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:-translate-y-2 md:group-hover:translate-y-0">
                       <button
                         type="button"
                         onClick={(e) => handleAddToCartClick(e, product)}
-                        className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70 hover:bg-[var(--green)]/80 text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 shadow-md font-blauer-nue"
+                        disabled={isAddingToCart || isSoldOut}
+                        className="px-3 py-2 rounded-md bg-[var(--mint-dark)]/70 hover:bg-[var(--green)]/80 text-white text-xs md:text-sm backdrop-blur-sm border border-white/10 shadow-md font-blauer-nue disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Добавить в корзину"
                       >
-                        в корзину
+                        {isAddingToCart ? '...' : isSoldOut ? 'Товар закончился' : 'в корзину'}
                       </button>
                     </div>
 
