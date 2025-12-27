@@ -281,7 +281,10 @@ const Catalog = () => {
 
                                                 {/* Edit and Delete buttons for admin (left top corner) */}
                                                 {isAdmin && (
-                                                    <div className="absolute top-3 left-3 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 flex gap-2">
+                                                    <div className={`absolute top-3 left-3 z-40 flex gap-2 transition-all duration-300 ${product.stockQuantity === 0
+                                                            ? 'opacity-100'
+                                                            : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+                                                        }`}>
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
