@@ -34,7 +34,7 @@ export default function CountdownWidgetVIP() {
   useEffect(() => {
     // Даты для виджета "Для наших любимых покупателей"
     const startDate = new Date('2025-12-15T00:00:00')
-    const endDate = new Date('2025-12-31T00:00:00')
+    const endDate = new Date('2025-12-31T23:59:59')
 
     const calculateTime = () => {
       const now = new Date()
