@@ -2,7 +2,6 @@
 
 import BlurredText from './BlurredText'
 import MapSection from './MapSection'
-import MarqueeText from './MarqueeText'
 import { useScrollBlur } from '@/hooks/useScrollBlur'
 import React, { useState, useRef } from 'react'
 import AdminLoginModal from '@/components/ui/admin/AdminLoginModal'
@@ -36,17 +35,22 @@ const Footer = React.memo(function Footer() {
     }
 
     return (
-        <footer className="w-full h-screen relative overflow-hidden">
-            <div className="w-full h-full flex flex-col">
+        <footer className="relative w-full overflow-x-hidden">
+            <div className="flex w-full min-h-0 flex-col">
 
-                <section className="w-full h-1/3 flex items-center justify-center">
+                <section className="flex w-full min-h-[28vh] items-center justify-center py-6 md:min-h-[30vh] md:py-8">
                     <BlurredText blurStyles={blurStyles} />
                 </section>
 
-                <MarqueeText />
 
                 <MapSection />
-                <div className="flex md:flex-row flex-col md:items-center mx-4 my-2 mb-4 md:justify-around justify-center text-start text-sm text-gray-500 ">
+
+                <div
+                    className="mx-4 my-6 shrink-0 border-t border-gray-500/35 md:mx-8 md:my-8"
+                    aria-hidden
+                />
+
+                <div className="mx-4 mb-6 flex flex-col justify-center text-start text-sm text-gray-500 md:mx-8 md:mb-8 md:flex-row md:items-center md:justify-around">
                     <Link
                         href="/privacy-policy"
                         className="hover:text-[var(--mint-bright)] transition-colors cursor-pointer"
@@ -61,7 +65,7 @@ const Footer = React.memo(function Footer() {
                             pink punk dev
                         </span>
                     </div>
-                    <div> © 2025 All rights reserved.</div>
+                    <div> © 2025 ПинкПунк. Все права защищены.</div>
                 </div>
             </div>
 
