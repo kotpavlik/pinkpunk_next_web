@@ -162,7 +162,7 @@ export default function CustomMapMarker({
                         />
                     </div>
                     <div style={{ fontSize: '12px', marginBottom: '4px', color: 'rgb(39 28 46)', fontWeight: 'bold' }}>
-                        каждый день: 12:00 - 20:00
+                        каждый день: 13:00 - 20:00
                     </div>
 
                     <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(39 28 46 / 0.5)', fontWeight: 'bold' }}>
