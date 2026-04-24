@@ -8,7 +8,7 @@ export default function CompanyRegistrationDetails() {
     const [copied, setCopied] = useState(false)
 
     const handleCopy = async () => {
-        const requisites = `ООО "ПИНКПУНК"\nАдрес: РБ, 220004, Г. МИНСК, УЛ. ШОРНАЯ, Д. 20, ПОМ.1-Н, каб. 1Н-1\nУНП: 193687078\nКарт-счет: BY30ALFA30122D39660010270000 в BYN в ЗАО «Альфа-Банк», БИК: ALFABY2X\nДиректор: Ануфриев Игорь Олегович`
+        const requisites = `ООО "ПИНКПУНК"\nЮридический адрес: Республика Беларусь, 220004, Г. МИНСК,улица Карла Либкнехта, дом 66, помещение 165-27\nУНП: 193687078\nКарт-счет: BY30ALFA30122D39660010270000 в BYN в ЗАО «Альфа-Банк», БИК: ALFABY2X\nДиректор: Ануфриев Игорь Олегович`
         try {
             await navigator.clipboard.writeText(requisites)
             setCopied(true)
@@ -51,8 +51,8 @@ export default function CompanyRegistrationDetails() {
                             <div className="text-gray-300 space-y-2 tracking-wider">
                                 <div className="font-bold"> ООО &quot;ПИНКПУНК&quot;</div>
                                 <div className="font-black">
-                                    • Адрес:
-                                    <div className="font-normal"> РБ, 220004, Г. МИНСК, УЛ. ШОРНАЯ, Д. 20, ПОМ.1-Н, каб. 1Н-1
+                                    • Юридический адрес:
+                                    <div className="font-normal"> Республика Беларусь, 220004, Г. МИНСК,улица Карла Либкнехта, дом 66, помещение 165-27
                                     </div>
                                 </div>
                                 <div className="font-black">
@@ -61,14 +61,27 @@ export default function CompanyRegistrationDetails() {
                                     </div>
                                 </div>
                                 <div className="font-black">
-                                    • Карт-счет:
+                                    • Дата выдачи свидетельства о гос. регистрации:
                                     <div className="font-normal">
-                                        BY30ALFA30122D39660010270000 в BYN в ЗАО &laquo;Альфа-Банк&raquo;, БИК: ALFABY2X;
+                                        13.05.2023
                                     </div>
                                 </div>
                                 <div className="font-bold">
-                                    • Директор:
-                                    <div className="font-normal">Ануфриев Игорь Олегович
+                                    • Номер свидетельства о гос. регистрации:
+                                    <div className="font-normal">
+                                        193687078
+                                    </div>
+                                </div>
+                                <div className="font-bold">
+                                    • Выдан:
+                                    <div className="font-normal">
+                                        Минским горисполкомом
+                                    </div>
+                                </div>
+                                <div className="font-bold">
+                                    • Регистрация в Торговом реестре:
+                                    <div className="font-normal">
+                                        558974 от 06.06.2023
                                     </div>
                                 </div>
                             </div>

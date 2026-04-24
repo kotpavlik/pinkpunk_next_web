@@ -15,6 +15,7 @@ import Image from 'next/image'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import OrderConfirmedAnimation from '@/../public/animations/YourOrderIsConfirmed.json'
+import AlfaMultiframeCardForm from '@/components/ui/order/AlfaMultiframeCardForm'
 
 // Тип статуса заказа
 type OrderStatus = 'pending_confirmation' | 'confirmed' | 'paid' | 'completed' | 'cancelled'
@@ -101,7 +102,13 @@ export default function OrderPage() {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     // Состояние для модального окна успешного создания заказа
     const [showSuccessModal, setShowSuccessModal] = useState(false)
-    const [successOrderData, setSuccessOrderData] = useState<{ orderNumber: string; status: string; totalAmount: number } | null>(null)
+    const [successOrderData, setSuccessOrderData] = useState<{
+        orderNumber: string
+        status: string
+        totalAmount: number
+        /** Показать форму Web SDK после подтверждения заказа (способ «Картой онлайн») */
+        payOnlineWithCard?: boolean
+    } | null>(null)
     const successModalTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Загружаем корзину при монтировании
@@ -378,7 +385,8 @@ export default function OrderPage() {
             setSuccessOrderData({
                 orderNumber: order.orderNumber,
                 status: order.status,
-                totalAmount: order.totalAmount
+                totalAmount: order.totalAmount,
+                payOnlineWithCard: paymentMethod === 'card_online',
             })
 
             // Очищаем корзину
@@ -479,6 +487,15 @@ export default function OrderPage() {
                                     <span className="text-[var(--mint-bright)] font-bold text-lg">{successOrderData.totalAmount.toFixed(2)} BYN</span>
                                 </div>
                             </div>
+
+                            {successOrderData.payOnlineWithCard && (
+                                <div className="max-w-md mx-auto mb-8 w-full text-left">
+                                    <h2 className="text-lg font-blauer-nue font-semibold text-white mb-3 text-center">
+                                        Оплата заказа картой
+                                    </h2>
+                                    <AlfaMultiframeCardForm enableBindings={false} />
+                                </div>
+                            )}
 
                             <div className="mb-6">
                                 <p className="text-white/70 text-sm">
@@ -600,6 +617,15 @@ export default function OrderPage() {
                                             <span className="text-[var(--mint-bright)] font-bold text-lg">{successOrderData.totalAmount.toFixed(2)} BYN</span>
                                         </div>
                                     </div>
+
+                                    {successOrderData.payOnlineWithCard && (
+                                        <div className="mb-6 w-full text-left">
+                                            <h3 className="text-base font-blauer-nue font-semibold text-white mb-3 text-center">
+                                                Оплата заказа картой
+                                            </h3>
+                                            <AlfaMultiframeCardForm enableBindings={false} />
+                                        </div>
+                                    )}
 
                                     <div className="mb-4">
                                         <p className="text-white/70 text-sm text-center">
