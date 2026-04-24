@@ -17,6 +17,7 @@ const ALFA_ICONS: string[] = [
     '/images/alfa_icons/white-08.png',
     '/images/alfa_icons/white-09.png',
     '/images/alfa_icons/white-10.png',
+    '/images/erip_icons/logo.png',
 ]
 
 /** Полоска иконок оплаты: в колонке на md+, под картой на мобилке — через `placement` в MapSection */
