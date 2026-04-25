@@ -30,7 +30,7 @@ interface OrderState {
 
     // ===== Действия пользователя =====
 
-    // Создание заказа из корзины (единственный способ создания)
+    // Создание заказа из корзины с обязательными контактными данными из расширенного DTO
     createOrderFromCart: (data: CreateOrderFromCartRequest) => Promise<CreateOrderResponse>;
 
     // Получить заказы пользователя
@@ -97,7 +97,7 @@ export const useOrderStore = create<OrderState>()(
     immer((set) => ({
         ...initialState,
 
-        // ===== Создание заказа из корзины (единственный способ) =====
+        // ===== Создание заказа из корзины (единственный способ, DTO синхронизирован с бэкендом) =====
         createOrderFromCart: async (data: CreateOrderFromCartRequest) => {
             set((state) => {
                 state.isCreating = true;

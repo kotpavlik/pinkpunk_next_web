@@ -6,7 +6,9 @@ export type PaymentMethod = 'card_online'| 'card_offline' | 'cash' | 'crypto' | 
 export interface ShippingAddress {
     fullName: string;
     phone: string;
-    address: string;
+    street?: string;
+    house?: string;
+    apartment?: string;
     city: string;
     postalCode: string;
     country: string;
@@ -40,6 +42,9 @@ export interface PinkPunkOrder {
     items: OrderItem[];          // Товары в заказе (снимок корзины)
     status: OrderStatus;
     userPhoneNumber: string;
+    personalFirstName: string;
+    personalLastName: string;
+    email: string;
     shippingAddress?: ShippingAddress;
     paymentMethod?: PaymentMethod;
     subtotal: number;
@@ -58,6 +63,9 @@ export interface CreateOrderFromCartRequest {
     userId: string;
     cartId: string;
     userPhoneNumber: string;
+    personalFirstName: string;
+    personalLastName: string;
+    email: string;
     shippingCost?: number;
     notes?: string;
     shippingAddress?: ShippingAddress;  // опционально, но можно передать

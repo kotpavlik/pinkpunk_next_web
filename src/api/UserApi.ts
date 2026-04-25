@@ -109,16 +109,21 @@ export const UserApi = {
     },
 
     /**
-     * Обновляет контактную информацию пользователя (телефон и/или адрес доставки)
-     * @param data - объект с userPhoneNumber и/или shippingAddress
+     * Обновляет контактную информацию пользователя.
+     * @param data - объект с личными данными, телефоном и/или адресом доставки
      * @returns Promise с обновленными данными пользователя
      */
     async UpdateContactInfo(data: {
+        personalFirstName?: string;
+        personalLastName?: string;
+        email?: string;
         userPhoneNumber?: string;
         shippingAddress?: {
             fullName: string;
             phone: string;
-            address: string;
+            street?: string;
+            house?: string;
+            apartment?: string;
             city: string;
             postalCode: string;
             country: string;
@@ -127,11 +132,16 @@ export const UserApi = {
     }): Promise<AxiosResponse<UserType>> {
         // Формируем тело запроса: отправляем только те данные, которые нужно обновить
         const requestBody: {
+            personalFirstName?: string;
+            personalLastName?: string;
+            email?: string;
             userPhoneNumber?: string;
             shippingAddress?: {
                 fullName: string;
                 phone: string;
-                address: string;
+                street?: string;
+                house?: string;
+                apartment?: string;
                 city: string;
                 postalCode: string;
                 country: string;
@@ -139,6 +149,18 @@ export const UserApi = {
             };
         } = {};
         
+        if (data.personalFirstName !== undefined) {
+            requestBody.personalFirstName = data.personalFirstName;
+        }
+
+        if (data.personalLastName !== undefined) {
+            requestBody.personalLastName = data.personalLastName;
+        }
+
+        if (data.email !== undefined) {
+            requestBody.email = data.email;
+        }
+
         if (data.userPhoneNumber !== undefined) {
             requestBody.userPhoneNumber = data.userPhoneNumber;
         }
@@ -148,11 +170,19 @@ export const UserApi = {
             requestBody.shippingAddress = {
                 fullName: data.shippingAddress.fullName,
                 phone: data.shippingAddress.phone,
-                address: data.shippingAddress.address,
                 city: data.shippingAddress.city,
                 postalCode: data.shippingAddress.postalCode,
                 country: data.shippingAddress.country,
             };
+            if (data.shippingAddress.street) {
+                requestBody.shippingAddress.street = data.shippingAddress.street;
+            }
+            if (data.shippingAddress.house) {
+                requestBody.shippingAddress.house = data.shippingAddress.house;
+            }
+            if (data.shippingAddress.apartment) {
+                requestBody.shippingAddress.apartment = data.shippingAddress.apartment;
+            }
             // Добавляем notes только если они есть
             if (data.shippingAddress.notes) {
                 requestBody.shippingAddress.notes = data.shippingAddress.notes;

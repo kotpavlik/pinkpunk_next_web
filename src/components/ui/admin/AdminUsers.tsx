@@ -5,6 +5,7 @@ import { UserApi } from '@/api/UserApi'
 import { OrderApi } from '@/api/OrderApi'
 import { UserType } from '@/zustand/user_store/UserStore'
 import { useAppStore } from '@/zustand/app_store/AppStore'
+import { formatShippingAddress } from '@/utils/formatShippingAddress'
 
 const AdminUsers = () => {
     const [users, setUsers] = useState<UserType[]>([])
@@ -534,7 +535,7 @@ const AdminUsers = () => {
                                                 </svg>
                                                 <span className="text-xs text-white/50 font-semibold uppercase tracking-wider">Адрес</span>
                                             </div>
-                                            <div className="text-base text-white break-words">{selectedUser.shippingAddress.address}</div>
+                                            <div className="text-base text-white break-words">{formatShippingAddress(selectedUser.shippingAddress)}</div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-3">

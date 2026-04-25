@@ -13,27 +13,30 @@ import Loader from '@/components/ui/shared/Loader'
 import Link from 'next/link'
 import Image from 'next/image'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import OrderConfirmedAnimation from '@/../public/animations/YourOrderIsConfirmed.json'
-import AlfaMultiframeCardForm from '@/components/ui/order/AlfaMultiframeCardForm'
-
-// Тип статуса заказа
-type OrderStatus = 'pending_confirmation' | 'confirmed' | 'paid' | 'completed' | 'cancelled'
-
-// Функция для перевода статуса заказа на русский язык
-const getOrderStatusText = (status: string): string => {
-    const statusMap: Record<OrderStatus, string> = {
-        'pending_confirmation': 'ожидает подтверждения',
-        'confirmed': 'подтвержден',
-        'paid': 'оплачен',
-        'completed': 'выполнен',
-        'cancelled': 'отменен'
-    }
-    return statusMap[status as OrderStatus] || status
-}
+import { writeOrderSuccessToStorage } from '@/app/order/orderSuccessUtils'
+import OrderPendingSplash from '@/app/order/OrderPendingSplash'
 
 // Схема валидации Yup для заказа
 const orderSchema = yup.object().shape({
+    personalFirstName: yup
+        .string()
+        .trim()
+        .required('Имя обязательно')
+        .min(2, 'Имя должно содержать минимум 2 символа')
+        .max(25, 'Имя не должно превышать 25 символов')
+        .matches(/^[а-яА-ЯёЁa-zA-Z]+(?:-[а-яА-ЯёЁa-zA-Z]+)?$/, 'Имя может содержать только буквы и один дефис'),
+    personalLastName: yup
+        .string()
+        .trim()
+        .required('Фамилия обязательна')
+        .min(2, 'Фамилия должна содержать минимум 2 символа')
+        .max(25, 'Фамилия не должна превышать 25 символов')
+        .matches(/^[а-яА-ЯёЁa-zA-Z]+(?:-[а-яА-ЯёЁa-zA-Z]+)?$/, 'Фамилия может содержать только буквы и один дефис'),
+    email: yup
+        .string()
+        .trim()
+        .required('Email обязателен')
+        .email('Введите корректный email'),
     deliveryAddress: yup
         .string()
         .required('Адрес доставки обязателен')
@@ -69,7 +72,7 @@ const orderSchema = yup.object().shape({
 
 export default function OrderPage() {
     const router = useRouter()
-    const { user, isAuthenticated } = useUserStore()
+    const { user, isAuthenticated, updateContactInfo } = useUserStore()
     const { createOrderFromCart, isCreating } = useOrderStore()
     const {
         items: cartItems,
@@ -83,6 +86,9 @@ export default function OrderPage() {
     } = useCartStore()
 
     // Состояние формы заказа
+    const [personalFirstName, setPersonalFirstName] = useState('')
+    const [personalLastName, setPersonalLastName] = useState('')
+    const [email, setEmail] = useState('')
     const [deliveryAddress, setDeliveryAddress] = useState('')
     const [apartment, setApartment] = useState('')
     const [entrance, setEntrance] = useState('')
@@ -100,16 +106,8 @@ export default function OrderPage() {
     const [showValidationModal, setShowValidationModal] = useState(false)
     // Состояние для модального окна авторизации
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-    // Состояние для модального окна успешного создания заказа
-    const [showSuccessModal, setShowSuccessModal] = useState(false)
-    const [successOrderData, setSuccessOrderData] = useState<{
-        orderNumber: string
-        status: string
-        totalAmount: number
-        /** Показать форму Web SDK после подтверждения заказа (способ «Картой онлайн») */
-        payOnlineWithCard?: boolean
-    } | null>(null)
-    const successModalTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    /** После создания заказа корзина очищается до редиректа — показываем ожидание, а не «Корзина пуста» */
+    const [isFinishingOrder, setIsFinishingOrder] = useState(false)
 
     // Загружаем корзину при монтировании
     useEffect(() => {
@@ -117,17 +115,6 @@ export default function OrderPage() {
             getCart(user._id)
         }
     }, [user?._id, getCart])
-
-    // Очищаем таймер при размонтировании компонента
-    useEffect(() => {
-        const timeoutRef = successModalTimeoutRef
-        return () => {
-            const timeoutId = timeoutRef.current
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
-        }
-    }, [])
 
     // Функция для валидации поля с помощью Yup
     const validateField = useCallback(async (fieldName: string, value: string) => {
@@ -281,6 +268,47 @@ export default function OrderPage() {
         setShowSuggestions(false)
     }, [])
 
+    const handlePersonalFirstNameChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        setPersonalFirstName(value)
+        const error = await validateField('personalFirstName', value)
+        setErrors(prev => ({ ...prev, personalFirstName: error || undefined }))
+    }, [validateField])
+
+    const handlePersonalLastNameChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        setPersonalLastName(value)
+        const error = await validateField('personalLastName', value)
+        setErrors(prev => ({ ...prev, personalLastName: error || undefined }))
+    }, [validateField])
+
+    const handleEmailChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        setEmail(value)
+        const error = await validateField('email', value)
+        setErrors(prev => ({ ...prev, email: error || undefined }))
+    }, [validateField])
+
+    // Подтягиваем только сохраненные данные получателя, Telegram firstName/lastName сюда не подставляем
+    useEffect(() => {
+        if (user?.personalFirstName && !personalFirstName) {
+            setPersonalFirstName(user.personalFirstName)
+        }
+        if (user?.personalLastName && !personalLastName) {
+            setPersonalLastName(user.personalLastName)
+        }
+        if (user?.email && !email) {
+            setEmail(user.email)
+        }
+    }, [
+        user?.personalFirstName,
+        user?.personalLastName,
+        user?.email,
+        personalFirstName,
+        personalLastName,
+        email
+    ])
+
     // Подтягиваем телефон из user при загрузке, если он есть
     useEffect(() => {
         if (user?.userPhoneNumber && !phoneNumber) {
@@ -318,6 +346,9 @@ export default function OrderPage() {
         try {
             // Валидация всей формы с помощью Yup
             const formData = {
+                personalFirstName,
+                personalLastName,
+                email,
                 deliveryAddress,
                 apartment,
                 entrance: entrance || null,
@@ -328,20 +359,11 @@ export default function OrderPage() {
 
             await orderSchema.validate(formData, { abortEarly: false })
 
-            // Формируем полный адрес: основной адрес + подъезд (если есть) + квартира
-            // Парсим адрес для создания shippingAddress
+            // Подсказки приходят в формате: "улица, дом, город"
             const addressParts = deliveryAddress.split(',').map(part => part.trim())
-            const city = addressParts[0] || 'Не указан'
-            const baseAddress = addressParts.slice(1).join(', ') || deliveryAddress
-
-            // Формируем полный адрес с подъездом и квартирой
-            let address = baseAddress
-            if (entrance.trim()) {
-                address += `, подъезд ${entrance.trim()}`
-            }
-            if (apartment.trim()) {
-                address += `, кв. ${apartment.trim()}`
-            }
+            const street = addressParts[0] || deliveryAddress
+            const house = addressParts.length > 2 ? addressParts.slice(1, -1).join(', ') : addressParts[1]
+            const city = addressParts[addressParts.length - 1] || 'Не указан'
 
             // Подготавливаем данные заказа
             if (!user._id || !phoneNumber) {
@@ -350,23 +372,40 @@ export default function OrderPage() {
                 return
             }
 
+            const normalizedFirstName = personalFirstName.trim()
+            const normalizedLastName = personalLastName.trim()
+            const normalizedEmail = email.trim()
+            const normalizedComments = [
+                entrance.trim() ? `Подъезд: ${entrance.trim()}` : undefined,
+                comments.trim() || undefined,
+            ].filter(Boolean).join('. ')
+            const normalizedApartment = apartment.trim()
+            const shippingAddress = {
+                fullName: `${normalizedFirstName} ${normalizedLastName}`,
+                phone: phoneNumber,
+                street,
+                house,
+                apartment: normalizedApartment,
+                city: city,
+                postalCode: '000000',
+                country: 'Беларусь',
+                notes: normalizedComments || undefined
+            }
+
             const orderData: CreateOrderFromCartRequest = {
                 userId: user._id,
                 cartId: cartId,
                 userPhoneNumber: phoneNumber,
-                shippingAddress: {
-                    fullName: user.username || user.firstName || 'Пользователь',
-                    phone: phoneNumber,
-                    address: address,
-                    city: city,
-                    postalCode: '000000',
-                    country: 'Беларусь',
-                    notes: comments
-                },
+                personalFirstName: normalizedFirstName,
+                personalLastName: normalizedLastName,
+                email: normalizedEmail,
+                shippingAddress,
                 paymentMethod: paymentMethod,
                 shippingCost: 0,
-                notes: comments
+                notes: normalizedComments || undefined
             }
+
+            console.log('[Order] createOrderFromCart payload:', orderData)
 
             // Сначала валидируем корзину
             const validationResult = await validateCart()
@@ -378,11 +417,26 @@ export default function OrderPage() {
                 return
             }
 
+            const contactUpdate = await updateContactInfo({
+                personalFirstName: normalizedFirstName,
+                personalLastName: normalizedLastName,
+                email: normalizedEmail,
+                userPhoneNumber: phoneNumber,
+                shippingAddress,
+            })
+
+            if (!contactUpdate.success) {
+                setErrors({ general: contactUpdate.error || 'Не удалось сохранить контактные данные' })
+                setIsSubmitting(false)
+                return
+            }
+
             // Создаем заказ через OrderStore
             const order = await createOrderFromCart(orderData)
 
-            // Сохраняем данные заказа для модального окна
-            setSuccessOrderData({
+            setIsFinishingOrder(true)
+
+            writeOrderSuccessToStorage({
                 orderNumber: order.orderNumber,
                 status: order.status,
                 totalAmount: order.totalAmount,
@@ -393,6 +447,9 @@ export default function OrderPage() {
             await clearCart(user._id)
 
             // Сбрасываем форму
+            setPersonalFirstName('')
+            setPersonalLastName('')
+            setEmail('')
             setDeliveryAddress('')
             setApartment('')
             setEntrance('')
@@ -400,9 +457,9 @@ export default function OrderPage() {
             setComments('')
             setPaymentMethod('cash')
 
-            // Показываем модальное окно успеха
-            setShowSuccessModal(true)
+            router.push('/order/success')
         } catch (error) {
+            setIsFinishingOrder(false)
             if (error instanceof yup.ValidationError) {
                 // Преобразуем ошибки Yup в формат для отображения
                 const yupErrors: { [key: string]: string } = {}
@@ -422,6 +479,9 @@ export default function OrderPage() {
         cartItems,
         user,
         cartId,
+        personalFirstName,
+        personalLastName,
+        email,
         deliveryAddress,
         apartment,
         entrance,
@@ -431,7 +491,9 @@ export default function OrderPage() {
         validateCart,
         createOrderFromCart,
         clearCart,
-        isAuthenticated
+        isAuthenticated,
+        updateContactInfo,
+        router
     ])
 
     // Функция для повторного создания заказа после исправления корзины
@@ -450,221 +512,20 @@ export default function OrderPage() {
         return <Loader fullScreen showText />
     }
 
-    // Если корзина пуста, показываем сообщение
+    // Если корзина пуста, показываем сообщение (или ожидание редиректа после оформления)
     if (cartItems.length === 0) {
+        if (isFinishingOrder) {
+            return <OrderPendingSplash />
+        }
         return (
-            <>
-                <div className="relative md:max-w-[100vw] md:px-0 min-h-screen mb-20">
-                    {showSuccessModal && successOrderData ? (
-                        <div className="text-white text-center py-20 px-4">
-                            <div className="mb-6">
-                                <div className="w-32 h-32 mx-auto mb-4">
-                                    <DotLottieReact
-                                        data={OrderConfirmedAnimation}
-                                        loop={true}
-                                        autoplay={true}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                        }}
-                                    />
-                                </div>
-                                <h1 className="text-xl font-blauer-nue mb-2 text-[var(--pink-punk)]">
-                                    заказ #{successOrderData.orderNumber} успешно создан!
-                                </h1>
-                                <p className="text-white/70 mb-6">
-                                    корзина пуста, все заказы оформлены! <br />скоро с вами свяжется наш менеджер!
-                                </p>
-                            </div>
-
-                            <div className="max-w-md mx-auto space-y-3 mb-8">
-                                <div className="flex justify-between items-center p-4 bg-white/5 border border-white/10">
-                                    <span className="text-white/70">Статус:</span>
-                                    <span className="text-white font-semibold">{getOrderStatusText(successOrderData.status)}</span>
-                                </div>
-                                <div className="flex justify-between items-center p-4 bg-white/5 border border-white/10">
-                                    <span className="text-white/70">Сумма заказа:</span>
-                                    <span className="text-[var(--mint-bright)] font-bold text-lg">{successOrderData.totalAmount.toFixed(2)} BYN</span>
-                                </div>
-                            </div>
-
-                            {successOrderData.payOnlineWithCard && (
-                                <div className="max-w-md mx-auto mb-8 w-full text-left">
-                                    <h2 className="text-lg font-blauer-nue font-semibold text-white mb-3 text-center">
-                                        Оплата заказа картой
-                                    </h2>
-                                    <AlfaMultiframeCardForm enableBindings={false} />
-                                </div>
-                            )}
-
-                            <div className="mb-6">
-                                <p className="text-white/70 text-sm">
-                                    Информация о заказе доступна в вашем профиле
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-                                <Link
-                                    href="/catalog"
-                                    className="px-6 py-3 bg-white/10 text-white hover:bg-white/20 transition-colors font-semibold border border-white/20"
-                                >
-                                    Вернуться в каталог
-                                </Link>
-                                <button
-                                    onClick={() => {
-                                        if (successModalTimeoutRef.current) {
-                                            clearTimeout(successModalTimeoutRef.current)
-                                        }
-                                        setShowSuccessModal(false)
-                                        router.push('/user_profile')
-                                    }}
-                                    className="px-6 py-3 bg-[var(--pink-punk)] text-white hover:bg-[var(--pink-light)] transition-colors font-semibold"
-                                >
-                                    Отслеживать заказ
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        // Обычное сообщение о пустой корзине
-                        <div className="text-white text-center py-20">
-                            <h1 className="text-2xl font-blauer-nue mb-4">Корзина пуста</h1>
-                            <Link href="/catalog" className="text-[var(--mint-dark)] hover:underline">
-                                Вернуться в каталог
-                            </Link>
-                        </div>
-                    )}
-                </div >
-
-                {/* Модальное окно успешного создания заказа (для мобильных устройств) */}
-                {
-                    showSuccessModal && successOrderData && (
-                        <div
-                            className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300 z-50 sm:hidden"
-                            onClick={(e) => {
-                                if (e.target === e.currentTarget) {
-                                    if (successModalTimeoutRef.current) {
-                                        clearTimeout(successModalTimeoutRef.current)
-                                    }
-                                    setShowSuccessModal(false)
-                                    router.push('/user_profile')
-                                }
-                            }}
-                        >
-                            <div
-                                className="relative bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.1) 100%)',
-                                    backdropFilter: 'blur(30px) saturate(180%)',
-                                    WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-                                    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {/* Заголовок и кнопка закрытия */}
-                                <div className="flex-shrink-0 p-6">
-                                    <button
-                                        onClick={() => {
-                                            if (successModalTimeoutRef.current) {
-                                                clearTimeout(successModalTimeoutRef.current)
-                                            }
-                                            setShowSuccessModal(false)
-                                            router.push('/user_profile')
-                                        }}
-                                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-10"
-                                        aria-label="Закрыть"
-                                    >
-                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-
-                                    <div className="mb-4">
-                                        <div className="inline-block relative">
-                                            <h2 className="text-2xl font-bold font-durik text-[var(--pink-punk)] mb-2">
-                                                Успех!
-                                            </h2>
-                                            <div className="h-1 w-full bg-[var(--pink-punk)] absolute bottom-0 left-0"></div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Контент */}
-                                <div className="flex-1 overflow-y-auto px-6 pb-6">
-                                    <div className="mb-6 text-center">
-                                        <div className="w-32 h-32 mx-auto mb-4">
-                                            <DotLottieReact
-                                                data={OrderConfirmedAnimation}
-                                                loop={true}
-                                                autoplay={true}
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                }}
-                                            />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">
-                                            заказ #{successOrderData.orderNumber} успешно создан!
-                                        </h3>
-                                    </div>
-
-                                    <div className="space-y-3 mb-6">
-                                        <div className="flex justify-between items-center p-3 bg-white/5 border border-white/10">
-                                            <span className="text-white/70">Статус:</span>
-                                            <span className="text-white font-semibold">{getOrderStatusText(successOrderData.status)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center p-3 bg-white/5 border border-white/10">
-                                            <span className="text-white/70">Сумма заказа:</span>
-                                            <span className="text-[var(--mint-bright)] font-bold text-lg">{successOrderData.totalAmount.toFixed(2)} BYN</span>
-                                        </div>
-                                    </div>
-
-                                    {successOrderData.payOnlineWithCard && (
-                                        <div className="mb-6 w-full text-left">
-                                            <h3 className="text-base font-blauer-nue font-semibold text-white mb-3 text-center">
-                                                Оплата заказа картой
-                                            </h3>
-                                            <AlfaMultiframeCardForm enableBindings={false} />
-                                        </div>
-                                    )}
-
-                                    <div className="mb-4">
-                                        <p className="text-white/70 text-sm text-center">
-                                            Информация о заказе доступна в вашем профиле
-                                        </p>
-                                    </div>
-
-                                    <div className="flex flex-col gap-3">
-                                        <Link
-                                            href="/catalog"
-                                            className="w-full px-4 py-3 bg-white/10 text-white hover:bg-white/20 transition-colors font-semibold border border-white/20 text-center"
-                                            onClick={() => {
-                                                if (successModalTimeoutRef.current) {
-                                                    clearTimeout(successModalTimeoutRef.current)
-                                                }
-                                                setShowSuccessModal(false)
-                                            }}
-                                        >
-                                            Вернуться в каталог
-                                        </Link>
-                                        <button
-                                            onClick={() => {
-                                                if (successModalTimeoutRef.current) {
-                                                    clearTimeout(successModalTimeoutRef.current)
-                                                }
-                                                setShowSuccessModal(false)
-                                                router.push('/user_profile')
-                                            }}
-                                            className="w-full px-4 py-3 bg-[var(--pink-punk)] text-white hover:bg-[var(--pink-light)] transition-colors font-semibold"
-                                        >
-                                            Отслеживать заказ
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-            </>
+            <div className="relative flex min-h-dvh flex-1 flex-col md:max-w-[100vw] md:px-0">
+                <div className="flex flex-1 flex-col items-center justify-center py-20 text-center text-white">
+                    <h1 className="text-2xl font-blauer-nue mb-4">Корзина пуста</h1>
+                    <Link href="/catalog" className="text-[var(--mint-dark)] hover:underline">
+                        Вернуться в каталог
+                    </Link>
+                </div>
+            </div>
         )
     }
 
@@ -673,8 +534,8 @@ export default function OrderPage() {
 
     return (
         <>
-            <div className="relative md:max-w-[100vw] md:px-0 min-h-screen mb-20">
-                <div className="relative w-full pt-24 pb-16 px-4 md:px-6">
+            <div className="relative flex min-h-dvh flex-1 flex-col pb-20 md:max-w-[100vw] md:px-0">
+                <div className="relative w-full flex-1 px-4 pt-24 pb-16 md:px-6">
                     <header className="mb-8">
                         <h1 className="text-2xl md:text-4xl font-blauer-nue font-bold text-white mb-2">
                             Оформление заказа
@@ -699,6 +560,75 @@ export default function OrderPage() {
                                         {errors.general}
                                     </div>
                                 )}
+
+                                {/* Личные данные */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="w-full relative">
+                                        <label className="block text-sm font-medium text-white/80 mb-2">
+                                            Имя *
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={personalFirstName}
+                                                onChange={handlePersonalFirstNameChange}
+                                                placeholder="Сладкая"
+                                                className={`w-full px-4 py-3 bg-white/10 border text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--mint-dark)] ${errors.personalFirstName ? 'border-[var(--pink-punk)]' : 'border-white/20'
+                                                    }`}
+                                                required
+                                            />
+                                            {errors.personalFirstName && (
+                                                <p className="absolute top-full left-0 right-0 text-[var(--pink-punk)] text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {errors.personalFirstName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full relative">
+                                        <label className="block text-sm font-medium text-white/80 mb-2">
+                                            Фамилия *
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={personalLastName}
+                                                onChange={handlePersonalLastNameChange}
+                                                placeholder="Булочка"
+                                                className={`w-full px-4 py-3 bg-white/10 border text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--mint-dark)] ${errors.personalLastName ? 'border-[var(--pink-punk)]' : 'border-white/20'
+                                                    }`}
+                                                required
+                                            />
+                                            {errors.personalLastName && (
+                                                <p className="absolute top-full left-0 right-0 text-[var(--pink-punk)] text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {errors.personalLastName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="w-full relative">
+                                    <label className="block text-sm font-medium text-white/80 mb-2">
+                                        Email *
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={handleEmailChange}
+                                            placeholder="pinkpunk@gmail.com"
+                                            className={`w-full px-4 py-3 bg-white/10 border text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--mint-dark)] ${errors.email ? 'border-[var(--pink-punk)]' : 'border-white/20'
+                                                }`}
+                                            required
+                                        />
+                                        {errors.email && (
+                                            <p className="absolute top-full left-0 right-0 text-[var(--pink-punk)] text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                {errors.email}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {/* Адрес доставки */}
                                 <div className="relative w-full">
@@ -884,17 +814,13 @@ export default function OrderPage() {
                                     </Link>
                                     <button
                                         onClick={handleSubmitOrder}
-                                        disabled={!deliveryAddress.trim() || !apartment.trim() || !phoneNumber.trim() || isSubmitting || isCreating || Object.values(errors).some(error => error)}
-                                        className="flex-1 px-4 py-3 bg-[var(--mint-dark)] text-white hover:bg-[var(--green)] transition-colors font-semibold disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                        disabled={!personalFirstName.trim() || !personalLastName.trim() || !email.trim() || !deliveryAddress.trim() || !apartment.trim() || !phoneNumber.trim() || isSubmitting || isCreating || Object.values(errors).some(error => error)}
+                                        className={`flex-1 px-4 py-3 text-white transition-colors font-semibold ${isSubmitting || isCreating
+                                            ? 'cursor-wait bg-[var(--mint-dark)] animate-pulse'
+                                            : 'bg-[var(--mint-dark)] hover:bg-[var(--green)] disabled:bg-gray-500 disabled:cursor-not-allowed'
+                                            }`}
                                     >
-                                        {(isSubmitting || isCreating) ? (
-                                            <div className="flex items-center justify-center">
-                                                <div className="animate-spin h-4 w-4 border-b-2 border-white mr-2"></div>
-                                                Создание заказа...
-                                            </div>
-                                        ) : (
-                                            'Подтвердить заказ'
-                                        )}
+                                        {isSubmitting || isCreating ? 'Создание заказа…' : 'Подтвердить заказ'}
                                     </button>
                                 </div>
                             </div>

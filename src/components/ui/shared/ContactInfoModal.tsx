@@ -34,8 +34,12 @@ export default function ContactInfoModal({
     const [fullNameError, setFullNameError] = useState<string | undefined>()
     const [phone, setPhone] = useState('')
     const [phoneError, setPhoneError] = useState<string | undefined>()
-    const [address, setAddress] = useState('')
-    const [addressError, setAddressError] = useState<string | undefined>()
+    const [street, setStreet] = useState('')
+    const [streetError, setStreetError] = useState<string | undefined>()
+    const [house, setHouse] = useState('')
+    const [houseError, setHouseError] = useState<string | undefined>()
+    const [apartment, setApartment] = useState('')
+    const [apartmentError, setApartmentError] = useState<string | undefined>()
     const [city, setCity] = useState('')
     const [cityError, setCityError] = useState<string | undefined>()
     const [postalCode, setPostalCode] = useState('')
@@ -81,12 +85,20 @@ export default function ContactInfoModal({
                 const digits = value.replace('+', '');
                 return /^\d{7,15}$/.test(digits);
             }),
-        address: yup
+        street: yup
             .string()
-            .required('Адрес обязателен')
-            .min(5, 'Адрес должен содержать минимум 5 символов')
-            .max(200, 'Адрес не должен превышать 200 символов')
-            .matches(/^[а-яА-ЯёЁa-zA-Z0-9\s\-\.,\/]+$/, 'Адрес содержит недопустимые символы'),
+            .required('Улица обязательна')
+            .min(2, 'Улица должна содержать минимум 2 символа')
+            .max(120, 'Улица не должна превышать 120 символов')
+            .matches(/^[а-яА-ЯёЁa-zA-Z0-9\s\-\.'\/]+$/, 'Улица содержит недопустимые символы'),
+        house: yup
+            .string()
+            .max(30, 'Дом не должен превышать 30 символов')
+            .matches(/^[а-яА-ЯёЁa-zA-Z0-9\s\-\/]*$/, 'Дом содержит недопустимые символы'),
+        apartment: yup
+            .string()
+            .max(30, 'Квартира не должна превышать 30 символов')
+            .matches(/^[а-яА-ЯёЁa-zA-Z0-9\s\-\/]*$/, 'Квартира содержит недопустимые символы'),
         city: yup
             .string()
             .required('Город обязателен')
@@ -197,7 +209,9 @@ export default function ContactInfoModal({
                     setFullName(addr.fullName || '')
                     // Используем телефон из адреса, если он есть, иначе из userPhoneNumber
                     setPhone(addr.phone || user.userPhoneNumber || '')
-                    setAddress(addr.address || '')
+                    setStreet(addr.street || '')
+                    setHouse(addr.house || '')
+                    setApartment(addr.apartment || '')
                     setCity(addr.city || '')
                     setPostalCode(addr.postalCode || '')
                     setCountry(addr.country || '')
@@ -205,7 +219,9 @@ export default function ContactInfoModal({
                 } else {
                     // Создание нового: сбрасываем все поля, но подставляем телефон если есть
                     setFullName('')
-                    setAddress('')
+                    setStreet('')
+                    setHouse('')
+                    setApartment('')
                     setCity('')
                     setPostalCode('')
                     setCountry('')
@@ -216,7 +232,9 @@ export default function ContactInfoModal({
                 // Сбрасываем ошибки
                 setFullNameError(undefined)
                 setPhoneError(undefined)
-                setAddressError(undefined)
+                setStreetError(undefined)
+                setHouseError(undefined)
+                setApartmentError(undefined)
                 setCityError(undefined)
                 setPostalCodeError(undefined)
                 setCountryError(undefined)
@@ -228,7 +246,9 @@ export default function ContactInfoModal({
             setPhoneNumber('')
             setFullName('')
             setPhone('')
-            setAddress('')
+            setStreet('')
+            setHouse('')
+            setApartment('')
             setCity('')
             setPostalCode('')
             setCountry('')
@@ -236,7 +256,9 @@ export default function ContactInfoModal({
             setPhoneNumberError(undefined)
             setFullNameError(undefined)
             setPhoneError(undefined)
-            setAddressError(undefined)
+            setStreetError(undefined)
+            setHouseError(undefined)
+            setApartmentError(undefined)
             setCityError(undefined)
             setPostalCodeError(undefined)
             setCountryError(undefined)
@@ -274,13 +296,26 @@ export default function ContactInfoModal({
         setFullNameError(error || undefined);
     }, [validateField])
 
-    // Обработчик изменения адреса
-    const handleAddressChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Обработчик изменения улицы
+    const handleStreetChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setAddress(value);
-        // Валидация адреса
-        const error = await validateField('address', value);
-        setAddressError(error || undefined);
+        setStreet(value);
+        const error = await validateField('street', value);
+        setStreetError(error || undefined);
+    }, [validateField])
+
+    const handleHouseChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setHouse(value);
+        const error = value.trim() ? await validateField('house', value) : null;
+        setHouseError(error || undefined);
+    }, [validateField])
+
+    const handleApartmentChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setApartment(value);
+        const error = value.trim() ? await validateField('apartment', value) : null;
+        setApartmentError(error || undefined);
     }, [validateField])
 
     // Обработчик изменения города
@@ -379,11 +414,27 @@ export default function ContactInfoModal({
                     validationErrors.push(phoneValidationError)
                 }
 
-                // Валидация адреса
-                const addressValidationError = await validateField('address', address.trim())
-                if (addressValidationError) {
-                    setAddressError(addressValidationError)
-                    validationErrors.push(addressValidationError)
+                // Валидация улицы
+                const streetValidationError = await validateField('street', street.trim())
+                if (streetValidationError) {
+                    setStreetError(streetValidationError)
+                    validationErrors.push(streetValidationError)
+                }
+
+                if (house.trim()) {
+                    const houseValidationError = await validateField('house', house.trim())
+                    if (houseValidationError) {
+                        setHouseError(houseValidationError)
+                        validationErrors.push(houseValidationError)
+                    }
+                }
+
+                if (apartment.trim()) {
+                    const apartmentValidationError = await validateField('apartment', apartment.trim())
+                    if (apartmentValidationError) {
+                        setApartmentError(apartmentValidationError)
+                        validationErrors.push(apartmentValidationError)
+                    }
                 }
 
                 // Валидация города
@@ -425,7 +476,9 @@ export default function ContactInfoModal({
                 const shippingAddress: ShippingAddress = {
                     fullName: fullName.trim(),
                     phone: phone.trim(),
-                    address: address.trim(),
+                    street: street.trim(),
+                    house: house.trim() || undefined,
+                    apartment: apartment.trim() || undefined,
                     city: city.trim(),
                     postalCode: postalCode.trim(),
                     country: country.trim(),
@@ -592,28 +645,78 @@ export default function ContactInfoModal({
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
-                                        Адрес *
+                                    <label htmlFor="street" className="block text-sm font-medium text-white/80 mb-2">
+                                        Улица *
                                     </label>
                                     <div className="relative">
                                     <input
                                         type="text"
-                                        id="address"
-                                        value={address}
-                                        onChange={handleAddressChange}
-                                        placeholder="Улица, дом, квартира"
-                                        className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none transition-all ${addressError
+                                        id="street"
+                                        value={street}
+                                        onChange={handleStreetChange}
+                                        placeholder="Ленина"
+                                        className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none transition-all ${streetError
                                             ? 'border-red-500 focus:ring-2 focus:ring-red-500'
                                             : 'border-white/20 focus:ring-2 focus:ring-[var(--pink-punk)] focus:border-transparent'
                                             }`}
                                         required
                                         disabled={loading}
                                     />
-                                    {addressError && (
+                                    {streetError && (
                                             <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
-                                                {addressError}
+                                                {streetError}
                                             </p>
                                     )}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="house" className="block text-sm font-medium text-white/80 mb-2">
+                                            Дом
+                                        </label>
+                                        <div className="relative">
+                                        <input
+                                            type="text"
+                                            id="house"
+                                            value={house}
+                                            onChange={handleHouseChange}
+                                            placeholder="10"
+                                            className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none transition-all ${houseError
+                                                ? 'border-red-500 focus:ring-2 focus:ring-red-500'
+                                                : 'border-white/20 focus:ring-2 focus:ring-[var(--pink-punk)] focus:border-transparent'
+                                                }`}
+                                            disabled={loading}
+                                        />
+                                        {houseError && (
+                                                <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {houseError}
+                                                </p>
+                                        )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="apartment" className="block text-sm font-medium text-white/80 mb-2">
+                                            Квартира
+                                        </label>
+                                        <div className="relative">
+                                        <input
+                                            type="text"
+                                            id="apartment"
+                                            value={apartment}
+                                            onChange={handleApartmentChange}
+                                            placeholder="5"
+                                            className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none transition-all ${apartmentError
+                                                ? 'border-red-500 focus:ring-2 focus:ring-red-500'
+                                                : 'border-white/20 focus:ring-2 focus:ring-[var(--pink-punk)] focus:border-transparent'
+                                                }`}
+                                            disabled={loading}
+                                        />
+                                        {apartmentError && (
+                                                <p className="absolute top-full left-0 right-0 text-red-400 text-xs px-2 py-1 bg-black/80 backdrop-blur-sm animate-slideDown z-10">
+                                                    {apartmentError}
+                                                </p>
+                                        )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">

@@ -13,7 +13,7 @@ export default function OrderLayout({ children }: { children: React.ReactNode })
                 src={MULTIFRAME_SCRIPT_SRC}
                 strategy="afterInteractive"
             />
-            {children}
+            <div className="flex min-h-dvh flex-col">{children}</div>
         </>
     )
 }

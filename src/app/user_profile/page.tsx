@@ -13,6 +13,7 @@ import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
+import { formatShippingAddress } from '@/utils/formatShippingAddress'
 
 export default function UserProfile() {
     const router = useRouter()
@@ -62,7 +63,7 @@ export default function UserProfile() {
                             setIsLoginModalOpen(true)
                         }
                     }
-                } catch (error) {
+                } catch {
                     // При ошибке проверяем, есть ли refresh token
                     if (!tokenManager.getRefreshToken()) {
                         setIsLoginModalOpen(true)
@@ -309,7 +310,7 @@ export default function UserProfile() {
                                         <div className="flex-1 space-y-1.5 text-sm">
                                             <p className="text-white font-semibold">{user.shippingAddress.fullName}</p>
                                             <p className="text-white/80">{user.shippingAddress.phone}</p>
-                                            <p className="text-white/80">{user.shippingAddress.address}</p>
+                                            <p className="text-white/80">{formatShippingAddress(user.shippingAddress)}</p>
                                             <p className="text-white/80">
                                                 {user.shippingAddress.city}, {user.shippingAddress.postalCode}
                                             </p>

@@ -22,7 +22,9 @@ export interface TelegramUser {
 export type ShippingAddress = {
     fullName: string;
     phone: string;
-    address: string;
+    street?: string;
+    house?: string;
+    apartment?: string;
     city: string;
     postalCode: string;
     country: string;
@@ -34,16 +36,20 @@ export type UserType = {
     userId: number | null
     firstName?: string | undefined
     lastName?: string | undefined
+    personalFirstName?: string | undefined
+    personalLastName?: string | undefined
+    email?: string | undefined
     username: string | undefined
     photo_url?: string | undefined // URL фотографии профиля пользователя (snake_case для совместимости)
     photoUrl?: string | undefined // URL фотографии профиля пользователя (camelCase от бэкенда)
     languageCode?: string | undefined // Код языка пользователя
     isPremium?: boolean | undefined
+    isBot?: boolean | undefined
     isAdmin?: boolean | undefined // Флаг администратора
     owner?: boolean | undefined // Флаг владельца (приходит с бэкенда)
     my_ref_invite_id?: number | null
     my_referers?: Array<UserType>
-    wallet_addres?: string
+    walletAddress?: string
     lastActivity?: string
     hasStartedBot?: boolean
     token?: string // JWT токен для аутентификации
@@ -63,6 +69,9 @@ export type UserStateType = {
     setAdminStatus: (isAdmin: boolean) => void
     isAdmin: () => boolean
     updateContactInfo: (data: {
+        personalFirstName?: string;
+        personalLastName?: string;
+        email?: string;
         userPhoneNumber?: string;
         shippingAddress?: ShippingAddress;
     }) => Promise<{ success: boolean; error?: string }>
@@ -146,7 +155,7 @@ const initialUserData = getUserFromStorage() || {
     lastName: '',
     userId: null,
     username: '',
-    wallet_addres: '',
+    walletAddress: '',
     my_referers: [],
     my_ref_invite_id: null,
     token: getTokenFromStorage() || undefined,
@@ -245,7 +254,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 lastName: '',
                 userId: null,
                 username: '',
-                wallet_addres: '',
+                walletAddress: '',
                 my_referers: [],
                 my_ref_invite_id: null,
             };
@@ -530,7 +539,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                                 lastName: '',
                                 userId: null,
                                 username: '',
-                                wallet_addres: '',
+                                walletAddress: '',
                                 my_referers: [],
                                 my_ref_invite_id: null,
                                 token: undefined,

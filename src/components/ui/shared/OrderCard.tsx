@@ -8,6 +8,7 @@ import { formatDate } from '@/feauteres/FormatDate'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { formatShippingAddress } from '@/utils/formatShippingAddress'
 
 interface OrderCardProps {
     order: PinkPunkOrder
@@ -459,7 +460,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                                     </svg>
                                                 </button>
                                             </p>
-                                            <p><strong>Адрес:</strong> {order.shippingAddress.city}, {order.shippingAddress.address}</p>
+                                            <p><strong>Адрес:</strong> {formatShippingAddress(order.shippingAddress)}</p>
                                             {order.shippingAddress.postalCode && order.shippingAddress.postalCode !== '000000' && (
                                                 <p><strong>Индекс:</strong> {order.shippingAddress.postalCode}</p>
                                             )}
