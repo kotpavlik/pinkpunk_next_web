@@ -122,17 +122,7 @@ export default function CarouselSection({
 
           if (!user._id) return
 
-          const success = await addToCart(user._id, pendingProduct.productId, pendingProduct.quantity)
-
-          if (success) {
-            // Скроллим к товару по центру экрана
-            setTimeout(() => {
-              const productElement = document.querySelector(`[data-product-id="${pendingProduct.productId}"]`)
-              if (productElement) {
-                productElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }
-            }, 100)
-          }
+          await addToCart(user._id, pendingProduct.productId, pendingProduct.quantity)
 
           setPendingProduct(null)
         } catch {
@@ -169,15 +159,7 @@ export default function CarouselSection({
 
     try {
       setIsAddingToCart(true)
-      const success = await addToCart(user._id, product.productId, 1)
-
-      if (success) {
-        // Скроллим к товару по центру экрана
-        const productElement = document.querySelector(`[data-product-id="${product._id}"]`)
-        if (productElement) {
-          productElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      }
+      await addToCart(user._id, product.productId, 1)
     } catch {
       // Silent error handling
     } finally {

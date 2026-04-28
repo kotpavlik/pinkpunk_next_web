@@ -29,6 +29,7 @@ export default function Header() {
 
     // Вычисляем общее количество товаров в корзине
     const totalItems = stats?.totalItems || items.reduce((sum, item) => sum + item.quantity, 0)
+    const hasCartItems = totalItems > 0
 
     // Отслеживаем монтирование компонента для предотвращения hydration mismatch
     useEffect(() => {
@@ -127,6 +128,11 @@ export default function Header() {
 
     // Обработка скролла для скрытия/показа хедера
     useEffect(() => {
+        if (hasCartItems) {
+            setIsHeaderVisible(true)
+            return
+        }
+
         const handleScroll = () => {
             const currentScrollY = window.scrollY
 
@@ -146,17 +152,18 @@ export default function Header() {
         return () => {
             window.removeEventListener('scroll', handleScroll)
         }
-    }, [lastScrollY])
+    }, [hasCartItems, lastScrollY])
 
+    const shouldShowHeader = isHeaderVisible || hasCartItems
 
     return (
         <header
-            className={`fixed left-0 right-0 z-50 w-full flex justify-center px-4 transition-transform duration-1000 ease-in-out ${isHeaderVisible ? 'translate-y-0' : 'translate-y-[calc(-100%+64px)]'
+            className={`fixed left-0 right-0 z-50 w-full flex justify-center px-4 transition-transform duration-1000 ease-in-out ${shouldShowHeader ? 'translate-y-0' : 'translate-y-[calc(-100%+64px)]'
                 }`}
             style={{
                 // iOS Safari fixes for smooth animations
-                transform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)', // Оставляем 64px видимой части
-                WebkitTransform: isHeaderVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)',
+                transform: shouldShowHeader ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)', // Оставляем 64px видимой части
+                WebkitTransform: shouldShowHeader ? 'translate3d(0, 0, 0)' : 'translate3d(0, calc(-100% + 64px), 0)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 willChange: 'transform',

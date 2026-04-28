@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useUserStore } from '@/zustand/user_store/UserStore'
@@ -28,6 +28,8 @@ export default function UserProfile() {
     const [hasLoaded, setHasLoaded] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [isCheckingToken, setIsCheckingToken] = useState(true)
+    const [paymentMessage, setPaymentMessage] = useState<{ type: 'success' | 'error'; title: string; description?: string } | null>(null)
+    const hasCheckedPaymentRef = useRef(false)
 
     // Эффект для проверки и обновления токенов при загрузке страницы
     useEffect(() => {
@@ -95,6 +97,66 @@ export default function UserProfile() {
             setIsLoginModalOpen(false)
         }
     }, [isLoginModalOpen, user._id])
+
+    // Подтверждаем оплату после возврата из Alfa. Сам редирект на профиль не считается оплатой.
+    useEffect(() => {
+        if (hasCheckedPaymentRef.current) return
+
+        const params = new URLSearchParams(window.location.search)
+        const ct = params.get('ct')
+        const orderId = params.get('orderId')
+
+        console.log('[PaymentReturn:user_profile] return params:', { ct, orderId })
+
+        if (!ct || !orderId) {
+            console.log('[PaymentReturn:user_profile] skipped: missing ct or orderId')
+            return
+        }
+
+        hasCheckedPaymentRef.current = true
+
+        const confirmPayment = async () => {
+            try {
+                console.log('[PaymentReturn:user_profile] checking payment status:', { orderId, ct })
+                const result = await useOrderStore.getState().updatePaymentStatus(orderId, ct)
+                console.log('[PaymentReturn:user_profile] payment status response:', result)
+
+                if (result.paid) {
+                    setPaymentMessage({
+                        type: 'success',
+                        title: 'Заказ успешно оплачен',
+                        description: result.actionCodeDescription || result.actionCodeMessage,
+                    })
+                    if (user._id) {
+                        await getMyOrders(user._id)
+                        console.log('[PaymentReturn:user_profile] orders refreshed after successful payment')
+                        setHasLoaded(true)
+                    } else {
+                        console.log('[PaymentReturn:user_profile] skipped orders refresh: user._id is not ready')
+                    }
+                } else {
+                    setPaymentMessage({
+                        type: 'error',
+                        title: result.actionCodeMessage || 'Оплата не подтверждена',
+                        description: result.actionCodeDescription,
+                    })
+                    console.log('[PaymentReturn:user_profile] payment is not confirmed by backend')
+                }
+            } catch (error) {
+                console.error('[PaymentReturn:user_profile] payment status check failed:', error)
+                setPaymentMessage({
+                    type: 'error',
+                    title: 'Не удалось проверить оплату',
+                    description: 'Попробуйте обновить список заказов или свяжитесь с менеджером.',
+                })
+            } finally {
+                console.log('[PaymentReturn:user_profile] cleaning return query params')
+                router.replace('/user_profile')
+            }
+        }
+
+        void confirmPayment()
+    }, [user._id, getMyOrders, router])
 
     // Отдельный эффект для загрузки заказов - срабатывает когда user._id становится доступным
     useEffect(() => {
@@ -166,6 +228,30 @@ export default function UserProfile() {
             )}
 
             <div className="max-w-7xl mx-auto">
+                {paymentMessage && (
+                    <div className={`mb-6 border p-4 text-white ${paymentMessage.type === 'success'
+                        ? 'border-[var(--mint-dark)] bg-[var(--mint-dark)]/15'
+                        : 'border-[var(--pink-punk)] bg-[var(--pink-punk)]/15'
+                        }`}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="font-blauer-nue text-lg font-semibold">{paymentMessage.title}</p>
+                                {paymentMessage.description && (
+                                    <p className="mt-1 text-sm text-white/70">{paymentMessage.description}</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPaymentMessage(null)}
+                                className="text-white/60 transition-colors hover:text-white"
+                                aria-label="Закрыть уведомление"
+                            >
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Заголовок страницы с кнопкой выхода */}
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-bold font-durik text-[var(--pink-punk)] uppercase">

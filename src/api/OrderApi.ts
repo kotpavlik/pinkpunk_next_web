@@ -81,8 +81,33 @@ export interface CreateOrderFromCartRequest {
 //     notes?: string;
 // }
 
-// Ответ создания заказа (упрощенный формат)
-export type CreateOrderResponse = PinkPunkOrder;
+export type CardPaymentRedirect = {
+    orderId?: string;
+    formUrl?: string;
+    urlAlfa?: string;
+}
+
+// Ответ создания заказа. Для card_online backend возвращает urlAlfa для редиректа в шлюз.
+export type CreateOrderResponse = PinkPunkOrder & {
+    payment?: CardPaymentRedirect;
+    formUrl?: string;
+    urlAlfa?: string;
+    returnUrl?: string;
+    failUrl?: string;
+    alfaOrderId?: string;
+};
+
+export type PaymentStatusResponse = {
+    paid?: boolean;
+    orderStatus?: number;
+    actionCode?: string;
+    actionCodeMessage?: string;
+    actionCodeDescription?: string;
+    message?: string;
+    orderDeleted?: boolean;
+    stockReturned?: boolean;
+    order?: Pick<PinkPunkOrder, '_id' | 'status'> & Partial<PinkPunkOrder>;
+}
 
 // ===== DTO для обновления статуса =====
 export interface UpdateOrderStatusRequest {
@@ -107,11 +132,48 @@ export interface DeleteOrderResponse {
 // ===== API методы =====
 import { instance } from './Api';
 
+type CreateOrderResponseWrapper = {
+    data?: CreateOrderResponse;
+    order?: CreateOrderResponse;
+    payment?: CardPaymentRedirect;
+    formUrl?: string;
+    urlAlfa?: string;
+    returnUrl?: string;
+    failUrl?: string;
+    alfaOrderId?: string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+    typeof value === 'object' && value !== null
+);
+
+const normalizeCreateOrderResponse = (response: CreateOrderResponse | CreateOrderResponseWrapper): CreateOrderResponse => {
+    const baseResponse = isRecord(response) && isRecord(response.data)
+        ? response.data as CreateOrderResponse
+        : isRecord(response) && isRecord(response.order)
+            ? response.order as CreateOrderResponse
+            : response as CreateOrderResponse;
+
+    if (!isRecord(response)) {
+        return baseResponse;
+    }
+
+    return {
+        ...baseResponse,
+        payment: baseResponse.payment || response.payment as CardPaymentRedirect | undefined,
+        formUrl: baseResponse.formUrl || response.formUrl as string | undefined,
+        urlAlfa: baseResponse.urlAlfa || response.urlAlfa as string | undefined,
+        returnUrl: baseResponse.returnUrl || response.returnUrl as string | undefined,
+        failUrl: baseResponse.failUrl || response.failUrl as string | undefined,
+        alfaOrderId: baseResponse.alfaOrderId || response.alfaOrderId as string | undefined,
+    };
+};
+
 export class OrderApi {
     // Создание заказа из корзины (единственный способ создания)
     static async createOrderFromCart(data: CreateOrderFromCartRequest): Promise<CreateOrderResponse> {
-        const { data: res } = await instance.post<CreateOrderResponse>(`/orders/from-cart`, data);
-        return res;
+        const { data: res } = await instance.post<CreateOrderResponse | CreateOrderResponseWrapper>(`/orders/from-cart`, data);
+        return normalizeCreateOrderResponse(res);
     }
 
     // Получение заказа по ID
@@ -131,6 +193,18 @@ export class OrderApi {
         const { data: res } = await instance.put<UpdateOrderStatusResponse>(
             `/orders/${data.orderId}/status`,
             { status: data.status, trackingNumber: data.trackingNumber }
+        );
+        return res;
+    }
+
+    static async updatePaymentStatus(orderId: string, ct: string): Promise<PaymentStatusResponse> {
+        const { data: res } = await instance.put<PaymentStatusResponse>(
+            `/orders/${orderId}/payment-status`,
+            undefined,
+            {
+                params: { ct },
+                validateStatus: (status) => (status >= 200 && status < 300) || status === 417,
+            }
         );
         return res;
     }

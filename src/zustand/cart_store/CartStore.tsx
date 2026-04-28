@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { useAppStore } from '../app_store/AppStore';
 import { AxiosError } from 'axios';
 import { CartApi, CartItemUI, CartStats, SyncCartResponse, ValidateCartResponse } from '@/api/CartApi';
 import { HandleError } from '@/features/HandleError';
@@ -51,9 +50,7 @@ export const useCartStore = create<CartStateType>()(
         lastValidationResult: null,
 
         getCart: async (userId: string) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
@@ -89,7 +86,6 @@ export const useCartStore = create<CartStateType>()(
                     state.isLoading = false;
                 });
 
-                setStatus("success");
             } catch (error) {
                 const err = error as Error | AxiosError;
                 HandleError(err);
@@ -97,14 +93,11 @@ export const useCartStore = create<CartStateType>()(
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
             }
         },
 
         addToCart: async (userId: string, productId: string, quantity: number) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
@@ -119,7 +112,6 @@ export const useCartStore = create<CartStateType>()(
                         state.isLoading = false;
                         state.error = errorMessage; // Показываем ошибку пользователю
                     });
-                    setStatus("failed");
                     return false;
                 }
 
@@ -154,7 +146,6 @@ export const useCartStore = create<CartStateType>()(
                     });
                 }
 
-                setStatus("success");
                 return true;
             } catch (error) {
                 const err = error as Error | AxiosError;
@@ -165,15 +156,12 @@ export const useCartStore = create<CartStateType>()(
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
                 return false;
             }
         },
 
         updateCartItem: async (userId: string, cartItemId: string, quantity: number) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
@@ -188,7 +176,6 @@ export const useCartStore = create<CartStateType>()(
                         state.isLoading = false;
                         state.error = errorMessage; // Показываем ошибку пользователю
                     });
-                    setStatus("failed");
                     return false;
                 }
 
@@ -221,12 +208,10 @@ export const useCartStore = create<CartStateType>()(
                         state.isLoading = false;
                     });
 
-                    setStatus("success");
                     return true;
                 }
 
                 // Если response не содержит items, это ошибка
-                setStatus("failed");
                 return false;
             } catch (error) {
                 const err = error as Error | AxiosError;
@@ -236,15 +221,12 @@ export const useCartStore = create<CartStateType>()(
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
                 return false;
             }
         },
 
         removeFromCart: async (userId: string, cartItemId: string) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
@@ -280,7 +262,6 @@ export const useCartStore = create<CartStateType>()(
                     state.isLoading = false;
                 });
 
-                setStatus("success");
                 return true;
             } catch (error) {
                 const err = error as Error | AxiosError;
@@ -289,53 +270,50 @@ export const useCartStore = create<CartStateType>()(
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
                 return false;
             }
         },
 
         clearCart: async (userId: string) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
                 });
 
-                const response = await CartApi.clearCart(userId);
+                await CartApi.clearCart(userId);
 
-                // API возвращает только сообщение, очищаем корзину вручную
-                if (response.message === "Корзина очищена") {
-                    set((state) => {
-                        state.items = [];
-                        state.stats = {
-                            totalItems: 0,
-                            totalPrice: 0
-                        };
-                        state.isActive = true;
-                        state.lastUpdated = new Date().toISOString();
-                        state.isLoading = false;
-                    });
-                }
-                setStatus("success");
+                // API возвращает только сообщение, очищаем локальную корзину вручную.
+                // Даже если backend уже отвязал/закрыл корзину при создании заказа, UI должен сразу стать пустым.
+                set((state) => {
+                    state.items = [];
+                    state.stats = {
+                        totalItems: 0,
+                        totalPrice: 0
+                    };
+                    state.isActive = true;
+                    state.lastUpdated = new Date().toISOString();
+                    state.isLoading = false;
+                });
                 return true;
             } catch (error) {
                 const err = error as Error | AxiosError;
                 HandleError(err);
                 set((state) => {
+                    state.items = [];
+                    state.stats = {
+                        totalItems: 0,
+                        totalPrice: 0
+                    };
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
                 return false;
             }
         },
 
         getCartStats: async (userId: string) => {
-            const { setStatus } = useAppStore.getState();
             try {
-                setStatus("loading");
                 set((state) => {
                     state.isLoading = true;
                     state.error = null;
@@ -348,7 +326,6 @@ export const useCartStore = create<CartStateType>()(
                     state.isLoading = false;
                 });
 
-                setStatus("success");
             } catch (error) {
                 const err = error as Error | AxiosError;
                 HandleError(err);
@@ -356,7 +333,6 @@ export const useCartStore = create<CartStateType>()(
                     state.error = err.message;
                     state.isLoading = false;
                 });
-                setStatus("failed");
             }
         },
 

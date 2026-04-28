@@ -1,8 +1,18 @@
 /** Данные последнего успешно созданного заказа (передача на /order/success). */
+export type OrderSuccessItem = {
+    name: string
+    size?: string
+    quantity: number
+    price: number
+}
+
 export type OrderSuccessPayload = {
     orderNumber: string
     status: string
+    subtotal?: number
+    shippingCost?: number
     totalAmount: number
+    items?: OrderSuccessItem[]
     payOnlineWithCard?: boolean
 }
 

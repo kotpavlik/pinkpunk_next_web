@@ -10,6 +10,7 @@ import {
     ShippingAddress,
     PaymentMethod
 } from '@/api/OrderApi';
+import type { PaymentStatusResponse } from '@/api/OrderApi';
 import { HandleError } from '@/features/HandleError';
 
 
@@ -50,6 +51,9 @@ interface OrderState {
 
     // Обновить статус заказа
     updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string) => Promise<boolean>;
+
+    // Подтвердить статус оплаты после возврата из Alfa
+    updatePaymentStatus: (orderId: string, ct: string) => Promise<PaymentStatusResponse>;
 
     // Удалить заказ
     deleteOrder: (orderId: string) => Promise<boolean>;
@@ -374,6 +378,55 @@ export const useOrderStore = create<OrderState>()(
                     state.isUpdating = false;
                 });
                 return false;
+            }
+        },
+
+        updatePaymentStatus: async (orderId: string, ct: string) => {
+            console.log('[PaymentStatus:store] start:', { orderId, ct });
+
+            set((state) => {
+                state.isUpdating = true;
+                state.error = null;
+            });
+
+            try {
+                const paymentStatus = await OrderApi.updatePaymentStatus(orderId, ct);
+                console.log('[PaymentStatus:store] backend response:', paymentStatus);
+
+                if (paymentStatus.order) {
+                    set((state) => {
+                        const userIndex = state.orders.findIndex(o => o._id === paymentStatus.order!._id);
+                        if (userIndex !== -1) {
+                            state.orders[userIndex] = { ...state.orders[userIndex], ...paymentStatus.order };
+                            console.log('[PaymentStatus:store] updated user order in store:', paymentStatus.order);
+                        }
+
+                        const allOrdersIndex = state.allOrders.findIndex(o => o._id === paymentStatus.order!._id);
+                        if (allOrdersIndex !== -1) {
+                            state.allOrders[allOrdersIndex] = { ...state.allOrders[allOrdersIndex], ...paymentStatus.order };
+                            console.log('[PaymentStatus:store] updated admin order in store:', paymentStatus.order);
+                        }
+
+                        if (state.currentOrder?._id === paymentStatus.order!._id) {
+                            state.currentOrder = { ...state.currentOrder, ...paymentStatus.order };
+                            console.log('[PaymentStatus:store] updated current order in store:', paymentStatus.order);
+                        }
+                    });
+                }
+
+                set((state) => {
+                    state.isUpdating = false;
+                });
+
+                return paymentStatus;
+            } catch (error) {
+                console.error('[PaymentStatus:store] failed:', error);
+                const errorMessage = HandleError(error);
+                set((state) => {
+                    state.error = errorMessage;
+                    state.isUpdating = false;
+                });
+                throw error;
             }
         },
 

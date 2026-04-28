@@ -2,6 +2,7 @@
 
 import React, { useCallback, useRef, useState, useEffect } from 'react'
 import * as yup from 'yup'
+import axios from 'axios'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
@@ -15,6 +16,31 @@ import Image from 'next/image'
 import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
 import { writeOrderSuccessToStorage } from '@/app/order/orderSuccessUtils'
 import OrderPendingSplash from '@/app/order/OrderPendingSplash'
+
+type OrderPaymentMethod = 'card_online' | 'card_offline' | 'cash' | 'crypto' | 'bank_transfer'
+
+const getSubmitOrderErrorMessage = (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data
+
+        if (responseData && typeof responseData === 'object') {
+            const message = 'message' in responseData ? responseData.message : undefined
+            const errorText = 'error' in responseData ? responseData.error : undefined
+
+            if (typeof message === 'string') return message
+            if (Array.isArray(message)) return message.join(', ')
+            if (typeof errorText === 'string') return errorText
+        }
+
+        return error.message || 'Произошла ошибка при отправке заказа'
+    }
+
+    if (error instanceof Error) {
+        return error.message
+    }
+
+    return 'Произошла ошибка при отправке заказа'
+}
 
 // Схема валидации Yup для заказа
 const orderSchema = yup.object().shape({
@@ -94,7 +120,8 @@ export default function OrderPage() {
     const [entrance, setEntrance] = useState('')
     const [phoneNumber, setPhoneNumber] = useState('')
     const [comments, setComments] = useState('')
-    const [paymentMethod, setPaymentMethod] = useState<'card_online' | 'card_offline' | 'cash' | 'crypto' | 'bank_transfer'>('cash')
+    const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>('cash')
+    const paymentMethodRef = useRef<OrderPaymentMethod>('cash')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errors, setErrors] = useState<{ [key: string]: string | undefined }>({})
     const [addressSuggestions, setAddressSuggestions] = useState<string[]>([])
@@ -108,6 +135,11 @@ export default function OrderPage() {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     /** После создания заказа корзина очищается до редиректа — показываем ожидание, а не «Корзина пуста» */
     const [isFinishingOrder, setIsFinishingOrder] = useState(false)
+
+    const handlePaymentMethodChange = useCallback((value: OrderPaymentMethod) => {
+        paymentMethodRef.current = value
+        setPaymentMethod(value)
+    }, [])
 
     // Загружаем корзину при монтировании
     useEffect(() => {
@@ -344,6 +376,8 @@ export default function OrderPage() {
         setErrors({})
 
         try {
+            const selectedPaymentMethod = paymentMethodRef.current
+
             // Валидация всей формы с помощью Yup
             const formData = {
                 personalFirstName,
@@ -354,7 +388,7 @@ export default function OrderPage() {
                 entrance: entrance || null,
                 phoneNumber,
                 comments,
-                paymentMethod
+                paymentMethod: selectedPaymentMethod
             }
 
             await orderSchema.validate(formData, { abortEarly: false })
@@ -400,12 +434,10 @@ export default function OrderPage() {
                 personalLastName: normalizedLastName,
                 email: normalizedEmail,
                 shippingAddress,
-                paymentMethod: paymentMethod,
+                paymentMethod: selectedPaymentMethod,
                 shippingCost: 0,
                 notes: normalizedComments || undefined
             }
-
-            console.log('[Order] createOrderFromCart payload:', orderData)
 
             // Сначала валидируем корзину
             const validationResult = await validateCart()
@@ -436,11 +468,38 @@ export default function OrderPage() {
 
             setIsFinishingOrder(true)
 
+            const paymentFormUrl = order.urlAlfa || order.payment?.urlAlfa || order.payment?.formUrl || order.formUrl
+            const isOnlinePaymentOrder = selectedPaymentMethod === 'card_online'
+                || order.paymentMethod === 'card_online'
+                || Boolean(order.alfaOrderId)
+                || Boolean(paymentFormUrl)
+
+            if (isOnlinePaymentOrder) {
+                if (!paymentFormUrl) {
+                    setIsFinishingOrder(false)
+                    setErrors({
+                        general: 'Заказ создан, но не удалось перейти к оплате. Попробуйте позже или свяжитесь с менеджером.'
+                    })
+                    return
+                }
+
+                window.location.href = paymentFormUrl
+                return
+            }
+
             writeOrderSuccessToStorage({
                 orderNumber: order.orderNumber,
                 status: order.status,
+                subtotal: order.subtotal,
+                shippingCost: order.shippingCost,
                 totalAmount: order.totalAmount,
-                payOnlineWithCard: paymentMethod === 'card_online',
+                items: order.items.map((item) => ({
+                    name: item.product.name,
+                    size: item.size || item.product.size,
+                    quantity: item.quantity,
+                    price: item.price,
+                })),
+                payOnlineWithCard: false,
             })
 
             // Очищаем корзину
@@ -455,6 +514,7 @@ export default function OrderPage() {
             setEntrance('')
             setPhoneNumber('')
             setComments('')
+            paymentMethodRef.current = 'cash'
             setPaymentMethod('cash')
 
             router.push('/order/success')
@@ -470,7 +530,8 @@ export default function OrderPage() {
                 })
                 setErrors(yupErrors)
             } else {
-                setErrors({ general: 'Произошла ошибка при отправке заказа' })
+                const errorMessage = getSubmitOrderErrorMessage(error)
+                setErrors({ general: errorMessage })
             }
         } finally {
             setIsSubmitting(false)
@@ -487,7 +548,6 @@ export default function OrderPage() {
         entrance,
         phoneNumber,
         comments,
-        paymentMethod,
         validateCart,
         createOrderFromCart,
         clearCart,
@@ -510,6 +570,10 @@ export default function OrderPage() {
     // Показываем loader при загрузке корзины
     if (isCartLoading) {
         return <Loader fullScreen showText />
+    }
+
+    if (isFinishingOrder) {
+        return <OrderPendingSplash />
     }
 
     // Если корзина пуста, показываем сообщение (или ожидание редиректа после оформления)
@@ -754,7 +818,7 @@ export default function OrderPage() {
                                                 name="payment"
                                                 value="cash"
                                                 checked={paymentMethod === 'cash'}
-                                                onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                                                onChange={(e) => handlePaymentMethodChange(e.target.value as OrderPaymentMethod)}
                                                 className="mr-3 text-[var(--mint-dark)]"
                                             />
                                             <span className="text-white">Наличными при получении</span>
@@ -765,7 +829,7 @@ export default function OrderPage() {
                                                 name="payment"
                                                 value="card_offline"
                                                 checked={paymentMethod === 'card_offline'}
-                                                onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                                                onChange={(e) => handlePaymentMethodChange(e.target.value as OrderPaymentMethod)}
                                                 className="mr-3 text-[var(--mint-dark)]"
                                             />
                                             <span className="text-white">Картой при получении</span>
@@ -776,7 +840,7 @@ export default function OrderPage() {
                                                 name="payment"
                                                 value="card_online"
                                                 checked={paymentMethod === 'card_online'}
-                                                onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                                                onChange={(e) => handlePaymentMethodChange(e.target.value as OrderPaymentMethod)}
                                                 className="mr-3 text-[var(--mint-dark)]"
                                             />
                                             <span className="text-white">Картой онлайн</span>
