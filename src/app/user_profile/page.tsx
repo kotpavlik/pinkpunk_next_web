@@ -114,6 +114,7 @@ export default function UserProfile() {
         }
 
         hasCheckedPaymentRef.current = true
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
 
         const confirmPayment = async () => {
             try {
@@ -151,7 +152,7 @@ export default function UserProfile() {
                 })
             } finally {
                 console.log('[PaymentReturn:user_profile] cleaning return query params')
-                router.replace('/user_profile')
+                router.replace('/user_profile', { scroll: true })
             }
         }
 

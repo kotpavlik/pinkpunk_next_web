@@ -188,15 +188,17 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
         }
     }, [coordinates, address])
 
+    const wrapperClassName = className || 'h-[400px] w-full'
+
     // Мемоизируем стили для предотвращения перерендера
     const mapStyles = useMemo(() => ({
-        minHeight: '400px',
-        height: '400px',
+        minHeight: 'inherit',
+        height: '100%',
         width: '100%'
     }), [])
 
     return (
-        <div className={`${className} overflow-hidden`}>
+        <div className={`${wrapperClassName} overflow-hidden`}>
             <div
                 ref={mapRef}
                 style={mapStyles}

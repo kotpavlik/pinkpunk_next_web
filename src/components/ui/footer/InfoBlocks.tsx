@@ -1,6 +1,6 @@
 'use client'
 
-import React, { memo, useState, useEffect } from 'react'
+import React, { memo, useState } from 'react'
 import Image from 'next/image'
 import Modal from '@/features/modal/Modal'
 import Link from 'next/link'
@@ -52,21 +52,53 @@ export const AlfaPaymentIcons = memo(function AlfaPaymentIcons({
     )
 })
 
+export const CompanyRequisitesBlock = memo(function CompanyRequisitesBlock() {
+    return (
+        <div className="w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.03] p-4 text-gray-500 md:p-5">
+            <h3 className="border-b border-gray-500 pb-2 font-durik text-sm lowercase text-gray-500">
+                реквизиты
+            </h3>
+            <div className="mt-4 space-y-3 font-cabinet-grotesk text-xs leading-relaxed text-gray-500 md:text-sm">
+                <div>
+                    <div className="font-semibold text-gray-400">ООО &quot;ПИНКПУНК&quot;</div>
+                    <div>УНП: 193687078</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-gray-400">Юридический адрес:</div>
+                    <div>220004, Республика Беларусь, г. Минск, улица Карла Либкнехта, дом 66, помещение 165-27</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-gray-400">Свидетельство о гос. регистрации:</div>
+                    <div>193687078 от 13.05.2023, выдано Минским горисполкомом</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-gray-400">Торговый реестр:</div>
+                    <div>558974 от 06.06.2023</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-gray-400">Режим работы:</div>
+                    <div>ежедневно с 13:00 до 20:00</div>
+                </div>
+            </div>
+        </div>
+    )
+})
+
 const InfoBlocks = memo(function InfoBlocks() {
 
     const router = useRouter()
     const [modalContent, setModalContent] = useState<{ title: string } | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [isMobile, setIsMobile] = useState(false)
-
-    useEffect(() => {
-        // Проверяем размер экрана только один раз при монтировании
-        setIsMobile(window.innerWidth < 640)
-    }, [])
 
     const openModal = (title: string) => {
         setModalContent({ title })
         setIsModalOpen(true)
+    }
+
+    const openMobileModal = (title: string) => {
+        if (window.matchMedia('(max-width: 639px)').matches) {
+            openModal(title)
+        }
     }
 
     const closeModal = () => {
@@ -76,22 +108,19 @@ const InfoBlocks = memo(function InfoBlocks() {
     return (
         <>
             <div className="flex w-full min-w-0 min-h-0 flex-1 flex-col">
-                <div className="font-durik flex w-full shrink-0 flex-col items-start gap-2 text-lg md:flex-row md:justify-between">
+                <div className="font-durik grid w-full shrink-0 grid-cols-1 items-start gap-2 text-lg sm:grid-cols-2">
                     {/* Магазин - редирект в каталог */}
                     <div className='relative w-full'>
                         <div
                             className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer transition-colors md:cursor-default md:hover:bg-transparent"
                             onClick={() => {
-                                // Только на маленьких мобильных устройствах
-                                if (isMobile) {
-                                    openModal('магазин')
-                                }
+                                openMobileModal('магазин')
                             }}
                         >
                             магазин
 
                         </div>
-                        {!isModalOpen && !isMobile && <div>
+                        <div className="hidden sm:block">
                             <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                                 <Link href="/catalog">
                                     каталог
@@ -102,12 +131,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                                     о пинк панк
                                 </Link>
                             </p>
-                            <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
-                                <Link href="/company_registration_details">
-                                    реквизиты
-                                </Link>
-                            </p>
-                        </div>}
+                        </div>
                     </div>
 
 
@@ -116,15 +140,12 @@ const InfoBlocks = memo(function InfoBlocks() {
                         <div
                             className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer  transition-colors md:cursor-default md:hover:bg-transparent"
                             onClick={() => {
-                                // Только на маленьких мобильных устройствах
-                                if (isMobile) {
-                                    openModal('Покупателям')
-                                }
+                                openMobileModal('Покупателям')
                             }}
                         >
                             покупателям
                         </div>
-                        {!isModalOpen && !isMobile && <div>
+                        <div className="hidden sm:block">
                             <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                                 <Link href="/delivery">
                                     доставка
@@ -145,7 +166,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                                     подарочные сертификаты
                                 </Link>
                             </p>
-                        </div>}
+                        </div>
                     </div>
 
                     {/* Контакты - информативная модалка */}
@@ -153,15 +174,12 @@ const InfoBlocks = memo(function InfoBlocks() {
                         <div
                             className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer transition-colors md:cursor-default md:hover:bg-transparent"
                             onClick={() => {
-                                // Только на маленьких мобильных устройствах
-                                if (isMobile) {
-                                    openModal('Контакты')
-                                }
+                                openMobileModal('Контакты')
                             }}
                         >
                             контакты
                         </div>
-                        {!isModalOpen && !isMobile && <div>
+                        <div className="hidden sm:block">
                             <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                                 <a href="https://t.me/pozdnee_utro" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 ">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -191,7 +209,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                                     </svg> +375(33)357-25-66
                                 </a>
                             </p>
-                        </div>}
+                        </div>
                     </div>
 
                     {/* Соц.сети - информативная модалка */}
@@ -199,15 +217,12 @@ const InfoBlocks = memo(function InfoBlocks() {
                         <div
                             className="text-sm text-gray-500 border-b-1 border-gray-500  p-2 w-full cursor-pointer transition-colors md:cursor-default md:hover:bg-transparent"
                             onClick={() => {
-                                // Только на маленьких мобильных устройствах
-                                if (isMobile) {
-                                    openModal('Мы в соц.сетях')
-                                }
+                                openMobileModal('Мы в соц.сетях')
                             }}
                         >
                             соц.сети
                         </div>
-                        {!isModalOpen && !isMobile && <div>
+                        <div className="hidden sm:block">
                             <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
                                 <a href="https://www.instagram.com/pinkpunk_brand" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -236,7 +251,7 @@ const InfoBlocks = memo(function InfoBlocks() {
                                     </svg> YouTube
                                 </a>
                             </p>
-                        </div>}
+                        </div>
                     </div>
 
                 </div>
@@ -246,7 +261,7 @@ const InfoBlocks = memo(function InfoBlocks() {
 
             {/* Модалка только для маленьких мобильных */}
             <Modal
-                isOpen={isModalOpen && isMobile}
+                isOpen={isModalOpen}
                 onClose={closeModal}
                 title={modalContent?.title || ''}
             >
@@ -266,16 +281,6 @@ const InfoBlocks = memo(function InfoBlocks() {
                                 setIsModalOpen(false)
                             }}>
                                 о пинк панк
-                            </div>
-                        </div>
-                        <div className=' text-gray-500 mt-4'>
-                            <div className=' text-gray-500 mt-4'>
-                                <div onClick={() => {
-                                    router.push('/company_registration_details')
-                                    setIsModalOpen(false)
-                                }}>
-                                    реквизиты
-                                </div>
                             </div>
                         </div>
                     </div>
