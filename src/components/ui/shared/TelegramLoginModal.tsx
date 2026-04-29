@@ -72,7 +72,7 @@ export default function TelegramLoginModal({
 
     const modalContent = (
         <div
-            className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300"
+            className="fixed inset-0 flex items-center justify-center bg-black/60 px-4 py-4 backdrop-blur-md transition-opacity duration-300 sm:py-8"
             style={{
                 zIndex: 99999,
                 position: 'fixed',
@@ -81,7 +81,9 @@ export default function TelegramLoginModal({
                 right: 0,
                 bottom: 0,
                 width: '100vw',
-                height: '100vh',
+                height: '100dvh',
+                paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+                paddingTop: 'calc(1rem + env(safe-area-inset-top))',
             }}
             onClick={(e) => {
                 if (e.target === e.currentTarget) {
@@ -90,12 +92,13 @@ export default function TelegramLoginModal({
             }}
         >
             <div
-                className="relative bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-2xl rounded-3xl p-8 md:p-10 border border-white/20 shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100"
+                className="relative w-full max-w-md overflow-y-auto rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 via-white/5 to-white/10 p-5 shadow-2xl backdrop-blur-2xl transform transition-all duration-300 scale-100 sm:p-7 md:p-10"
                 style={{
                     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.1) 100%)',
                     backdropFilter: 'blur(30px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(30px) saturate(180%)',
                     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                    maxHeight: 'calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
@@ -112,7 +115,7 @@ export default function TelegramLoginModal({
 
                 {/* Иконка Telegram - Lottie анимация */}
                 <div className="flex justify-center ">
-                    <div className="w-40 h-40 ">
+                    <div className="h-24 w-24 sm:h-32 sm:w-32 md:h-40 md:w-40">
                         <div className="w-full h-full">
                             <DotLottieReact
                                 data={TelegramAnimation}
@@ -128,11 +131,11 @@ export default function TelegramLoginModal({
                 </div>
 
                 {/* Заголовок */}
-                <div className="text-center mb-8">
-                    <h2 className="text-3xl md:text-4xl font-blauer-nue font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <div className="mb-5 text-center sm:mb-7 md:mb-8">
+                    <h2 className="mb-2 bg-gradient-to-r from-white to-white/80 bg-clip-text font-blauer-nue text-2xl font-bold text-transparent sm:text-3xl md:mb-3 md:text-4xl">
                         Вход через Telegram
                     </h2>
-                    <p className="text-white/70 text-base leading-relaxed max-w-sm mx-auto">
+                    <p className="mx-auto max-w-sm text-sm leading-relaxed text-white/70 sm:text-base">
                         Авторизуйтесь через Telegram для доступа к личному кабинету и персональным предложениям!
                     </p>
                 </div>
@@ -152,7 +155,7 @@ export default function TelegramLoginModal({
                 )}
 
                 {/* Виджет */}
-                <div className="flex justify-center  min-h-[70px] mb-4">
+                <div className="mb-3 flex min-h-[64px] justify-center sm:mb-4 sm:min-h-[70px]">
                     <TelegramLoginWidget
                         botName={cleanBotName}
                         size="large"
@@ -179,7 +182,7 @@ export default function TelegramLoginModal({
                 </div>
 
                 {/* Дополнительная информация */}
-                <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="mt-4 border-t border-white/10 pt-4 sm:mt-6 sm:pt-6">
                     <p className="text-white/50 text-xs text-center">
                         Нажимая кнопку, вы соглашаетесь с тем, что вы булочка 🥐
                     </p>
