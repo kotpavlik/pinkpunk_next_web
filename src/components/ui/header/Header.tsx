@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ShoppingBagIcon, UserIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import AnimatedBurger from './AnimatedBurger'
 import TelegramLoginModal from '../shared/TelegramLoginModal'
@@ -20,7 +19,6 @@ export default function Header() {
     const [logoWidth, setLogoWidth] = useState(0)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [lastScrollY, setLastScrollY] = useState(0)
-    const [imageError, setImageError] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
     const logoRef = useRef<HTMLDivElement>(null)
     const { user } = useUserStore()
@@ -43,11 +41,6 @@ export default function Header() {
             getCart(user._id)
         }
     }, [user._id, isMounted, getCart])
-
-    // Сбрасываем ошибку изображения при изменении photoUrl или photo_url
-    useEffect(() => {
-        setImageError(false)
-    }, [user.photoUrl, user.photo_url])
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -224,24 +217,9 @@ export default function Header() {
                                 aria-label={isMounted && user.userId ? 'Профиль пользователя' : 'Войти через Telegram'}
                             >
                                 {isMounted && user.userId ? (
-                                    (user.photoUrl || user.photo_url) && !imageError ? (
-                                        <div className="relative h-6 w-6 rounded-full overflow-hidden">
-                                            <Image
-                                                src={user.photoUrl || user.photo_url || ''}
-                                                alt={user.firstName || user.username || 'User avatar'}
-                                                fill
-                                                className="object-cover"
-                                                unoptimized
-                                                onError={() => {
-                                                    setImageError(true)
-                                                }}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="h-6 w-6 rounded-full overflow-hidden">
-                                            <AvatarLoader className="w-full h-full" />
-                                        </div>
-                                    )
+                                    <div className="h-6 w-6 rounded-full overflow-hidden">
+                                        <AvatarLoader className="w-full h-full" />
+                                    </div>
                                 ) : (
                                     <UserIcon className="h-6 w-6" aria-hidden="true" />
                                 )}

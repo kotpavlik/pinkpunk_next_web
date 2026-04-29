@@ -180,11 +180,6 @@ export default function TelegramLoginWidget({
                 className="telegram-login-widget flex justify-center"
                 style={{ minHeight: '60px', minWidth: '280px' }}
             />
-            {status === 'loading' && (
-                <p className="mt-2 text-center text-xs text-white/50">
-                    Загружаем кнопку Telegram...
-                </p>
-            )}
             {status === 'error' && (
                 <div className="mt-3 rounded-lg border border-[var(--pink-punk)]/50 bg-[var(--pink-punk)]/10 p-3 text-center">
                     <p className="text-xs text-white/70">

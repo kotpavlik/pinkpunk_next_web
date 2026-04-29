@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
 import { XMarkIcon, CalendarIcon, PhoneIcon, MapPinIcon, PencilIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
@@ -21,7 +20,6 @@ export default function UserProfile() {
     const { orders, isLoading: ordersLoading, error: ordersError, getMyOrders } = useOrderStore()
     const [isMounted, setIsMounted] = useState(false)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
-    const [imageError, setImageError] = useState(false)
     const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -192,13 +190,6 @@ export default function UserProfile() {
             })
         }
     }, [user._id, getMyOrders])
-
-
-    useEffect(() => {
-        setImageError(false)
-    }, [user.photoUrl, user.photo_url])
-
-
     const handleLogoutClick = () => {
         setIsLogoutModalOpen(true)
     }
@@ -289,22 +280,9 @@ export default function UserProfile() {
                             <div className="flex flex-col items-center text-center">
                                 {/* Аватар */}
                                 <div className="relative mb-4">
-                                    {isMounted && (user.photoUrl || user.photo_url) && !imageError ? (
-                                        <div className="relative h-24 w-24 md:h-28 md:w-28 rounded-full overflow-hidden border-2 border-[var(--pink-punk)] shadow-lg">
-                                            <Image
-                                                src={user.photoUrl || user.photo_url || ''}
-                                                alt={user.firstName || user.username || 'User avatar'}
-                                                fill
-                                                className="object-cover"
-                                                unoptimized
-                                                onError={() => setImageError(true)}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-white/10 border-2 border-[var(--pink-punk)] flex items-center justify-center overflow-hidden">
-                                            <AvatarLoader className="w-full h-full" />
-                                        </div>
-                                    )}
+                                    <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-white/10 border-2 border-[var(--pink-punk)] flex items-center justify-center overflow-hidden">
+                                        <AvatarLoader className="w-full h-full" />
+                                    </div>
                                     {/* Бейдж премиум */}
                                     {user.isPremium && (
                                         <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] rounded-full p-1.5 shadow-lg">
