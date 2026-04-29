@@ -31,6 +31,16 @@ export default function UserProfile() {
     const [paymentMessage, setPaymentMessage] = useState<{ type: 'success' | 'error'; title: string; description?: string } | null>(null)
     const hasCheckedPaymentRef = useRef(false)
 
+    useEffect(() => {
+        if (!paymentMessage) return
+
+        const timeout = window.setTimeout(() => {
+            setPaymentMessage(null)
+        }, 3000)
+
+        return () => window.clearTimeout(timeout)
+    }, [paymentMessage])
+
     // Эффект для проверки и обновления токенов при загрузке страницы
     useEffect(() => {
         const checkAndRefreshTokens = async () => {
@@ -228,31 +238,35 @@ export default function UserProfile() {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto">
-                {paymentMessage && (
-                    <div className={`mb-6 border p-4 text-white ${paymentMessage.type === 'success'
-                        ? 'border-[var(--mint-dark)] bg-[var(--mint-dark)]/15'
-                        : 'border-[var(--pink-punk)] bg-[var(--pink-punk)]/15'
+            {paymentMessage && (
+                <div className="pointer-events-none fixed inset-0 z-[10000] flex items-center justify-center px-4">
+                    <div className={`pointer-events-auto w-full max-w-md border p-5 text-white shadow-2xl backdrop-blur-xl ${paymentMessage.type === 'success'
+                        ? 'border-[var(--mint-dark)] bg-black/85'
+                        : 'border-[var(--pink-punk)] bg-black/85'
                         }`}>
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="font-blauer-nue text-lg font-semibold">{paymentMessage.title}</p>
+                                <p className={`font-blauer-nue text-xl font-semibold ${paymentMessage.type === 'success' ? 'text-[var(--mint-bright)]' : 'text-[var(--pink-punk)]'}`}>
+                                    {paymentMessage.title}
+                                </p>
                                 {paymentMessage.description && (
-                                    <p className="mt-1 text-sm text-white/70">{paymentMessage.description}</p>
+                                    <p className="mt-2 text-sm text-white/70">{paymentMessage.description}</p>
                                 )}
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setPaymentMessage(null)}
-                                className="text-white/60 transition-colors hover:text-white"
+                                className="shrink-0 text-white/60 transition-colors hover:text-white"
                                 aria-label="Закрыть уведомление"
                             >
                                 <XMarkIcon className="h-5 w-5" />
                             </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
+            <div className="max-w-7xl mx-auto">
                 {/* Заголовок страницы с кнопкой выхода */}
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-bold font-durik text-[var(--pink-punk)] uppercase">

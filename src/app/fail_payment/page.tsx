@@ -52,6 +52,7 @@ export default function FailPaymentPage() {
     const { getProducts } = useProductsStore()
     const { updatePaymentStatus } = useOrderStore()
     const [paymentFailure, setPaymentFailure] = useState<PaymentFailureState>({ status: 'loading' })
+    const [showPaymentToast, setShowPaymentToast] = useState(false)
     const [isContactModalOpen, setIsContactModalOpen] = useState(false)
     const hasCheckedPaymentRef = useRef(false)
     const cardAnimationRef = useRef<LottieRefCurrentProps>(null)
@@ -59,6 +60,18 @@ export default function FailPaymentPage() {
     useEffect(() => {
         cardAnimationRef.current?.setSpeed(0.6)
     }, [])
+
+    useEffect(() => {
+        if (paymentFailure.status === 'loading') return
+
+        setShowPaymentToast(true)
+
+        const timeout = window.setTimeout(() => {
+            setShowPaymentToast(false)
+        }, 3000)
+
+        return () => window.clearTimeout(timeout)
+    }, [paymentFailure])
 
     useEffect(() => {
         if (hasCheckedPaymentRef.current) return
@@ -122,6 +135,8 @@ export default function FailPaymentPage() {
         ? 'Подождите немного, мы проверяем ответ платежного сервиса и обновляем информацию по заказу.'
         : paymentFailure.description || 'Заказ не был оплачен. Товары возвращены в корзину, если они ещё доступны.'
     const displayedText = useTypewriter(description)
+    const paymentToastTitle = paymentFailure.status === 'loading' ? '' : paymentFailure.title
+    const paymentToastDescription = paymentFailure.status === 'loading' ? '' : paymentFailure.description
 
     return (
         <div className="relative min-h-screen w-full overflow-hidden">
@@ -201,6 +216,32 @@ export default function FailPaymentPage() {
                     </div>
                 </div>
             </div>
+            {showPaymentToast && paymentFailure.status !== 'loading' && (
+                <div className="pointer-events-none fixed inset-0 z-[10000] flex items-center justify-center px-4">
+                    <div className="pointer-events-auto w-full max-w-md border border-[var(--pink-punk)] bg-black/85 p-5 text-white shadow-2xl backdrop-blur-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="font-blauer-nue text-xl font-semibold text-[var(--pink-punk)]">
+                                    {paymentToastTitle}
+                                </p>
+                                {paymentToastDescription && (
+                                    <p className="mt-2 text-sm text-white/70">{paymentToastDescription}</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowPaymentToast(false)}
+                                className="shrink-0 text-white/60 transition-colors hover:text-white"
+                                aria-label="Закрыть уведомление"
+                            >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {isContactModalOpen && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
