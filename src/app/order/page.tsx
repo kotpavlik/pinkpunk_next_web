@@ -13,7 +13,7 @@ import Modal from '@/features/modal/Modal'
 import Loader from '@/components/ui/shared/Loader'
 import Link from 'next/link'
 import Image from 'next/image'
-import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
+import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { writeOrderSuccessToStorage } from '@/app/order/orderSuccessUtils'
 import OrderPendingSplash from '@/app/order/OrderPendingSplash'
 

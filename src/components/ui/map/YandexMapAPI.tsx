@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useMemo } from 'react'
+import React, { useEffect, useRef, useMemo, useState } from 'react'
 
 interface YandexMapAPIProps {
     address?: string
@@ -32,49 +32,48 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
 }: YandexMapAPIProps) {
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstance = useRef<unknown>(null)
+    const [shouldLoadMap, setShouldLoadMap] = useState(false)
+    const [isMapReady, setIsMapReady] = useState(false)
+    const [hasMapError, setHasMapError] = useState(false)
 
     useEffect(() => {
-        const initMap = async () => {
-            if (!mapRef.current) return
+        const currentMapNode = mapRef.current
+        if (!currentMapNode) return
 
-            const apiKey = process.env.NEXT_PUBLIC_YANDEX_API_KEY || ''
-
-            // Проверяем, не загружен ли уже скрипт
-            if (window.ymaps3) {
-                initMapWithAPI()
-                return
-            }
-
-            // Загружаем Яндекс.Карты API
-            const script = document.createElement('script')
-
-            script.src = apiKey
-                ? `https://api-maps.yandex.ru/v3/?apikey=${apiKey}&lang=ru_RU`
-                : `https://api-maps.yandex.ru/v3/?lang=ru_RU`
-            script.async = true
-
-            script.onerror = () => {
-                // Ошибка загрузки скрипта
-            }
-
-            script.onload = () => {
-                window.ymaps3.ready.then(() => {
-                    initMapWithAPI()
-                })
-            }
-
-            document.head.appendChild(script)
-
-            return () => {
-                if (mapInstance.current && typeof mapInstance.current === 'object' && 'destroy' in mapInstance.current) {
-                    (mapInstance.current as { destroy: () => void }).destroy()
-                }
-                document.head.removeChild(script)
-            }
+        if (!('IntersectionObserver' in window)) {
+            setShouldLoadMap(true)
+            return
         }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setShouldLoadMap(true)
+                    observer.disconnect()
+                }
+            },
+            {
+                rootMargin: '300px 0px',
+                threshold: 0.01,
+            }
+        )
+
+        observer.observe(currentMapNode)
+
+        return () => observer.disconnect()
+    }, [])
+
+    useEffect(() => {
+        if (!shouldLoadMap || hasMapError) return
+
+        const scriptId = 'yandex-maps-api-v3'
+        const apiKey = process.env.NEXT_PUBLIC_YANDEX_API_KEY || ''
+        let isCancelled = false
+        setIsMapReady(false)
 
         const initMapWithAPI = async () => {
             try {
+                if (!mapRef.current || mapInstance.current) return
 
                 // Проверяем размер контейнера
                 if (mapRef.current) {
@@ -174,19 +173,64 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
                 if (mapInstance.current && typeof mapInstance.current === 'object' && 'addChild' in mapInstance.current) {
                     (mapInstance.current as { addChild: (child: unknown) => void }).addChild(customMarker)
                 }
+                setIsMapReady(true)
             } catch {
-                // Ошибка создания карты
+                if (!isCancelled) {
+                    setHasMapError(true)
+                }
             }
         }
 
-        initMap()
+        const handleScriptLoad = () => {
+            if (isCancelled || !window.ymaps3) return
+            window.ymaps3.ready.then(() => {
+                if (!isCancelled) {
+                    void initMapWithAPI()
+                }
+            }).catch(() => {
+                if (!isCancelled) {
+                    setHasMapError(true)
+                }
+            })
+        }
+
+        const handleScriptError = () => {
+            if (!isCancelled) {
+                setHasMapError(true)
+            }
+        }
+
+        if (window.ymaps3) {
+            handleScriptLoad()
+        } else {
+            let script = document.getElementById(scriptId) as HTMLScriptElement | null
+
+            if (!script) {
+                script = document.createElement('script')
+                script.id = scriptId
+                script.src = apiKey
+                    ? `https://api-maps.yandex.ru/v3/?apikey=${apiKey}&lang=ru_RU`
+                    : `https://api-maps.yandex.ru/v3/?lang=ru_RU`
+                script.async = true
+                document.head.appendChild(script)
+            }
+
+            script.addEventListener('load', handleScriptLoad)
+            script.addEventListener('error', handleScriptError)
+        }
 
         return () => {
+            isCancelled = true
+            const script = document.getElementById(scriptId)
+            script?.removeEventListener('load', handleScriptLoad)
+            script?.removeEventListener('error', handleScriptError)
+
             if (mapInstance.current && typeof mapInstance.current === 'object' && 'destroy' in mapInstance.current) {
                 (mapInstance.current as { destroy: () => void }).destroy()
+                mapInstance.current = null
             }
         }
-    }, [coordinates, address])
+    }, [coordinates, address, shouldLoadMap, hasMapError])
 
     const wrapperClassName = className || 'h-[400px] w-full'
 
@@ -198,11 +242,26 @@ const YandexMapAPI = React.memo(function YandexMapAPI({
     }), [])
 
     return (
-        <div className={`${wrapperClassName} overflow-hidden`}>
+        <div className={`relative ${wrapperClassName} overflow-hidden bg-white/[0.03]`}>
             <div
                 ref={mapRef}
                 style={mapStyles}
             />
+            {!shouldLoadMap && (
+                <div className="absolute inset-0 flex h-full w-full items-center justify-center text-center font-cabinet-grotesk text-sm text-gray-500">
+                    Карта загрузится при прокрутке
+                </div>
+            )}
+            {shouldLoadMap && !isMapReady && !hasMapError && (
+                <div className="absolute inset-0 flex h-full w-full items-center justify-center text-center font-cabinet-grotesk text-sm text-gray-500">
+                    Загружаем карту...
+                </div>
+            )}
+            {hasMapError && (
+                <div className="absolute inset-0 flex h-full w-full items-center justify-center text-center font-cabinet-grotesk text-sm text-gray-500">
+                    Не удалось загрузить карту
+                </div>
+            )}
         </div>
     )
 })

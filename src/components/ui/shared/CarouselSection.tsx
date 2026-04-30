@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ProductResponse } from "@/api/ProductApi"
 import { useUserStore } from "@/zustand/user_store/UserStore"
 import { useCartStore } from "@/zustand/cart_store/CartStore"
-import TelegramLoginModal from "./TelegramLoginModal"
+import TelegramLoginModal from "./LazyTelegramLoginModal"
 
 interface CarouselSectionProps {
   title: string

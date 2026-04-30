@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useState, Suspense, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useEmblaCarousel from 'embla-carousel-react'
 import { useProductsStore } from '@/zustand/products_store/ProductsStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import Loader from '@/components/ui/shared/Loader'
-import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
+import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import ProductImage from '@/components/ui/product/ProductImage'
 import { useImagePreload } from '@/hooks/useImagePreload'
+
+/** Совпадает с верхним отступом до галереи на десктопе (`top-24` под хедер) */
+const DESKTOP_STICKY_TOP_PX = 96
+/** Вертикальный зазор между фото на десктопе (`gap-2`); учитывается в пороге скролла правой колонки */
+const DESKTOP_GALLERY_GAP_PX = 8
 
 function ProductItemContent() {
     const router = useRouter()
@@ -18,11 +23,11 @@ function ProductItemContent() {
     const { currentProduct, getProductById } = useProductsStore()
     const { user, isAuthenticated } = useUserStore()
     const { addToCart, error: cartError, setError: setCartError } = useCartStore()
-    const [selectedIndex, setSelectedIndex] = useState(0)
     const [emblaRef, emblaApi] = useEmblaCarousel({
         axis: 'y',
         loop: false,
         dragFree: false,
+        align: 'start',
     })
     const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0)
     const [sheetPosition, setSheetPosition] = useState(0) // 0 = свернуто, 1 = развернуто
@@ -31,13 +36,18 @@ function ProductItemContent() {
     const [windowHeight, setWindowHeight] = useState(700) // дефолтная высота для SSR
     const [isSheetActive, setIsSheetActive] = useState(false) // Флаг активности bottom sheet для немедленной блокировки
     const [contentScrollTop, setContentScrollTop] = useState(0) // Позиция прокрутки контента
-    const [lastDeltaY, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
+    const [, setLastDeltaY] = useState(0) // Последнее направление движения для определения направления свайпа
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
     const [isAddingToCart, setIsAddingToCart] = useState(false)
     const [showError, setShowError] = useState(false)
     const sheetRef = useRef<HTMLDivElement>(null)
     const dragHandleRef = useRef<HTMLSpanElement>(null)
+    const desktopGalleryRootRef = useRef<HTMLDivElement>(null)
+    const mobileEmblaSlidesRef = useRef<HTMLDivElement>(null)
+    const desktopRightPanelRef = useRef<HTMLDivElement>(null)
+    /** На десктопе: блок характеристик крутится только после прокрутки всех фото */
+    const [desktopRightScrollUnlocked, setDesktopRightScrollUnlocked] = useState(false)
 
     // Функция для обработки URL фотографий
     const getImageUrl = (photoUrl: string) => {
@@ -52,7 +62,13 @@ function ProductItemContent() {
     }
 
     // Предзагрузка всех изображений товара в фоне
-    const imageUrls = currentProduct?.photos?.map(photo => getImageUrl(photo)) || []
+    const imageUrls = useMemo(() => {
+        if (!currentProduct || currentProduct._id !== productId) {
+            return []
+        }
+
+        return currentProduct.photos?.map(photo => getImageUrl(photo)) || []
+    }, [currentProduct, productId])
     useImagePreload(imageUrls)
 
     useEffect(() => {
@@ -112,28 +128,15 @@ function ProductItemContent() {
         }
     }, [])
 
-    // Сброс индекса при смене товара и валидация
     useEffect(() => {
-        if (currentProduct?.photos && currentProduct.photos.length > 0) {
-            setSelectedIndex(0)
-            setCurrentCarouselIndex(0)
-        } else {
-            setSelectedIndex(0)
-            setCurrentCarouselIndex(0)
-        }
+        setCurrentCarouselIndex(0)
     }, [currentProduct?._id, currentProduct?.photos])
 
-    // Валидация selectedIndex - убеждаемся что индекс всегда в пределах массива
     useEffect(() => {
-        if (currentProduct?.photos && currentProduct.photos.length > 0) {
-            if (selectedIndex >= currentProduct.photos.length) {
-                setSelectedIndex(0)
-            }
-            if (currentCarouselIndex >= currentProduct.photos.length) {
-                setCurrentCarouselIndex(0)
-            }
+        if (currentProduct?.photos && currentProduct.photos.length > 0 && currentCarouselIndex >= currentProduct.photos.length) {
+            setCurrentCarouselIndex(0)
         }
-    }, [currentProduct?.photos, selectedIndex, currentCarouselIndex])
+    }, [currentProduct?.photos, currentCarouselIndex])
 
     // Отслеживание изменений в карусели
     useEffect(() => {
@@ -150,6 +153,109 @@ function ProductItemContent() {
             emblaApi.off('select', onSelect)
         }
     }, [emblaApi])
+
+    const syncDesktopGalleryFromScroll = useCallback(() => {
+        if (typeof window === 'undefined' || window.innerWidth < 768) return
+
+        const root = desktopGalleryRootRef.current
+        const photos = currentProduct?.photos
+        if (!photos?.length) {
+            setDesktopRightScrollUnlocked(true)
+            return
+        }
+        if (!root) return
+
+        const rect = root.getBoundingClientRect()
+        const scrolledPastPin = DESKTOP_STICKY_TOP_PX - rect.top
+
+        if (photos.length <= 1) {
+            setDesktopRightScrollUnlocked(true)
+            return
+        }
+
+        if (scrolledPastPin < 0) {
+            setDesktopRightScrollUnlocked(false)
+            return
+        }
+
+        const slides = Array.from(root.children) as HTMLElement[]
+        if (slides.length !== photos.length) {
+            return
+        }
+
+        let sumPrevHeights = 0
+        let slidesBeforeLastReady = true
+        for (let i = 0; i < slides.length - 1; i++) {
+            const h = slides[i].offsetHeight
+            if (h < 4) slidesBeforeLastReady = false
+            sumPrevHeights += h
+        }
+
+        const gapContribution = Math.max(0, slides.length - 1) * DESKTOP_GALLERY_GAP_PX
+        const unlockThreshold = sumPrevHeights + gapContribution
+
+        const unlocked =
+            slidesBeforeLastReady && sumPrevHeights > 0 && scrolledPastPin >= unlockThreshold - 1
+        setDesktopRightScrollUnlocked((prev) => (prev === unlocked ? prev : unlocked))
+    }, [currentProduct?.photos])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+
+        const run = () => syncDesktopGalleryFromScroll()
+
+        window.addEventListener('scroll', run, { passive: true })
+        window.addEventListener('resize', run)
+        run()
+
+        return () => {
+            window.removeEventListener('scroll', run)
+            window.removeEventListener('resize', run)
+        }
+    }, [syncDesktopGalleryFromScroll])
+
+    useEffect(() => {
+        const root = desktopGalleryRootRef.current
+        if (!root || typeof ResizeObserver === 'undefined') return
+
+        const ro = new ResizeObserver(() => syncDesktopGalleryFromScroll())
+        ro.observe(root)
+        return () => ro.disconnect()
+    }, [syncDesktopGalleryFromScroll, currentProduct?._id])
+
+    useEffect(() => {
+        syncDesktopGalleryFromScroll()
+    }, [syncDesktopGalleryFromScroll])
+
+    useEffect(() => {
+        const node = mobileEmblaSlidesRef.current
+        if (!node || !emblaApi || typeof ResizeObserver === 'undefined') return
+
+        const ro = new ResizeObserver(() => {
+            requestAnimationFrame(() => {
+                try {
+                    emblaApi.reInit()
+                } catch {
+                    /* ignore */
+                }
+            })
+        })
+        ro.observe(node)
+        return () => ro.disconnect()
+    }, [emblaApi, currentProduct?._id])
+
+    useEffect(() => {
+        if (!desktopRightScrollUnlocked && desktopRightPanelRef.current) {
+            desktopRightPanelRef.current.scrollTop = 0
+        }
+    }, [desktopRightScrollUnlocked])
+
+    useEffect(() => {
+        setDesktopRightScrollUnlocked(false)
+        requestAnimationFrame(() => {
+            syncDesktopGalleryFromScroll()
+        })
+    }, [currentProduct?._id, syncDesktopGalleryFromScroll])
 
     // Обновляем флаг активности bottom sheet
     useEffect(() => {
@@ -462,19 +568,19 @@ function ProductItemContent() {
         )
     }
 
-    if (!currentProduct) {
+    if (!currentProduct || currentProduct._id !== productId) {
         return <Loader fullScreen showText />
     }
 
     return (
-        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-[90vw] md:m-auto md:mb-20  md:pt-0 z-20 md:z-auto m-0 p-0">
-            <div className="relative h-full text-white pt-0 md:pt-24 pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-20 items-start m-0 p-0 md:p-0">
+        <div className="fixed md:relative inset-0 md:inset-auto min-h-screen w-full md:w-full md:max-w-none md:mx-0 md:mb-20 md:pt-0 z-20 md:z-auto m-0 p-0">
+            <div className="relative min-h-[100dvh] text-white pt-0  pb-0 md:pb-16 flex flex-col md:flex-row gap-0 md:gap-0 items-start m-0 p-0 md:p-0">
 
                 {currentProduct.photos && currentProduct.photos.length > 0 && (
-                    <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 md:items-start md:flex-nowrap">
+                    <div className="w-full md:w-1/2 md:max-w-[50%] md:flex-shrink-0 md:min-w-0 flex flex-col md:flex-col gap-0 md:gap-0 md:items-stretch">
                         {/* Main photo */}
                         <div
-                            className="fixed md:relative inset-0 w-full h-screen md:flex-1 md:h-[90vh] md:min-w-[400px] md:overflow-hidden z-10"
+                            className="fixed md:relative inset-0 w-full h-screen overflow-hidden md:overflow-visible md:h-auto md:min-h-0 md:w-full z-10"
                             style={{
                                 pointerEvents: isSheetActive ? 'none' : 'auto',
                                 touchAction: isSheetActive ? 'none' : 'auto',
@@ -548,40 +654,47 @@ function ProductItemContent() {
                                 }}
                             >
                                 <div
+                                    ref={mobileEmblaSlidesRef}
                                     className="flex flex-col h-full"
                                     style={{
                                         pointerEvents: isSheetActive ? 'none' : 'auto',
                                         touchAction: isSheetActive ? 'none' : 'auto',
                                     }}
                                 >
-                                    {currentProduct.photos.map((photo, idx) => (
+                                    {currentProduct.photos.map((photo, idx) => {
+                                        const imageUrl = getImageUrl(photo)
+
+                                        return (
                                         <div
-                                            key={idx}
-                                            className="relative min-h-0 flex-[0_0_100vh] w-full h-screen"
+                                            key={`${currentProduct._id}-${imageUrl}-${idx}`}
+                                            className="relative flex-[0_0_auto] w-full shrink-0 flex flex-col pb-2 box-border"
                                             style={{
                                                 pointerEvents: isSheetActive ? 'none' : 'auto',
                                                 touchAction: isSheetActive ? 'none' : 'auto',
                                             }}
                                         >
-                                            <ProductImage
-                                                src={getImageUrl(photo)}
-                                                alt={`${currentProduct.name} ${idx + 1}`}
-                                                fill
-                                                sizes="(max-width: 768px) 100vw, 50vw"
-                                                className="object-cover w-full h-full"
-                                                priority={idx === 0}
-                                                quality={95}
-                                                showSkeleton={idx === 0}
-                                            />
+                                            <div className="relative w-full">
+                                                <ProductImage
+                                                    src={imageUrl}
+                                                    alt={`${currentProduct.name} ${idx + 1}`}
+                                                    fill={false}
+                                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                                    className="block"
+                                                    priority={idx === 0}
+                                                    quality={95}
+                                                    showSkeleton={idx === 0}
+                                                />
+                                            </div>
                                         </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                                 {/* Mobile indicators */}
                                 {currentProduct.photos.length > 1 && (
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-2">
                                         {currentProduct.photos.map((_, idx) => (
                                             <div
-                                                key={idx}
+                                                key={`${currentProduct._id}-indicator-${idx}`}
                                                 className={`w-2 h-2 rounded-full transition-all duration-300 ${currentCarouselIndex === idx
                                                     ? 'bg-[var(--color-green)]'
                                                     : 'bg-[var(--green)]/50'
@@ -591,56 +704,44 @@ function ProductItemContent() {
                                     </div>
                                 )}
                             </div>
-                            {/* Desktop: static image */}
-                            <div className="hidden md:block relative w-full h-full">
-                                {currentProduct.photos && currentProduct.photos.length > 0 && currentProduct.photos[selectedIndex] && (
-                                    <div className="relative w-full h-full">
-                                        <ProductImage
-                                            key={selectedIndex}
-                                            src={getImageUrl(currentProduct.photos[selectedIndex])}
-                                            alt={`${currentProduct.name} ${selectedIndex + 1}`}
-                                            fill
-                                            sizes="50vw"
-                                            className="object-contain object-top"
-                                            priority={selectedIndex === 0}
-                                            quality={95}
-                                            showSkeleton={true}
-                                        />
-                                    </div>
-                                )}
+                            {/* Desktop: фото идут столбиком в потоке документа — реальный скролл, не подмена по индексу */}
+                            <div
+                                ref={desktopGalleryRootRef}
+                                className="hidden md:flex md:flex-col md:gap-2 relative w-full"
+                            >
+                                {currentProduct.photos.map((photo, idx) => {
+                                    const imageUrl = getImageUrl(photo)
+
+                                    return (
+                                        <div
+                                            key={`${currentProduct._id}-desk-${imageUrl}-${idx}`}
+                                            className="relative w-full shrink-0"
+                                        >
+                                            <div className="relative w-full">
+                                                <ProductImage
+                                                    src={imageUrl}
+                                                    alt={`${currentProduct.name} ${idx + 1}`}
+                                                    fill={false}
+                                                    sizes="50vw"
+                                                    className="block"
+                                                    priority={idx === 0}
+                                                    quality={95}
+                                                    showSkeleton={idx === 0}
+                                                />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
-
-                        {/* Thumbnails navigation */}
-                        {currentProduct.photos.length > 1 && (
-                            <div className="md:flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible md:overflow-y-auto md:h-[90vh] md:flex-shrink-0 pb-2 md:pb-0 hidden">
-                                {currentProduct.photos.map((photo, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedIndex(idx)}
-                                        className={`relative flex-shrink-0  w-9 h-16 md:w-11 md:h-18 overflow-hidden border-[1px] transition-all duration-300  ${selectedIndex === idx
-                                            ? 'border-[var(--mint-dark)] bg-white/10'
-                                            : 'border-white/20 bg-white/5 hover:border-white/40'
-                                            }`}
-                                    >
-                                        <ProductImage
-                                            src={getImageUrl(photo)}
-                                            alt={`${currentProduct.name} миниатюра ${idx + 1}`}
-                                            fill
-                                            sizes="96px"
-                                            className="object-cover"
-                                            quality={80}
-                                            showSkeleton={false}
-                                        />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </div>
                 )}
 
-                {/* Desktop only content */}
-                <div className="hidden md:flex md:flex-col w-full md:w-1/2  gap-6">
+                {/* Desktop only content — скролл только после прокрутки всех фото слева */}
+                <div
+                    ref={desktopRightPanelRef}
+                    className={`hidden md:flex md:flex-col sticky top-24 self-start w-full md:w-1/2 md:min-w-0 md:max-w-[50%] md:flex-shrink-0 md:pl-8 md:pr-10 lg:pr-14 gap-6 h-[calc(100dvh-6rem)] min-h-0 ${desktopRightScrollUnlocked ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
+                >
                     {/* Название товара */}
                     <div>
                         <h1 className="text-4xl md:text-5xl font-blauer-nue font-bold mb-2 text-white leading-tight">

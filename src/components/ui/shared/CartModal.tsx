@@ -8,7 +8,7 @@ import { useUserStore } from '@/zustand/user_store/UserStore'
 import Image from 'next/image'
 import Loader from './Loader'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import TelegramLoginModal from './TelegramLoginModal'
+import TelegramLoginModal from './LazyTelegramLoginModal'
 
 interface CartModalProps {
     isOpen: boolean

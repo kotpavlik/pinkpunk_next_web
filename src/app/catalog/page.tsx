@@ -9,7 +9,7 @@ import { useAppStore } from "@/zustand/app_store/AppStore";
 import { useCartStore } from "@/zustand/cart_store/CartStore";
 import { useAdminLoginStore } from "@/zustand/admin_login_store/AdminLoginStore";
 import Loader from "@/components/ui/shared/Loader";
-import TelegramLoginModal from "@/components/ui/shared/TelegramLoginModal";
+import TelegramLoginModal from "@/components/ui/shared/LazyTelegramLoginModal";
 import { ProductResponse } from "@/api/ProductApi";
 import { AdminProducts } from "@/components/ui/admin/AdminProducts";
 

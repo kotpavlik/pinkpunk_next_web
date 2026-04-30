@@ -2,6 +2,7 @@ import React, { memo } from 'react'
 import YandexMapAPI from '../map/YandexMapAPI'
 import InfoBlocks, { AlfaPaymentIcons, CompanyRequisitesBlock } from './InfoBlocks'
 
+const PINK_PUNK_COORDINATES: [number, number] = [27.541278, 53.894522]
 
 const MapSection = memo(function MapSection() {
     return (
@@ -18,7 +19,7 @@ const MapSection = memo(function MapSection() {
                 <YandexMapAPI
                     address="Pink Punk"
                     className="h-[260px] w-full rounded-lg overflow-hidden shadow-lg sm:h-[280px] md:h-full md:min-h-[260px]"
-                    coordinates={[27.541278, 53.894522]}
+                    coordinates={PINK_PUNK_COORDINATES}
                 />
             </div>
 

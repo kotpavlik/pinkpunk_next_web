@@ -11,7 +11,7 @@ import Loader from '@/components/ui/shared/Loader'
 import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
-import TelegramLoginModal from '@/components/ui/shared/TelegramLoginModal'
+import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
 
 export default function UserProfile() {

@@ -1,15 +1,26 @@
 'use client'
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import CarouselSection from "@/components/ui/shared/CarouselSection"
 import CarouselSectionSkeleton from "@/components/ui/shared/CarouselSectionSkeleton"
-import CountdownWidgetVIP from "@/components/ui/shared/CountdownWidgetVIP"
-import CountdownWidgetAll from "@/components/ui/shared/CountdownWidgetAll"
 import { useProductsStore } from "@/zustand/products_store/ProductsStore"
 import { useAppStore } from "@/zustand/app_store/AppStore"
+
+const CountdownWidgetVIP = dynamic(() => import("@/components/ui/shared/CountdownWidgetVIP"), {
+  ssr: false,
+  loading: () => null,
+})
+const CountdownWidgetAll = dynamic(() => import("@/components/ui/shared/CountdownWidgetAll"), {
+  ssr: false,
+  loading: () => null,
+})
+
+const SEASONAL_WIDGETS_END_DATE = new Date('2025-12-31T23:59:59')
 
 export default function Home() {
   const [isVisible, setVisible] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
+  const [shouldShowSeasonalWidgets, setShouldShowSeasonalWidgets] = useState(false)
   const { products, getProducts } = useProductsStore()
   const status = useAppStore((state) => state.status)
 
@@ -21,6 +32,10 @@ export default function Home() {
   useEffect(() => {
     getProducts(false) // Получаем только активные товары
   }, [getProducts])
+
+  useEffect(() => {
+    setShouldShowSeasonalWidgets(new Date() <= SEASONAL_WIDGETS_END_DATE)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,19 +70,20 @@ export default function Home() {
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden="true"
         />
         <div className="absolute inset-0 w-full h-full bg-black/50 z-10">
         </div>
 
-        {/* Новогодние виджеты поверх видео - занимают половину экрана каждый */}
-        <div className="absolute top-20 left-0 right-0 z-30 px-4">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-            <CountdownWidgetVIP />
-            <CountdownWidgetAll />
+        {shouldShowSeasonalWidgets && (
+          <div className="absolute top-20 left-0 right-0 z-30 px-4">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+              <CountdownWidgetVIP />
+              <CountdownWidgetAll />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="absolute inset-0 w-full h-full flex items-end justify-center overflow-hidden z-20" >
           <div className="text-2xl w-[300px] font-blauer-nue font-bold text-center "
