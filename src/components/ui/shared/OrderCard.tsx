@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { PinkPunkOrder } from '@/api/OrderApi'
+import { PinkPunkOrder, isOrderItemProductPopulated } from '@/api/OrderApi'
 import LazyImage from '@/components/common/LazyImage'
 import { formatDate } from '@/feauteres/FormatDate'
 import { useUserStore } from '@/zustand/user_store/UserStore'
@@ -185,7 +185,9 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {order.items && order.items.length > 0 && order.items.slice(0, 4).map((item, index) => (
-                            item.product && item.product.photos && item.product.photos.length > 0 ? (
+                            isOrderItemProductPopulated(item.product) &&
+                            item.product.photos &&
+                            item.product.photos.length > 0 ? (
                                 <div key={index} className="w-10 h-10 flex-shrink-0 rounded overflow-hidden border border-white/10">
                                     <LazyImage
                                         src={item.product.photos[0]}
@@ -402,8 +404,9 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                         <h5 className="text-white font-semibold mb-3 text-base">Товары:</h5>
                                         <div className="space-y-2">
                                             {order.items.map((item, index) => {
-                                                if (!item.product) return null
-                                                const firstPhoto = item.product.photos?.[0]
+                                                if (!isOrderItemProductPopulated(item.product)) return null
+                                                const prod = item.product
+                                                const firstPhoto = prod.photos?.[0]
                                                 return (
                                                     <div key={index} className="bg-white/5 p-3 rounded-lg">
                                                         <div className="flex gap-3">
@@ -411,13 +414,13 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                                                 <div className="relative w-16 h-20 flex-shrink-0 overflow-hidden border border-white/10">
                                                                     <LazyImage
                                                                         src={firstPhoto}
-                                                                        alt={item.product.name || 'Товар'}
+                                                                        alt={prod.name || 'Товар'}
                                                                         className="w-full h-full"
                                                                     />
                                                                 </div>
                                                             )}
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-white font-medium text-sm mb-1">{item.product.name}</p>
+                                                                <p className="text-white font-medium text-sm mb-1">{prod.name}</p>
                                                                 <div className="space-y-1 text-xs text-white/70">
                                                                     <p>Размер: {item.size || 'Не указан'}</p>
                                                                     <p>Количество: {item.quantity} шт</p>

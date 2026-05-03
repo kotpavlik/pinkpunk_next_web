@@ -102,19 +102,32 @@ export const AdminApi = {
      * - refreshToken: hex строка (64 символа) для обновления, живет 30 дней
      */
     async loginAdmin(password: string, userData: Record<string, unknown>): Promise<AxiosResponse<AdminLoginResponse>> {
-        const deviceId = tokenManager.getDeviceId();
-        const deviceInfo = tokenManager.getDeviceInfo();
-        
+        const deviceId = tokenManager.getDeviceId()?.trim() ?? ''
+        if (!deviceId) {
+            throw new Error('Device ID is required')
+        }
+
+        const normalizedUserData: Record<string, unknown> = { ...userData }
+        const rawId = normalizedUserData.userId
+        if (typeof rawId === 'string' && rawId.trim() !== '') {
+            const n = Number(rawId)
+            if (!Number.isNaN(n)) {
+                normalizedUserData.userId = n
+            }
+        }
+
+        const deviceInfo = tokenManager.getDeviceInfo()
+
         const requestData: AdminLoginRequest = {
             password,
-            userData,
+            userData: normalizedUserData,
             deviceId,
-            deviceInfo
-        };
+            deviceInfo: deviceInfo?.trim() ? deviceInfo : undefined,
+        }
 
-        const response = await instance.post<AdminLoginResponse>('/auth/admin-login', requestData);
-        
-        return response;
+        const response = await instance.post<AdminLoginResponse>('/auth/admin-login', requestData)
+
+        return response
     },
 
     /**

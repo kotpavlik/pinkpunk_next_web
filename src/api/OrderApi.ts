@@ -15,22 +15,32 @@ export interface ShippingAddress {
     notes?: string;
 }
 
+/** Карточка товара в позиции заказа (после populate) или только Mongo id */
+export type OrderItemProduct =
+    | string
+    | {
+          _id: string;
+          name: string;
+          price: number;
+          size: string;
+          description?: string;
+          stockQuantity?: number;
+          photos?: string[];
+          category?: string;
+          productId?: string;
+      }
+
 // ===== Элемент заказа (снимок товара из корзины) =====
 export interface OrderItem {
-    product: {
-        _id: string;
-        name: string;
-        price: number;
-        size: string;
-        description?: string;
-        stockQuantity?: number;
-        photos?: string[];
-        category?: string;
-        productId?: string;
-    };
+    product: OrderItemProduct;
     quantity: number;
     price: number;               // цена на момент заказа
     size: string;
+}
+
+/** true, если в позиции пришёл объект товара (после populate), а не только id */
+export function isOrderItemProductPopulated(p: OrderItemProduct): p is Exclude<OrderItemProduct, string> {
+    return typeof p === 'object' && p !== null && 'name' in p
 }
 
 // ===== Полная модель заказа =====
@@ -45,6 +55,8 @@ export interface PinkPunkOrder {
     personalFirstName: string;
     personalLastName: string;
     email: string;
+    /** Снимок email с чекаута (новые заказы); старые без поля */
+    customerEmail?: string;
     shippingAddress?: ShippingAddress;
     paymentMethod?: PaymentMethod;
     subtotal: number;

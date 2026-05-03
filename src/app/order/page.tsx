@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
-import { CreateOrderFromCartRequest } from '@/api/OrderApi'
+import { CreateOrderFromCartRequest, isOrderItemProductPopulated } from '@/api/OrderApi'
 import { fetchYandexSuggestions } from '@/features/yandex_connect/suggestService'
 import Modal from '@/features/modal/Modal'
 import Loader from '@/components/ui/shared/Loader'
@@ -493,12 +493,15 @@ export default function OrderPage() {
                 subtotal: order.subtotal,
                 shippingCost: order.shippingCost,
                 totalAmount: order.totalAmount,
-                items: order.items.map((item) => ({
-                    name: item.product.name,
-                    size: item.size || item.product.size,
-                    quantity: item.quantity,
-                    price: item.price,
-                })),
+                items: order.items.map((item) => {
+                    const pop = isOrderItemProductPopulated(item.product) ? item.product : null
+                    return {
+                        name: pop?.name ?? 'Товар',
+                        size: item.size || pop?.size || '',
+                        quantity: item.quantity,
+                        price: item.price,
+                    }
+                }),
                 payOnlineWithCard: false,
             })
 
