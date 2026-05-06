@@ -12,10 +12,25 @@ export type CrmUserStats = {
     orders?: PinkPunkOrder[]
 }
 
+export type CrmCartLineItem = {
+    quantity: number
+    /** Mongo `_id` карточки товара */
+    productId: string
+    /** Поле `productId` карточки (артикул с витрины), если подтянулось */
+    listingProductId?: string
+    name: string
+    photo: string | null
+    size?: string
+    /** Цена за единицу на момент ответа (если есть) */
+    unitPrice?: number
+}
+
 export type CrmCartSummary = {
     totalItems: number
     totalPrice: number
     lastUpdated: string
+    /** Позиции в порядке из Mongo (если бэкенд отдаёт в CRM) */
+    items?: CrmCartLineItem[]
 }
 
 export type CrmOfflinePurchasesSummary = {
@@ -103,6 +118,11 @@ export type CrmProfile = Omit<CrmListUser, 'stats' | 'offlinePurchasesSummary'> 
     crmOfflinePurchases: CrmOfflineLine[]
 }
 
+/**
+ * Карточка GET /admin/crm/users/:userId.
+ * Текущая корзина — поле `cart` здесь (сводка + опционально `items`); в `profile` корзины нет.
+ * `orders[].cart` — id корзины на момент заказа, не то же самое.
+ */
 export type CrmUserCardResponse = {
     profile: CrmProfile
     orders: PinkPunkOrder[]
@@ -135,7 +155,7 @@ export type CrmUpdateUserDto = {
 export type CrmAddOfflineCatalogBody = {
     kind: 'catalog'
     productId: string
-    quantity: number
+    quantity?: number
     unitPriceOverride?: number
 }
 
@@ -144,12 +164,28 @@ export type CrmAddOfflineCustomBody = {
     customName: string
     customDescription?: string
     customPrice: number
-    quantity: number
+    quantity?: number
 }
 
+/** Ответ POST/DELETE офлайн-покупки; `productStock` только для каталожных операций */
 export type CrmOfflinePurchasesMutationResponse = {
     success: boolean
     crmOfflinePurchases: CrmOfflineLine[]
+    productStock?: {
+        productId: string
+        stockQuantity: number
+    }
+}
+
+/** Тело ошибки 409 при нехватке остатка */
+export type CrmInsufficientStockErrorBody = {
+    statusCode?: number
+    message?: string
+    code?: 'INSUFFICIENT_STOCK'
+    requestedQty?: number
+    availableQty?: number
+    productId?: string
+    productName?: string
 }
 
 function unwrapList<T>(data: unknown): T[] {
@@ -207,9 +243,9 @@ export const CrmApi = {
         throw new Error('Неожиданный формат ответа карточки CRM')
     },
 
-    async patchUser(telegramUserId: number, body: CrmUpdateUserDto) {
-        const { data } = await instance.patch<CrmProfile>(crmPath(`/admin/crm/users/${telegramUserId}`), body)
-        return data
+    /** Ответ тела не используем — актуальное состояние берётся через getUserCard после сохранения. */
+    async patchUser(telegramUserId: number, body: CrmUpdateUserDto): Promise<void> {
+        await instance.patch<unknown>(crmPath(`/admin/crm/users/${telegramUserId}`), body)
     },
 
     async addOfflinePurchase(telegramUserId: number, body: CrmAddOfflineCatalogBody | CrmAddOfflineCustomBody) {
@@ -220,8 +256,8 @@ export const CrmApi = {
         return data
     },
 
-    async deleteOfflineLine(telegramUserId: number, lineId: string) {
-        const { data } = await instance.delete<{ success: boolean }>(
+    async deleteOfflineLine(telegramUserId: number, lineId: string): Promise<CrmOfflinePurchasesMutationResponse> {
+        const { data } = await instance.delete<CrmOfflinePurchasesMutationResponse>(
             crmPath(`/admin/crm/users/${telegramUserId}/offline-purchases/${lineId}`)
         )
         return data
