@@ -9,6 +9,7 @@ import { CrmApi, type CrmListUser } from '@/api/CrmApi'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailModal'
 import { tokenManager } from '@/utils/TokenManager'
+import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 
 function formatCrmLoadError(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
@@ -134,7 +135,6 @@ const AdminUsers = () => {
             setUsers(data)
             setStatus('success')
         } catch (e) {
-            console.error(e)
             setUsers([])
             setLoadError(formatCrmLoadError(e))
             setStatus('failed')
@@ -152,12 +152,14 @@ const AdminUsers = () => {
         let list = users.filter(u => {
             if (search) {
                 const hit =
+                    u._id?.toLowerCase().includes(search) ||
+                    (u.telegramUserId != null && u.telegramUserId.toString().includes(search)) ||
+                    u.userId?.toString().includes(search) ||
                     u.username?.toLowerCase().includes(search) ||
                     u.firstName?.toLowerCase().includes(search) ||
                     u.lastName?.toLowerCase().includes(search) ||
                     u.personalFirstName?.toLowerCase().includes(search) ||
                     u.personalLastName?.toLowerCase().includes(search) ||
-                    u.userId?.toString().includes(search) ||
                     u.email?.toLowerCase().includes(search) ||
                     resolvedUserPhone(u).toLowerCase().includes(search)
                 if (!hit) return false
@@ -230,7 +232,7 @@ const AdminUsers = () => {
                 <div className="mb-4 space-y-3">
                     <input
                         type="text"
-                        placeholder="Поиск по имени, username, Telegram ID или телефону..."
+                        placeholder="Поиск по имени, username, accountId, Telegram ID или телефону..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-white placeholder-white/50 focus:outline-none focus:border-[var(--mint-bright)] transition-all"
@@ -252,7 +254,9 @@ const AdminUsers = () => {
                                 onChange={e => setOnlyWithOrders(e.target.checked)}
                                 className="rounded border-white/30 bg-white/10 text-[var(--mint-bright)] focus:ring-[var(--mint-bright)]"
                             />
-                            <span className="text-white/90">Только с заказами</span>
+                            <span className="text-white/90" title="Фильтр по stats.ordersTotal в ответе GET /admin/crm/users (онлайн-заказы). В карточке список берётся из поля orders в GET …/users/:id — при расхождении смотрите подсказку во вкладке «Заказы».">
+                                Только с заказами
+                            </span>
                         </label>
                         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                             <input
@@ -350,6 +354,7 @@ const AdminUsers = () => {
                                 const onlineSum = u.stats?.totalSpent ?? 0
                                 const offlineSum = off?.totalAmount ?? 0
                                 const totalAll = onlineSum + offlineSum
+                                const crmAccountId = accountObjectIdFromCrmListRow(u)
                                 const tgName =
                                     [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
                                     (u.username ? `@${u.username}` : '—')
@@ -357,17 +362,28 @@ const AdminUsers = () => {
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
                                 return (
                                     <div
-                                        key={u._id || String(u.userId)}
+                                        key={u._id}
                                         role="button"
                                         tabIndex={0}
-                                        onClick={() => setDetailRow(u)}
+                                        onClick={() => {
+                                            if (crmAccountId) setDetailRow(u)
+                                        }}
                                         onKeyDown={(e: KeyboardEvent) => {
                                             if (e.key === 'Enter' || e.key === ' ') {
                                                 e.preventDefault()
-                                                setDetailRow(u)
+                                                if (crmAccountId) setDetailRow(u)
                                             }
                                         }}
-                                        className="text-left bg-white/10 backdrop-blur-sm border border-white/20 p-2.5 hover:border-[var(--mint-bright)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] cursor-pointer"
+                                        title={
+                                            crmAccountId
+                                                ? 'Открыть карточку CRM'
+                                                : 'Нет валидного Mongo ObjectId в _id — проверьте ответ GET /admin/crm/users'
+                                        }
+                                        className={`text-left bg-white/10 backdrop-blur-sm border border-white/20 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${
+                                            crmAccountId
+                                                ? 'hover:border-[var(--mint-bright)] cursor-pointer'
+                                                : 'cursor-not-allowed opacity-60'
+                                        }`}
                                     >
                                         <div className="min-w-0 space-y-1 text-[10px] leading-snug">
                                             <div className="flex items-center justify-between gap-2">

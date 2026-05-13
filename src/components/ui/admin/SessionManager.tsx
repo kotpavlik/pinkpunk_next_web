@@ -15,7 +15,8 @@ export const SessionManager: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
-    const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    /** Mongo ObjectId для POST /auth/owner/revoke-any-session */
+    const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [successMessage, setSuccessMessage] = useState<string>('');
 
@@ -87,9 +88,9 @@ export const SessionManager: React.FC = () => {
         }
     }, [viewMode, isOwner, loadMySessions, loadAllAdminSessions]);
 
-    const handleRevokeClick = (session: SessionInfo, userId?: number) => {
+    const handleRevokeClick = (session: SessionInfo, targetAccountId?: string) => {
         setSelectedSession(session);
-        setSelectedUserId(userId || null);
+        setSelectedAccountId(targetAccountId ?? null);
         setShowConfirmModal(true);
     };
 
@@ -100,8 +101,8 @@ export const SessionManager: React.FC = () => {
         setErrorMessage('');
 
         try {
-            if (viewMode === 'all-sessions' && selectedUserId !== null && isOwner) {
-                success = await revokeAnySession(selectedUserId, selectedSession.jti);
+            if (viewMode === 'all-sessions' && selectedAccountId !== null && isOwner) {
+                success = await revokeAnySession(selectedAccountId, selectedSession.jti);
                 if (success) {
                     setSuccessMessage('✅ Сессия успешно завершена');
                     await loadAllAdminSessions();
@@ -128,13 +129,13 @@ export const SessionManager: React.FC = () => {
 
         setShowConfirmModal(false);
         setSelectedSession(null);
-        setSelectedUserId(null);
+        setSelectedAccountId(null);
     };
 
     const handleCancelRevoke = () => {
         setShowConfirmModal(false);
         setSelectedSession(null);
-        setSelectedUserId(null);
+        setSelectedAccountId(null);
     };
 
     const handleLogoutMySessions = async () => {
@@ -366,15 +367,25 @@ export const SessionManager: React.FC = () => {
                     </p>
                 ) : (
                     <div className="space-y-6">
-                        {allAdminSessions.map((admin) => (
-                            <div key={admin.userId} className="border border-white/10 p-4 bg-white/5 backdrop-blur-md">
+                        {allAdminSessions.map((admin) => {
+                            const accountId = admin.accountId?.trim()
+                            const revokeKey = accountId ?? `tg-${admin.userId ?? 'unknown'}`
+                            return (
+                            <div key={revokeKey} className="border border-white/10 p-4 bg-white/5 backdrop-blur-md">
                                 <h3 className="text-lg font-bold text-[var(--mint-bright)] mb-3 font-durik">
                                     👤 @{admin.username}
+                                    {accountId ? (
+                                        <span className="text-sm text-white/60 ml-2 break-all">
+                                            (accountId: {accountId})
+                                        </span>
+                                    ) : admin.userId != null ? (
+                                        <span className="text-sm text-amber-400/90 ml-2">
+                                            (нет accountId в ответе API — отзыв сессии недоступен)
+                                        </span>
+                                    ) : null}
                                     <span className="text-sm text-white/60 ml-2">
-                                        (ID: {admin.userId})
-                                    </span>
-                                    <span className="text-sm text-white/60 ml-2">
-                                        — {admin.sessions.length} {admin.sessions.length === 1 ? 'сессия' : 'сессий'}
+                                        — {admin.sessions.length}{' '}
+                                        {admin.sessions.length === 1 ? 'сессия' : 'сессий'}
                                     </span>
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -412,9 +423,15 @@ export const SessionManager: React.FC = () => {
                                                         </div>
                                                     </div>
                                                     <button
-                                                        onClick={() => handleRevokeClick(session, admin.userId)}
-                                                        className="ml-4 p-2 text-[var(--pink-punk)] hover:opacity-80 transition-colors"
-                                                        title="Закрыть сессию"
+                                                        type="button"
+                                                        disabled={!accountId}
+                                                        onClick={() => accountId && handleRevokeClick(session, accountId)}
+                                                        className="ml-4 p-2 text-[var(--pink-punk)] hover:opacity-80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        title={
+                                                            accountId
+                                                                ? 'Закрыть сессию'
+                                                                : 'Нужен accountId от бэкенда'
+                                                        }
                                                     >
                                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -426,7 +443,8 @@ export const SessionManager: React.FC = () => {
                                     })}
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )
             )}

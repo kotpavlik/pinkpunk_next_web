@@ -1,5 +1,6 @@
 import { instance } from './Api'
 import type { PinkPunkOrder, ShippingAddress } from './OrderApi'
+import { requireMongoObjectIdString } from '@/utils/mongoObjectId'
 
 /** Сводка + полные заказы в списке CRM (GET /admin/crm/users) */
 export type CrmUserStats = {
@@ -38,10 +39,20 @@ export type CrmOfflinePurchasesSummary = {
     totalAmount: number
 }
 
-/** Элемент списка клиентов CRM */
+/** Элемент списка клиентов CRM. В URL карточки только Mongo `row._id` (§13), не telegramUserId. */
 export type CrmListUser = {
+    /** Mongo ObjectId аккаунта — тот же `accountId` для `/admin/crm/users/:_id`. */
     _id: string
-    userId: number
+    /** Дубликат accountId, если бэкенд явно шлёт; для URL всегда брать `_id` первым (см. `accountObjectIdFromCrmListRow`). */
+    accountId?: string
+    id?: string
+    /** Telegram id, если аккаунт с ботом; у чисто телефонного может отсутствовать. */
+    telegramUserId?: number | null
+    /**
+     * Legacy: в старых ответах Telegram id мог приходить как `userId`.
+     * @deprecated предпочтительно `telegramUserId`
+     */
+    userId?: number
     username?: string
     firstName?: string
     lastName?: string
@@ -119,7 +130,7 @@ export type CrmProfile = Omit<CrmListUser, 'stats' | 'offlinePurchasesSummary'> 
 }
 
 /**
- * Карточка GET /admin/crm/users/:userId.
+ * Карточка GET /admin/crm/users/:accountId (Mongo ObjectId аккаунта).
  * Текущая корзина — поле `cart` здесь (сводка + опционально `items`); в `profile` корзины нет.
  * `orders[].cart` — id корзины на момент заказа, не то же самое.
  */
@@ -130,7 +141,7 @@ export type CrmUserCardResponse = {
     cart: CrmCartSummary | null
 }
 
-/** PATCH /admin/crm/users/:userId — только разрешённые поля, без owner */
+/** PATCH /admin/crm/users/:accountId — только разрешённые поля, без owner */
 export type CrmUpdateUserDto = {
     personalFirstName?: string
     personalLastName?: string
@@ -188,6 +199,34 @@ export type CrmInsufficientStockErrorBody = {
     productName?: string
 }
 
+/**
+ * Карточка CRM: бэкенд обязан отдавать `profile`, а `orders` иногда опускают при `[]`.
+ * Раньше требование `'orders' in body` ломало парсинг и вкладку «Заказы».
+ */
+function normalizeCrmUserCardPayload(raw: unknown): CrmUserCardResponse | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    if (o.profile == null || typeof o.profile !== 'object') return null
+
+    const p = o.profile as Record<string, unknown>
+    const profile: CrmProfile = {
+        ...(p as unknown as CrmProfile),
+        crmOfflinePurchases: Array.isArray(p.crmOfflinePurchases)
+            ? (p.crmOfflinePurchases as CrmOfflineLine[])
+            : [],
+    }
+
+    const orders = Array.isArray(o.orders) ? (o.orders as PinkPunkOrder[]) : []
+
+    const referralsCount = typeof o.referralsCount === 'number' ? o.referralsCount : 0
+
+    let cart: CrmCartSummary | null = null
+    if (o.cart === null) cart = null
+    else if (o.cart && typeof o.cart === 'object') cart = o.cart as CrmCartSummary
+
+    return { profile, orders, referralsCount, cart }
+}
+
 function unwrapList<T>(data: unknown): T[] {
     if (Array.isArray(data)) return data as T[]
     if (data && typeof data === 'object') {
@@ -214,51 +253,46 @@ export const CrmApi = {
     async getUsers(): Promise<CrmListUser[]> {
         const path = crmPath('/admin/crm/users')
         const { data } = await instance.get<unknown>(path)
-        console.log('[CRM] GET', path, '— сырой ответ:', data)
-        const list = unwrapList<CrmListUser>(data)
-        console.log('[CRM] Пользователей после unwrap:', list.length)
-        if (list.length > 0) {
-            console.log('[CRM] Первый пользователь (пример):', list[0])
-        }
-        return list
+        return unwrapList<CrmListUser>(data)
     },
 
-    async getUserCard(telegramUserId: number): Promise<CrmUserCardResponse> {
-        const path = crmPath(`/admin/crm/users/${telegramUserId}`)
+    async getUserCard(accountId: string): Promise<CrmUserCardResponse> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const path = crmPath(`/admin/crm/users/${encodeURIComponent(id)}`)
         const { data: raw } = await instance.get<unknown>(path)
-        console.log('[CRM] GET', path, '— сырой ответ:', raw)
-        if (raw && typeof raw === 'object' && 'profile' in raw && 'orders' in raw) {
-            const card = raw as CrmUserCardResponse
-            console.log('[CRM] Карточка: заказов', card.orders?.length ?? 0, 'рефералов', card.referralsCount)
+
+        let card = normalizeCrmUserCardPayload(raw)
+        if (!card && raw && typeof raw === 'object' && 'data' in raw) {
+            card = normalizeCrmUserCardPayload((raw as { data: unknown }).data)
+        }
+        if (card) {
             return card
         }
-        if (raw && typeof raw === 'object' && 'data' in raw) {
-            const inner = (raw as { data: unknown }).data
-            if (inner && typeof inner === 'object' && 'profile' in inner) {
-                const card = inner as CrmUserCardResponse
-                console.log('[CRM] Карточка (в обёртке data): заказов', card.orders?.length ?? 0)
-                return card
-            }
-        }
-        throw new Error('Неожиданный формат ответа карточки CRM')
+
+        throw new Error('Неожиданный формат ответа карточки CRM (ожидается объект с profile)')
     },
 
-    /** Ответ тела не используем — актуальное состояние берётся через getUserCard после сохранения. */
-    async patchUser(telegramUserId: number, body: CrmUpdateUserDto): Promise<void> {
-        await instance.patch<unknown>(crmPath(`/admin/crm/users/${telegramUserId}`), body)
+    async patchUser(accountId: string, body: CrmUpdateUserDto): Promise<void> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        await instance.patch<unknown>(crmPath(`/admin/crm/users/${encodeURIComponent(id)}`), body)
     },
 
-    async addOfflinePurchase(telegramUserId: number, body: CrmAddOfflineCatalogBody | CrmAddOfflineCustomBody) {
+    async addOfflinePurchase(
+        accountId: string,
+        body: CrmAddOfflineCatalogBody | CrmAddOfflineCustomBody,
+    ) {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
         const { data } = await instance.post<CrmOfflinePurchasesMutationResponse>(
-            crmPath(`/admin/crm/users/${telegramUserId}/offline-purchases`),
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/offline-purchases`),
             body
         )
         return data
     },
 
-    async deleteOfflineLine(telegramUserId: number, lineId: string): Promise<CrmOfflinePurchasesMutationResponse> {
+    async deleteOfflineLine(accountId: string, lineId: string): Promise<CrmOfflinePurchasesMutationResponse> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
         const { data } = await instance.delete<CrmOfflinePurchasesMutationResponse>(
-            crmPath(`/admin/crm/users/${telegramUserId}/offline-purchases/${lineId}`)
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/offline-purchases/${encodeURIComponent(lineId)}`)
         )
         return data
     },

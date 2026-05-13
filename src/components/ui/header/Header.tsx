@@ -207,16 +207,16 @@ export default function Header() {
                         <div className="flex items-center justify-center md:gap-2">
                             <button
                                 onClick={() => {
-                                    if (user.userId) {
+                                    if (user._id) {
                                         router.push('/user_profile')
                                     } else {
                                         setIsLoginModalOpen(true)
                                     }
                                 }}
                                 className="inline-flex items-center justify-center p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-200 transform hover:scale-105"
-                                aria-label={isMounted && user.userId ? 'Профиль пользователя' : 'Войти через Telegram'}
+                                aria-label={isMounted && user._id ? 'Профиль пользователя' : 'Войти'}
                             >
-                                {isMounted && user.userId ? (
+                                {isMounted && user._id ? (
                                     <div className="h-6 w-6 rounded-full overflow-hidden">
                                         <AvatarLoader className="w-full h-full" />
                                     </div>

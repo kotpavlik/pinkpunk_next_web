@@ -98,7 +98,6 @@ export default function ProductImage({
                     loading={priority ? undefined : loading}
                     onLoad={() => setImageLoaded(true)}
                     onError={() => {
-                        console.warn(`Не удалось загрузить изображение: ${src}`)
                         setImageError(true)
                         setImageLoaded(true)
                     }}
@@ -126,7 +125,6 @@ export default function ProductImage({
                 loading={priority ? undefined : loading}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => {
-                    console.warn(`Не удалось загрузить изображение: ${src}`)
                     setImageError(true)
                     setImageLoaded(true)
                 }}

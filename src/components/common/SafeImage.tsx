@@ -33,7 +33,6 @@ export default function SafeImage({
     }
 
     const handleError = () => {
-        console.warn(`Ошибка загрузки изображения: ${currentSrc}`)
         if (currentSrc !== fallbackSrc) {
             setCurrentSrc(fallbackSrc)
             setImageError(true)

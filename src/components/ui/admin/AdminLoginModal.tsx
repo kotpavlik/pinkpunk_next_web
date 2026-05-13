@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import TelegramAnimation from '@/../public/animations/telegram.json'
+import TelegramLottieJson from '@/components/ui/shared/TelegramLottieJson'
 import LoginForm from '@/components/ui/admin/LoginForm'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { useUserStore } from '@/zustand/user_store/UserStore'
@@ -28,7 +27,7 @@ export default function AdminLoginModal({
     const isAdmin = useUserStore((state) => state.isAdmin())
     const router = useRouter()
 
-    const isUserLoggedIn = isAuthenticated() && (userData._id || userData.userId)
+    const isUserLoggedIn = isAuthenticated() && Boolean(userData._id)
 
     useEffect(() => {
         setMounted(true)
@@ -160,7 +159,7 @@ export default function AdminLoginModal({
                     <div className="space-y-4">
                         <div className="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg mb-4">
                             <p className="text-yellow-200 text-sm text-center">
-                                Для доступа к админ-панели необходимо сначала войти как пользователь через Telegram
+                                Для доступа к админ-панели необходимо сначала войти в аккаунт по номеру телефона или через Telegram
                             </p>
                         </div>
                         <button
@@ -169,10 +168,8 @@ export default function AdminLoginModal({
                         >
 
                             <div className="w-40 h-40 flex items-center justify-center">
-                                <DotLottieReact
-                                    data={TelegramAnimation}
-                                    loop={true}
-                                    autoplay={true}
+                                <TelegramLottieJson
+                                    loop
                                     style={{
                                         width: '100%',
                                         height: '100%',
@@ -211,7 +208,7 @@ export default function AdminLoginModal({
                 {!isCheckingToken && !isLoggingOut && !isAdmin && isUserLoggedIn && (
                     <LoginForm
                         _id={userData._id || ''}
-                        userId={userData.userId !== null ? String(userData.userId) : null}
+                        telegramUserId={userData.telegramUserId ?? null}
                         username={userData.username || ''}
                         onSuccess={() => {
                             onClose()

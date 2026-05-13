@@ -66,7 +66,10 @@ export interface RevokeSessionResponse {
 
 // Owner-specific interfaces
 export interface AdminSessionData {
-    userId: number;
+    /** Mongo ObjectId аккаунта для owner revoke-any-session */
+    accountId?: string;
+    /** Старый ответ мог отдавать только Telegram id для группировки */
+    userId?: number;
     username: string;
     sessions: SessionInfo[];
 }
@@ -79,7 +82,7 @@ export interface GetAllAdminSessionsResponse {
 }
 
 export interface RevokeAnySessionRequest {
-    targetUserId: number;
+    targetAccountId: string;
     jti: string;
 }
 
@@ -227,13 +230,13 @@ export const AdminApi = {
     },
 
     /**
-     * Revoke any user's session by userId and JTI (only for owners)
+     * Revoke any user's session by account Mongo id and JTI (only for owners)
      * Требует Authorization header с accessToken
      * Защищено OwnerGuard на бэкенде
      */
-    async revokeAnySession(targetUserId: number, jti: string): Promise<AxiosResponse<RevokeAnySessionResponse>> {
+    async revokeAnySession(targetAccountId: string, jti: string): Promise<AxiosResponse<RevokeAnySessionResponse>> {
         const requestData: RevokeAnySessionRequest = {
-            targetUserId,
+            targetAccountId,
             jti
         };
         

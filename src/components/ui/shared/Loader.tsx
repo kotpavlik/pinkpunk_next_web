@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
+import TelegramLottieJson from '@/components/ui/shared/TelegramLottieJson'
 import LoadingCatAnimation from '@/../public/animations/LoadingCat.json'
 import EmptyAnimation from '@/../public/animations/empty.json'
 import TelegramAnimation from '@/../public/animations/telegram.json'
@@ -96,17 +97,30 @@ export default function Loader({
                 {/* Lottie loader */}
                 <div className={`relative ${sizeClasses[size]} flex items-center justify-center`} style={{ minHeight: '256px', width: '100%' }}>
                     <div style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '200px', flexShrink: 0 }}>
-                        <DotLottieReact
-                            data={animationData as Parameters<typeof DotLottieReact>[0]['data']}
-                            loop={loop}
-                            autoplay={autoplay}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                display: 'block',
-                                minWidth: '100%',
-                            }}
-                        />
+                        {src === '/animations/telegram.lottie' ? (
+                            <TelegramLottieJson
+                                loop={loop}
+                                autoplay={autoplay}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    display: 'block',
+                                    minWidth: '100%',
+                                }}
+                            />
+                        ) : (
+                            <DotLottieReact
+                                data={animationData as Parameters<typeof DotLottieReact>[0]['data']}
+                                loop={loop}
+                                autoplay={autoplay}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    display: 'block',
+                                    minWidth: '100%',
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
                 {showText && (

@@ -46,7 +46,7 @@ export default function UserProfile() {
 
             try {
                 // Если пользователь не авторизован, перенаправляем на главную
-                if (!user.userId) {
+                if (!user._id) {
                     router.push('/')
                     return
                 }
@@ -86,25 +86,19 @@ export default function UserProfile() {
 
         setIsMounted(true)
         checkAndRefreshTokens()
-    }, [user.userId, router])
+    }, [user._id, router])
 
     // Эффект для завершения инициализации после проверки токенов
     useEffect(() => {
-        if (!isCheckingToken && user.userId) {
+        if (!isCheckingToken && user._id) {
             // Завершаем инициализацию после небольшой задержки для плавности
             setTimeout(() => {
                 setIsInitialLoad(false)
             }, 300)
         }
-    }, [isCheckingToken, user.userId])
+    }, [isCheckingToken, user._id])
 
-    // Эффект для закрытия модалки авторизации после успешного логина
-    useEffect(() => {
-        if (isLoginModalOpen && tokenManager.isAuthenticated() && user._id) {
-            // Если пользователь успешно авторизовался, закрываем модалку
-            setIsLoginModalOpen(false)
-        }
-    }, [isLoginModalOpen, user._id])
+    // Закрытие модалки только из TelegramLoginModal.onClose после успешного входа; авто‑закрытие при появлении токена ломало SMS‑OTP.
 
     // Подтверждаем оплату после возврата из Alfa. Сам редирект на профиль не считается оплатой.
     useEffect(() => {
@@ -114,10 +108,7 @@ export default function UserProfile() {
         const ct = params.get('ct')
         const orderId = params.get('orderId')
 
-        console.log('[PaymentReturn:user_profile] return params:', { ct, orderId })
-
         if (!ct || !orderId) {
-            console.log('[PaymentReturn:user_profile] skipped: missing ct or orderId')
             return
         }
 
@@ -126,9 +117,7 @@ export default function UserProfile() {
 
         const confirmPayment = async () => {
             try {
-                console.log('[PaymentReturn:user_profile] checking payment status:', { orderId, ct })
                 const result = await useOrderStore.getState().updatePaymentStatus(orderId, ct)
-                console.log('[PaymentReturn:user_profile] payment status response:', result)
 
                 if (result.paid) {
                     setPaymentMessage({
@@ -138,10 +127,7 @@ export default function UserProfile() {
                     })
                     if (user._id) {
                         await getMyOrders(user._id)
-                        console.log('[PaymentReturn:user_profile] orders refreshed after successful payment')
                         setHasLoaded(true)
-                    } else {
-                        console.log('[PaymentReturn:user_profile] skipped orders refresh: user._id is not ready')
                     }
                 } else {
                     setPaymentMessage({
@@ -149,17 +135,14 @@ export default function UserProfile() {
                         title: result.actionCodeMessage || 'Оплата не подтверждена',
                         description: result.actionCodeDescription,
                     })
-                    console.log('[PaymentReturn:user_profile] payment is not confirmed by backend')
                 }
-            } catch (error) {
-                console.error('[PaymentReturn:user_profile] payment status check failed:', error)
+            } catch {
                 setPaymentMessage({
                     type: 'error',
                     title: 'Не удалось проверить оплату',
                     description: 'Попробуйте обновить список заказов или свяжитесь с менеджером.',
                 })
             } finally {
-                console.log('[PaymentReturn:user_profile] cleaning return query params')
                 router.replace('/user_profile', { scroll: true })
             }
         }
@@ -170,10 +153,10 @@ export default function UserProfile() {
     // Отдельный эффект для загрузки заказов - срабатывает когда user._id становится доступным
     useEffect(() => {
         // Загружаем заказы пользователя только если:
-        // 1. Пользователь авторизован (user.userId есть)
+        // 1. Пользователь авторизован (есть accountId / _id)
         // 2. user._id доступен
         // 3. Еще не загружали заказы (!hasLoaded)
-        if (user.userId && user._id && !hasLoaded) {
+        if (user._id && !hasLoaded) {
             const userId = user._id
             getMyOrders(userId).then(() => {
                 setHasLoaded(true)
@@ -181,7 +164,7 @@ export default function UserProfile() {
                 // Ошибка загрузки заказов
             })
         }
-    }, [user._id, user.userId, hasLoaded, getMyOrders])
+    }, [user._id, hasLoaded, getMyOrders])
 
     const handleRefresh = useCallback(() => {
         if (user._id) {
@@ -199,7 +182,7 @@ export default function UserProfile() {
         router.push('/')
     }
 
-    if (!isMounted || !user.userId) {
+    if (!isMounted || !user._id) {
         return null
     }
 
@@ -302,9 +285,9 @@ export default function UserProfile() {
                                         @{user.username}
                                     </p>
                                 )}
-                                {user.userId && (
+                                {user.telegramUserId != null && (
                                     <p className="text-white/50 text-xs">
-                                        ID: {user.userId}
+                                        Telegram ID: {user.telegramUserId}
                                     </p>
                                 )}
                             </div>
@@ -522,8 +505,9 @@ export default function UserProfile() {
                                         Оформите первый заказ в нашем магазине и начните получать удовольствие от покупок!
                                     </p>
                                     <button
+                                        type="button"
                                         onClick={() => router.push('/catalog')}
-                                        className="mt-6 px-6 py-3 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] text-white font-bold rounded-xl transition-all transform hover:scale-105 hover:shadow-lg"
+                                        className="mt-6 px-6 py-3 bg-[var(--pink-punk)] text-white font-bold rounded-xl transition-all hover:opacity-90 hover:shadow-lg active:opacity-100"
                                     >
                                         Перейти к покупкам
                                     </button>

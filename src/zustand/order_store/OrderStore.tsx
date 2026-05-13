@@ -382,8 +382,6 @@ export const useOrderStore = create<OrderState>()(
         },
 
         updatePaymentStatus: async (orderId: string, ct: string) => {
-            console.log('[PaymentStatus:store] start:', { orderId, ct });
-
             set((state) => {
                 state.isUpdating = true;
                 state.error = null;
@@ -391,25 +389,21 @@ export const useOrderStore = create<OrderState>()(
 
             try {
                 const paymentStatus = await OrderApi.updatePaymentStatus(orderId, ct);
-                console.log('[PaymentStatus:store] backend response:', paymentStatus);
 
                 if (paymentStatus.order) {
                     set((state) => {
                         const userIndex = state.orders.findIndex(o => o._id === paymentStatus.order!._id);
                         if (userIndex !== -1) {
                             state.orders[userIndex] = { ...state.orders[userIndex], ...paymentStatus.order };
-                            console.log('[PaymentStatus:store] updated user order in store:', paymentStatus.order);
                         }
 
                         const allOrdersIndex = state.allOrders.findIndex(o => o._id === paymentStatus.order!._id);
                         if (allOrdersIndex !== -1) {
                             state.allOrders[allOrdersIndex] = { ...state.allOrders[allOrdersIndex], ...paymentStatus.order };
-                            console.log('[PaymentStatus:store] updated admin order in store:', paymentStatus.order);
                         }
 
                         if (state.currentOrder?._id === paymentStatus.order!._id) {
                             state.currentOrder = { ...state.currentOrder, ...paymentStatus.order };
-                            console.log('[PaymentStatus:store] updated current order in store:', paymentStatus.order);
                         }
                     });
                 }
@@ -420,7 +414,6 @@ export const useOrderStore = create<OrderState>()(
 
                 return paymentStatus;
             } catch (error) {
-                console.error('[PaymentStatus:store] failed:', error);
                 const errorMessage = HandleError(error);
                 set((state) => {
                     state.error = errorMessage;

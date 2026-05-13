@@ -98,8 +98,8 @@ export default function TelegramLoginWidget({
             dataOnauth: (user: TelegramUser) => {
                 try {
                     onAuthRef.current?.(user)
-                } catch (error) {
-                    console.error('[TelegramWidget] Ошибка в onAuth:', error)
+                } catch {
+                    /* ignore */
                 }
             }
         }

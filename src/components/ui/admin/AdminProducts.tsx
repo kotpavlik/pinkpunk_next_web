@@ -84,7 +84,6 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
     const handleSubmit = useCallback(async () => {
         // Проверяем, что все необходимые функции доступны
         if (!validateForm || !createProduct || !updateProductData) {
-            console.error('Не все необходимые функции инициализированы')
             setErrors({ general: 'Ошибка инициализации формы' })
             return
         }

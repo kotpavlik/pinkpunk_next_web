@@ -47,7 +47,9 @@ export function isOrderItemProductPopulated(p: OrderItemProduct): p is Exclude<O
 export interface PinkPunkOrder {
     _id: string;
     orderNumber: string;
-    userId: string;
+    accountId?: string;
+    /** @deprecated в документе заказа владелец — accountId */
+    userId?: string;
     cart: string;                // ID корзины (строка)
     items: OrderItem[];          // Товары в заказе (снимок корзины)
     status: OrderStatus;
@@ -72,7 +74,7 @@ export interface PinkPunkOrder {
 
 // Создание из корзины (CreateOrderFromCartDto)
 export interface CreateOrderFromCartRequest {
-    userId: string;
+    accountId: string;
     cartId: string;
     userPhoneNumber: string;
     personalFirstName: string;
@@ -195,8 +197,8 @@ export class OrderApi {
     }
 
     // Получить заказы пользователя (для пользователя)
-    static async getUserOrders(userId: string): Promise<ListOrdersResponse> {
-        const { data: res } = await instance.get<ListOrdersResponse>(`/orders/user/${userId}`);
+    static async getUserOrders(accountId: string): Promise<ListOrdersResponse> {
+        const { data: res } = await instance.get<ListOrdersResponse>(`/orders/user/${accountId}`);
         return res;
     }
 
@@ -248,8 +250,8 @@ export class OrderApi {
         return res;
     }
 
-    static async getMyOrders(userId: string): Promise<ListOrdersResponse> {
-        const response = await instance.get<ListOrdersResponse>(`/orders/my/${userId}`);
+    static async getMyOrders(accountId: string): Promise<ListOrdersResponse> {
+        const response = await instance.get<ListOrdersResponse>(`/orders/my/${accountId}`);
         
         // Проверяем, если ответ обёрнут в объект
         type ResponseWrapper = { orders?: ListOrdersResponse; data?: ListOrdersResponse };

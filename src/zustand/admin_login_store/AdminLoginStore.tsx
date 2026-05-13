@@ -20,17 +20,19 @@ export type AdminLoginType = {
     logoutAllDevices: () => Promise<void>
     // Owner-only methods
     getAllAdminSessions: () => Promise<AdminSessionData[]>
-    revokeAnySession: (targetUserId: number, jti: string) => Promise<boolean>
+    revokeAnySession: (targetAccountId: string, jti: string) => Promise<boolean>
     revokeAllAdminSessions: () => Promise<{ affected: number }>
 }
 
 export type LoginDataType = {
     password: string,
     userData: {
-        userId: string,
         username: string,
-        _id: string
-    }
+        _id?: string,
+        telegramUserId?: number,
+        /** legacy: только для старых сценариев */
+        userId?: number,
+    },
 }
 
 export const useAdminLoginStore = create<AdminLoginType>()(
@@ -208,10 +210,10 @@ export const useAdminLoginStore = create<AdminLoginType>()(
             }
         },
 
-        revokeAnySession: async (targetUserId: number, jti: string): Promise<boolean> => {
+        revokeAnySession: async (targetAccountId: string, jti: string): Promise<boolean> => {
 
             try {
-                await AdminApi.revokeAnySession(targetUserId, jti)
+                await AdminApi.revokeAnySession(targetAccountId, jti)
                 return true
             } catch (error: unknown) {
                 // Извлекаем детальную информацию об ошибке

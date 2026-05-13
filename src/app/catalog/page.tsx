@@ -98,9 +98,9 @@ const Catalog = () => {
         }
     }, [cartError, setCartError])
 
-    // Обработка добавления товара после логина
+    // Обработка добавления товара после логина (не трогаем пока модалка открыта — иначе фоновый refresh токена закроет её до OTP)
     useEffect(() => {
-        if (pendingProduct && user._id && isAuthenticated()) {
+        if (pendingProduct && user._id && isAuthenticated() && !isLoginModalOpen) {
             const handleAddToCart = async () => {
                 const productKey = pendingProduct.productId
                 if (isAddingToCart[productKey]) {
@@ -139,7 +139,7 @@ const Catalog = () => {
             }
             handleAddToCart()
         }
-    }, [pendingProduct, user._id, isAuthenticated, addToCart, isAddingToCart])
+    }, [pendingProduct, user._id, isAuthenticated, isLoginModalOpen, addToCart, isAddingToCart])
 
     const handleAddToCartClick = async (e: React.MouseEvent, product: ProductResponse) => {
         e.preventDefault()
@@ -447,8 +447,8 @@ const Catalog = () => {
                                     if (submitHandler && typeof submitHandler === 'function') {
                                         try {
                                             await submitHandler()
-                                        } catch (error) {
-                                            console.error('Ошибка при сохранении изменений:', error)
+                                        } catch {
+                                            /* ошибка обрабатывается внутри формы / стора */
                                         }
                                     }
                                 }}
@@ -516,9 +516,8 @@ const Catalog = () => {
                                         await getProducts(isAdmin)
                                         setIsDeleteModalOpen(false)
                                         setDeletingProduct(null)
-                                    } catch (error) {
+                                    } catch {
                                         // Ошибка уже обработана в HandleError
-                                        console.error('Ошибка при удалении товара:', error)
                                     } finally {
                                         setIsDeleting(false)
                                     }

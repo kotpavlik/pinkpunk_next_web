@@ -1,5 +1,19 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 import { tokenManager } from "@/utils/TokenManager";
+
+/** Запросы логина/рефреша без access-токена; иначе устаревший Bearer ломает phone OTP и виджет. */
+function shouldOmitBearerForUrl(url: string | undefined): boolean {
+    if (!url) return false
+    const u = url.toLowerCase()
+    return (
+        u.includes("auth/phone/request-code") ||
+        u.includes("auth/phone/verify") ||
+        u.includes("auth/telegram-login-widget") ||
+        u.includes("auth/telegram-validate") ||
+        u.includes("auth/admin-login") ||
+        u.includes("auth/refresh")
+    )
+}
 
 export const instance = axios.create({
     baseURL: process.env.NEXT_PUBLIC_BASE_URL || 'https://pinkpunknestbot-production.up.railway.app',
@@ -9,6 +23,15 @@ export const instance = axios.create({
 // Интерцептор для добавления access token к запросам
 instance.interceptors.request.use(
     async (config: InternalAxiosRequestConfig & { _skipAuth?: boolean }) => {
+        if (shouldOmitBearerForUrl(config.url)) {
+            /** Axios 1.x: заголовки — AxiosHeaders; `delete Authorization` может не убрать Bearer полностью. */
+            const next = AxiosHeaders.from(config.headers ?? {})
+            next.delete('Authorization')
+            config.headers = next
+            ;(config as InternalAxiosRequestConfig & { _skipAuth?: boolean })._skipAuth = true
+            return config
+        }
+
         // Если токен уже установлен вручную (для повторного запроса после refresh), не перезаписываем его
         if (config.headers?.Authorization || config._skipAuth) {
             return config;
@@ -39,6 +62,15 @@ instance.interceptors.response.use(
             _retry?: boolean; 
             _refreshAttempted?: boolean;
         };
+
+        /** 401 здесь означает неверный OTP/пароль и т.д., а не истёкший access для защищённого API. */
+        if (
+            error.response?.status === 401 &&
+            originalRequest?.url &&
+            shouldOmitBearerForUrl(originalRequest.url)
+        ) {
+            return Promise.reject(error)
+        }
 
         // Если получили 401 и еще не пытались обновить токен
         if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._refreshAttempted) {

@@ -1,6 +1,34 @@
 import { AxiosResponse } from "axios";
-import { GetReferalsType, UserType } from "@/zustand/user_store/UserStore";
+import { UserType } from "@/zustand/user_store/UserStore";
 import { instance } from "./Api";
+
+/** Ответ авторизации Telegram / телефон (общий контракт бэкенда) */
+export type AuthLoginSuccessResponse = UserType & {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+};
+
+export type PhoneRequestCodeSuccessResponse = {
+    sent: boolean;
+    /** Время жизни OTP-послания (на бэке сейчас 120 с). */
+    ttlSeconds: number;
+    maxAttempts: number;
+    /** Кулдаун до следующего «Отправить код»; если не пришёл — считать 60 с по спеки. */
+    resendCooldownSeconds?: number;
+};
+
+/** POST /auth/phone/request-code — только эти ключи (`forbidNonWhitelisted`). */
+export type PhoneAuthRequestCodeBody = {
+    phone: string;
+    deviceId?: string;
+    deviceInfo?: string;
+};
+
+/** POST /auth/phone/verify */
+export type PhoneAuthVerifyBody = PhoneAuthRequestCodeBody & {
+    code: string;
+};
 
 // Тип данных от TelegramLoginWidget
 export interface TelegramLoginWidgetData {
@@ -19,14 +47,16 @@ export interface TelegramLoginWidgetData {
 export const UserApi = {
     async InitialUser(user: UserType): Promise<AxiosResponse> {
         const response = await instance.post<UserType, Promise<AxiosResponse>>('user/check_user', user)
-        console.log(response)
         return response
 
     },
 
-    async GetReferals(userId: GetReferalsType): Promise<AxiosResponse> {
-        const response = await instance.post<number, Promise<AxiosResponse>>('user/get_referals', userId)
-        return response
+    async GetReferals(params: { telegramUserId: number }): Promise<AxiosResponse> {
+        const response = await instance.post<{ telegramUserId: number }, Promise<AxiosResponse>>(
+            'user/get_referals',
+            params
+        );
+        return response;
     },
 
     /**
@@ -54,7 +84,7 @@ export const UserApi = {
         telegramData: TelegramLoginWidgetData,
         deviceId?: string,
         deviceInfo?: string
-    ): Promise<AxiosResponse<UserType & { accessToken?: string; refreshToken?: string; expiresIn?: number }>> {
+    ): Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>> {
         const body: TelegramLoginWidgetData & { deviceId?: string; deviceInfo?: string } = {
             ...telegramData,
         };
@@ -66,12 +96,53 @@ export const UserApi = {
             body.deviceInfo = deviceInfo;
         }
 
-        const response = await instance.post<
-            typeof body,
-            Promise<AxiosResponse<UserType & { accessToken?: string; refreshToken?: string; expiresIn?: number }>>
-        >('auth/telegram-login-widget', body);
-        console.log(response)
+        const response = await instance.post<typeof body, Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>>>(
+            'auth/telegram-login-widget',
+            body
+        );
         return response;
+    },
+
+    async RequestPhoneAuthCode(params: {
+        phone: string;
+        deviceId?: string;
+        deviceInfo?: string;
+    }): Promise<AxiosResponse<PhoneRequestCodeSuccessResponse>> {
+        const body: PhoneAuthRequestCodeBody = {
+            phone: params.phone.trim(),
+        }
+        const deviceId = params.deviceId?.trim()
+        const deviceInfo = params.deviceInfo?.trim()
+        if (deviceId) body.deviceId = deviceId
+        if (deviceInfo) body.deviceInfo = deviceInfo
+
+        const response = await instance.post<
+            PhoneAuthRequestCodeBody,
+            Promise<AxiosResponse<PhoneRequestCodeSuccessResponse>>
+        >('auth/phone/request-code', body)
+        return response
+    },
+
+    async VerifyPhoneAuth(params: {
+        phone: string;
+        code: string;
+        deviceId?: string;
+        deviceInfo?: string;
+    }): Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>> {
+        const body: PhoneAuthVerifyBody = {
+            phone: params.phone.trim(),
+            code: String(params.code).trim(),
+        }
+        const deviceId = params.deviceId?.trim()
+        const deviceInfo = params.deviceInfo?.trim()
+        if (deviceId) body.deviceId = deviceId
+        if (deviceInfo) body.deviceInfo = deviceInfo
+
+        const response = await instance.post<
+            PhoneAuthVerifyBody,
+            Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>>
+        >('auth/phone/verify', body)
+        return response
     },
 
     /**

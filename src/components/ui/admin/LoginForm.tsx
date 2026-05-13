@@ -5,13 +5,13 @@ import { useAdminLoginStore } from '@/zustand/admin_login_store/AdminLoginStore'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 
 interface LoginFormProps {
-    _id: string
-    userId: string | null
+    _id: string | null | undefined
+    telegramUserId?: number | null
     username?: string
     onSuccess?: () => void
 }
 
-export default function LoginForm({ _id, userId, username = '', onSuccess }: LoginFormProps) {
+export default function LoginForm({ _id, telegramUserId = null, username = '', onSuccess }: LoginFormProps) {
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const { loginAdmin } = useAdminLoginStore()
@@ -26,7 +26,7 @@ export default function LoginForm({ _id, userId, username = '', onSuccess }: Log
             return
         }
 
-        if (!_id || !userId) {
+        if (!_id?.trim()) {
             setError('Данные пользователя не найдены')
             return
         }
@@ -35,10 +35,10 @@ export default function LoginForm({ _id, userId, username = '', onSuccess }: Log
             await loginAdmin({
                 password: password.trim(),
                 userData: {
-                    userId: String(userId),
+                    _id,
                     username: username || '',
-                    _id: _id
-                }
+                    ...(telegramUserId != null ? { telegramUserId } : {}),
+                },
             })
 
             // Если успешно, вызываем onSuccess

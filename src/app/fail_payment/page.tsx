@@ -80,12 +80,9 @@ export default function FailPaymentPage() {
         const ct = params.get('ct')
         const orderId = params.get('orderId')
 
-        console.log('[PaymentReturn:fail_payment] return params:', { ct, orderId })
-
         hasCheckedPaymentRef.current = true
 
         if (!ct || !orderId) {
-            console.log('[PaymentReturn:fail_payment] skipped: missing ct or orderId')
             setPaymentFailure({
                 status: 'error',
                 title: 'Не удалось проверить оплату',
@@ -96,9 +93,7 @@ export default function FailPaymentPage() {
 
         const confirmFailure = async () => {
             try {
-                console.log('[PaymentReturn:fail_payment] checking payment status:', { orderId, ct })
                 const result = await updatePaymentStatus(orderId, ct)
-                console.log('[PaymentReturn:fail_payment] payment status response:', result)
 
                 setPaymentFailure({
                     status: 'ready',
@@ -108,19 +103,15 @@ export default function FailPaymentPage() {
 
                 if (user._id) {
                     await getCart(user._id)
-                    console.log('[PaymentReturn:fail_payment] cart refreshed after failed payment')
                 }
                 await getProducts()
-                console.log('[PaymentReturn:fail_payment] products refreshed after failed payment')
-            } catch (error) {
-                console.error('[PaymentReturn:fail_payment] payment status check failed:', error)
+            } catch {
                 setPaymentFailure({
                     status: 'error',
                     title: 'Не удалось проверить оплату',
                     description: 'Попробуйте вернуться в корзину или свяжитесь с менеджером.',
                 })
             } finally {
-                console.log('[PaymentReturn:fail_payment] cleaning return query params')
                 router.replace('/fail_payment')
             }
         }

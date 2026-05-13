@@ -4,8 +4,9 @@ import { immer } from 'zustand/middleware/immer';
 import { useAppStore } from '../app_store/AppStore';
 import { create } from 'zustand';
 import { HandleError } from "@/features/HandleError";
-import { UserApi, TelegramLoginWidgetData } from "@/api/UserApi";
+import { UserApi, TelegramLoginWidgetData, AuthLoginSuccessResponse } from "@/api/UserApi";
 import { tokenManager } from "@/utils/TokenManager";
+import { digitsToPlusE164, isPhoneDigitsProbablyValid, normalizePhoneDigits } from "@/utils/phoneNormalize";
 
 // Тип для данных от TelegramLoginWidget
 export interface TelegramUser {
@@ -33,7 +34,8 @@ export type ShippingAddress = {
 
 export type UserType = {
     _id?: string,
-    userId: number | null
+    /** Числовой id в Telegram — только если аккаунт связан с Telegram */
+    telegramUserId?: number | null
     firstName?: string | undefined
     lastName?: string | undefined
     personalFirstName?: string | undefined
@@ -58,10 +60,51 @@ export type UserType = {
     totalOrders?: number // Общее количество заказов
     totalSpent?: number // Общая сумма потраченных средств
 }
+
+/** Сохранённый в LS профиль может содержать старое поле `userId` (Telegram) */
+type LegacyStoredUser = Partial<UserType> & { userId?: number | null };
+
+/**
+ * Приводим ответ логина / legacy-хранилище к каноническому `telegramUserId`.
+ * Бэкенд может временно слать telegram id как `userId`.
+ */
+export function normalizeUserProfileFromBackend(
+    profile: Partial<UserType> & {
+        userId?: number | null;
+        accessToken?: string;
+        refreshToken?: string;
+        expiresIn?: number;
+    },
+): UserType {
+    const telegramUserId =
+        profile.telegramUserId !== undefined && profile.telegramUserId !== null
+            ? profile.telegramUserId
+            : profile.userId !== undefined && profile.userId !== null
+                ? profile.userId
+                : null;
+
+    const restWide = { ...profile } as Record<string, unknown>;
+    delete restWide.userId;
+    delete restWide.accessToken;
+    delete restWide.refreshToken;
+    delete restWide.expiresIn;
+
+    const core = restWide as Omit<UserType, 'username' | 'telegramUserId'> &
+        Partial<Pick<UserType, 'username' | 'telegramUserId'>>;
+
+    return {
+        ...core,
+        username: core.username ?? '',
+        telegramUserId,
+    };
+}
+
+
+
 export type UserStateType = {
     user: UserType
     initialUser: (user: UserType) => void
-    getReferals: (userId: number) => void
+    getReferals: (telegramUserId: number) => void
     setToken: (token: string) => void
     setUser: (user: UserType) => void
     clearToken: () => void
@@ -77,10 +120,16 @@ export type UserStateType = {
     }) => Promise<{ success: boolean; error?: string }>
     checkTokenForAdmin: () => Promise<void>
     authenticateTelegramLoginWidget: (telegramUser: TelegramUser) => Promise<{ success: boolean; error?: string }>
-}
-
-export type GetReferalsType = {
-    userId: number
+    requestPhoneAuthCode: (
+        phone: string,
+    ) => Promise<
+        | { success: true; codeTtlSeconds: number; resendCooldownSeconds: number }
+        | { success: false; error?: string }
+    >
+    verifyPhoneAuth: (
+        phone: string,
+        code: string,
+    ) => Promise<{ success: boolean; error?: string }>
 }
 
 
@@ -127,10 +176,9 @@ const getUserFromStorage = (): UserType | null => {
         try {
             const userData = localStorage.getItem(USER_DATA_KEY);
             if (userData) {
-                const user = JSON.parse(userData) as UserType;
-                // Восстанавливаем токен из отдельного хранилища
+                const parsed = JSON.parse(userData) as LegacyStoredUser;
+                const user = normalizeUserProfileFromBackend(parsed);
                 const token = getTokenFromStorage();
-                // isAdmin не загружаем из localStorage, он должен приходить только с бэкенда
                 return { ...user, token: token || undefined, isAdmin: false };
             }
         } catch {
@@ -153,7 +201,7 @@ const initialUserData = getUserFromStorage() || {
     isPremium: false,
     isAdmin: false,
     lastName: '',
-    userId: null,
+    telegramUserId: null,
     username: '',
     walletAddress: '',
     my_referers: [],
@@ -163,14 +211,42 @@ const initialUserData = getUserFromStorage() || {
     shippingAddress: undefined
 };
 
-export const useUserStore = create<UserStateType>()(immer((set, get) => ({
-    user: initialUserData,
-    initialUser: async (user: UserType) => {
+export const useUserStore = create<UserStateType>()(immer((set, get) => {
+    const finishStorefrontAuthSession = async (
+        responseData: Partial<AuthLoginSuccessResponse>,
+    ) => {
+        const { accessToken, refreshToken, expiresIn } = responseData;
+        if (!accessToken || !refreshToken || expiresIn === undefined) {
+            throw new Error('Данные сессии не получены от бэкенда');
+        }
+
+        tokenManager.saveTokens({
+            accessToken,
+            refreshToken,
+            expiresIn,
+        });
+
+        const userNormalized = normalizeUserProfileFromBackend(responseData);
+
+        set(state => {
+            state.user = userNormalized;
+            if (state.user.isAdmin === undefined) {
+                state.user.isAdmin = false;
+            }
+            saveUserToStorage(state.user);
+        });
+
+        await get().checkTokenForAdmin();
+    };
+
+
+    return {
+        user: initialUserData,
+        initialUser: async (user: UserType) => {
         const { setStatus } = useAppStore.getState()
         const { user: currentUser } = get()
 
-        // Не делаем запрос если пользователь уже инициализирован с тем же userId
-        if (currentUser.userId && currentUser.userId === user.userId && currentUser._id) {
+        if (currentUser._id && user._id && currentUser._id === user._id) {
             return;
         }
 
@@ -179,7 +255,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             const UserRequest = await UserApi.InitialUser(user)
 
             set(state => {
-                state.user = UserRequest.data
+                state.user = normalizeUserProfileFromBackend(UserRequest.data as LegacyStoredUser)
                 // isAdmin устанавливается только из данных бэкенда
                 // Если бэкенд не вернул isAdmin, устанавливаем false
                 if (state.user.isAdmin === undefined) {
@@ -202,12 +278,12 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
     },
 
 
-    getReferals: async (userId: number) => {
+    getReferals: async (telegramUserIdParam: number) => {
         const { setStatus } = useAppStore.getState()
         try {
             setStatus("loading")
-            if (userId) {
-                const my_referals = await UserApi.GetReferals({ userId })
+            if (telegramUserIdParam) {
+                const my_referals = await UserApi.GetReferals({ telegramUserId: telegramUserIdParam })
                 if (my_referals !== undefined && my_referals.data !== undefined) {
                     set(state => { state.user.my_referers = my_referals.data })
                 } else {
@@ -252,7 +328,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                 isPremium: false,
                 isAdmin: false,
                 lastName: '',
-                userId: null,
+                telegramUserId: null,
                 username: '',
                 walletAddress: '',
                 my_referers: [],
@@ -339,42 +415,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             const response = await UserApi.ValidateTelegramLoginWidget(telegramData, deviceId, deviceInfo)
 
             if (response.data) {
-                // Сохраняем токены, если они пришли от бэкенда
-                if (response.data.accessToken && response.data.refreshToken && response.data.expiresIn) {
-                    tokenManager.saveTokens({
-                        accessToken: response.data.accessToken,
-                        refreshToken: response.data.refreshToken,
-                        expiresIn: response.data.expiresIn,
-                    })
-                }
-
-                // Обновляем UserStore напрямую с данными от бэкенда
-                // Не вызываем initialUser, так как данные уже получены от бэкенда
-
-                // Удаляем токены из данных пользователя перед сохранением
-                const userData = { ...response.data };
-                delete (userData as { accessToken?: string; refreshToken?: string; expiresIn?: number }).accessToken;
-                delete (userData as { accessToken?: string; refreshToken?: string; expiresIn?: number }).refreshToken;
-                delete (userData as { accessToken?: string; refreshToken?: string; expiresIn?: number }).expiresIn;
-
-                set(state => {
-                    state.user = userData
-                    // isAdmin устанавливается только из данных бэкенда
-                    // Если бэкенд не вернул isAdmin, устанавливаем false
-                    if (state.user.isAdmin === undefined) {
-                        state.user.isAdmin = false
-                    }
-                    // Сохраняем данные пользователя в localStorage
-                    saveUserToStorage(state.user)
-                })
-
-                // Проверяем токен для установки isAdmin статуса
-                const { checkTokenForAdmin } = get()
-                await checkTokenForAdmin()
-
-                // Примечание: получение фото через Bot API обрабатывается на бэкенде
-                // Если photo_url закодирован или отсутствует, бэкенд сам получит его через Bot API
-
+                await finishStorefrontAuthSession(response.data)
                 setStatus('success')
                 return { success: true }
             } else {
@@ -433,6 +474,137 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             setStatus('failed')
             HandleError(err)
 
+            return { success: false, error: errorMessage }
+        }
+    },
+
+    requestPhoneAuthCode: async (phone: string) => {
+        const { setStatus } = useAppStore.getState()
+        const trimmed = phone.trim()
+        if (!trimmed) {
+            return { success: false, error: 'Введите номер телефона' }
+        }
+        const digits = normalizePhoneDigits(trimmed)
+        if (!isPhoneDigitsProbablyValid(digits)) {
+            return {
+                success: false,
+                error: 'Проверьте номер телефона (нужно от 9 до 15 цифр после нормализации).',
+            }
+        }
+        const phoneForApi = digitsToPlusE164(digits)
+        const deviceId = tokenManager.getOrCreateDeviceId().trim()
+        if (!deviceId) {
+            return {
+                success: false,
+                error: 'Не удалось определить устройство. Обновите страницу и попробуйте снова.',
+            }
+        }
+        try {
+            setStatus('loading')
+            const deviceInfo = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+            const res = await UserApi.RequestPhoneAuthCode({
+                phone: phoneForApi,
+                deviceId,
+                ...(deviceInfo ? { deviceInfo } : {}),
+            })
+            setStatus('success')
+            const data = res.data
+            const codeTtlSeconds =
+                typeof data?.ttlSeconds === 'number' && Number.isFinite(data.ttlSeconds) ? data.ttlSeconds : 120
+            const resendCooldownSeconds =
+                typeof data?.resendCooldownSeconds === 'number' &&
+                Number.isFinite(data.resendCooldownSeconds)
+                    ? data.resendCooldownSeconds
+                    : 60
+            return { success: true, codeTtlSeconds, resendCooldownSeconds }
+        } catch (err) {
+            const axiosError = err as AxiosError<{ message?: string; error?: string } | string>
+            let errorMessage = 'Не удалось отправить код. Попробуйте позже.'
+            if (axiosError.response) {
+                const status = axiosError.response.status
+                const rawData = axiosError.response.data
+                const text =
+                    typeof rawData === 'string'
+                        ? rawData.trim()
+                        : rawData && typeof rawData === 'object' && !Array.isArray(rawData) && 'message' in rawData
+                          ? String((rawData as { message?: string }).message ?? '').trim()
+                          : ''
+                if (status === 429 && text) {
+                    errorMessage = text
+                } else if (status === 400) {
+                    errorMessage = text || 'Проверьте номер телефона и попробуйте ещё раз.'
+                } else if (status === 502) {
+                    errorMessage = 'Сервис SMS временно недоступен. Попробуйте позже.'
+                } else if (text) {
+                    errorMessage = text
+                }
+            } else if (err instanceof Error && err.message) {
+                errorMessage = err.message
+            }
+            setStatus('failed')
+            HandleError(err)
+            return { success: false, error: errorMessage }
+        }
+    },
+
+    verifyPhoneAuth: async (phone: string, code: string) => {
+        const { setStatus } = useAppStore.getState()
+        const trimmedPhoneRaw = phone.trim()
+        if (!trimmedPhoneRaw) {
+            return { success: false, error: 'Введите номер телефона' }
+        }
+        const phoneDigits = normalizePhoneDigits(trimmedPhoneRaw)
+        if (!isPhoneDigitsProbablyValid(phoneDigits)) {
+            return {
+                success: false,
+                error: 'Проверьте номер телефона (нужно от 9 до 15 цифр после нормализации).',
+            }
+        }
+        const phoneForApi = digitsToPlusE164(phoneDigits)
+        const trimmedCode = code.trim()
+        if (!/^\d{4}$/.test(trimmedCode)) {
+            return { success: false, error: 'Введите 4 цифры кода из SMS' }
+        }
+        const deviceId = tokenManager.getOrCreateDeviceId().trim()
+        if (!deviceId) {
+            return {
+                success: false,
+                error: 'Не удалось определить устройство. Обновите страницу и попробуйте снова.',
+            }
+        }
+        try {
+            setStatus('loading')
+            const deviceInfo = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+            const response = await UserApi.VerifyPhoneAuth({
+                phone: phoneForApi,
+                code: trimmedCode,
+                deviceId,
+                ...(deviceInfo ? { deviceInfo } : {}),
+            })
+            if (response.data) {
+                await finishStorefrontAuthSession(response.data as Partial<AuthLoginSuccessResponse>)
+            } else {
+                throw new Error('Пустой ответ сервера')
+            }
+            setStatus('success')
+            return { success: true }
+        } catch (err) {
+            const axiosError = err as AxiosError<unknown>
+            let errorMessage =
+                'Не удалось войти. Проверьте код и попробуйте снова.'
+            const payload = axiosError.response?.data
+            if (typeof payload === 'string' && payload.trim()) {
+                errorMessage = payload.trim()
+            } else if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                const msg = 'message' in payload ? (payload as { message?: string }).message : undefined
+                if (typeof msg === 'string' && msg.trim()) {
+                    errorMessage = msg.trim()
+                }
+            } else if (err instanceof Error && err.message && !err.message.includes('Данные сессии')) {
+                errorMessage = err.message
+            }
+            setStatus('failed')
+            HandleError(err)
             return { success: false, error: errorMessage }
         }
     },
@@ -537,7 +709,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
                                 isPremium: false,
                                 isAdmin: false,
                                 lastName: '',
-                                userId: null,
+                                telegramUserId: null,
                                 username: '',
                                 walletAddress: '',
                                 my_referers: [],
@@ -558,6 +730,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => ({
             HandleError(err);
             return { success: false, error: errorMessage };
         }
-    }
-}
-)))
+    },
+    };
+}));

@@ -16,8 +16,8 @@ export default function PrivacyPolicyPage() {
                 const response = await fetch(`/${fileName}`)
                 const text = await response.text()
                 setContent(text)
-            } catch (error) {
-                console.error('Error loading privacy policy:', error)
+            } catch {
+                setContent('')
             } finally {
                 setLoading(false)
             }

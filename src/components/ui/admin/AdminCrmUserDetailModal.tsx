@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { isAxiosError } from 'axios'
 import {
     CrmApi,
@@ -12,6 +12,7 @@ import {
     CrmProductRef,
     type CrmInsufficientStockErrorBody,
 } from '@/api/CrmApi'
+import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import {
     isOrderItemProductPopulated,
     type OrderItem,
@@ -266,7 +267,13 @@ type Props = {
 }
 
 export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefresh, embedded = false }: Props) {
-    const telegramId = listRow.userId
+    const accountId = accountObjectIdFromCrmListRow(listRow) ?? ''
+    const telegramNumericId =
+        listRow.telegramUserId != null && typeof listRow.telegramUserId === 'number'
+            ? listRow.telegramUserId
+            : typeof listRow.userId === 'number'
+              ? listRow.userId
+              : null
     const { setStatus } = useAppStore()
     const [tab, setTab] = useState<TabId>('profile')
     const [editingField, setEditingField] = useState<string | null>(null)
@@ -336,10 +343,17 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
     }, [confirmDeleteLine, offlineBusy])
 
     const loadCard = useCallback(async () => {
+        if (!accountId) {
+            setLoading(false)
+            setError(
+                'Нет валидного Mongo accountId в строке списка (_id должен быть 24 hex). Обновите список CRM; для клиентов только с Telegram проверьте, что бэкенд отдаёт _id аккаунта, а не числовой id.',
+            )
+            return
+        }
         setLoading(true)
         setError(null)
         try {
-            const data = await CrmApi.getUserCard(telegramId)
+            const data = await CrmApi.getUserCard(accountId)
             setCard(data)
         } catch (e: unknown) {
             const msg =
@@ -350,13 +364,14 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         } finally {
             setLoading(false)
         }
-    }, [telegramId])
+    }, [accountId])
 
     const handleRefreshCart = useCallback(async () => {
+        if (!accountId) return
         setCartRefreshing(true)
         setCrmBannerError(null)
         try {
-            const data = await CrmApi.getUserCard(telegramId)
+            const data = await CrmApi.getUserCard(accountId)
             setCard(data)
             onListRefresh()
         } catch (e: unknown) {
@@ -368,7 +383,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         } finally {
             setCartRefreshing(false)
         }
-    }, [telegramId, onListRefresh])
+    }, [accountId, onListRefresh])
 
     useEffect(() => {
         loadCard()
@@ -529,10 +544,10 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         setStatus('loading')
         setCrmBannerError(null)
         try {
-            await CrmApi.patchUser(telegramId, patch)
+            await CrmApi.patchUser(accountId, patch)
             let data: CrmUserCardResponse
             try {
-                data = await CrmApi.getUserCard(telegramId)
+                data = await CrmApi.getUserCard(accountId)
             } catch {
                 setCrmBannerError(
                     'Изменения отправлены на сервер, но не удалось перезагрузить карточку. Закройте окно и откройте клиента снова.'
@@ -596,7 +611,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         }
         setOfflineBusy(true)
         try {
-            const res = await CrmApi.addOfflinePurchase(telegramId, body)
+            const res = await CrmApi.addOfflinePurchase(accountId, body)
             setCard(c =>
                 c ? { ...c, profile: { ...c.profile, crmOfflinePurchases: res.crmOfflinePurchases } } : c
             )
@@ -655,7 +670,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         }
         setOfflineBusy(true)
         try {
-            const res = await CrmApi.addOfflinePurchase(telegramId, body)
+            const res = await CrmApi.addOfflinePurchase(accountId, body)
             setCard(c =>
                 c ? { ...c, profile: { ...c.profile, crmOfflinePurchases: res.crmOfflinePurchases } } : c
             )
@@ -681,7 +696,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         setCrmBannerError(null)
         setOfflineBusy(true)
         try {
-            const res = await CrmApi.deleteOfflineLine(telegramId, lineId)
+            const res = await CrmApi.deleteOfflineLine(accountId, lineId)
             setCard(c =>
                 c ? { ...c, profile: { ...c.profile, crmOfflinePurchases: res.crmOfflinePurchases } } : c
             )
@@ -696,7 +711,43 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         }
     }
 
-    const orders = card?.orders ?? []
+    /**
+     * Список CRM считает «есть заказы» по stats.ordersTotal; карточка берёт массив orders отдельным GET.
+     * Если бэкенд заполнил stats.orders в списке, но в карточке вернул orders: [], без fallback вкладка пустая.
+     */
+    const { orders, ordersHint } = useMemo(() => {
+        const fromCard = card?.orders ?? []
+        const fromListStats = listRow.stats?.orders
+        if (fromCard.length > 0) {
+            return { orders: fromCard, ordersHint: null as string | null }
+        }
+        if (Array.isArray(fromListStats) && fromListStats.length > 0) {
+            return {
+                orders: fromListStats,
+                ordersHint:
+                    'Заказы показаны из сводки списка CRM (stats.orders): ответ карточки GET …/users/:id вернул пустой массив orders — стоит сверить бэкенд.',
+            }
+        }
+        const totalListed = listRow.stats?.ordersTotal ?? 0
+        const offlineLines = listRow.offlinePurchasesSummary?.linesCount ?? 0
+        if (totalListed > 0) {
+            let msg =
+                `В списке клиентов для этого аккаунта указано заказов в сводке: ${totalListed}, а массив orders в карточке пустой. Часто это рассинхрон агрегата списка и выборки по accountId на сервере.`
+            if (offlineLines > 0) {
+                msg += ` Есть офлайн-позиции (${offlineLines} шт.) — они во вкладке «Покупки офлайн», не в онлайн-заказах.`
+            }
+            return { orders: [], ordersHint: msg }
+        }
+        if (offlineLines > 0) {
+            return {
+                orders: [],
+                ordersHint:
+                    `Онлайн-заказов в CRM нет; офлайн-покупки — ${offlineLines} шт., вкладка «Покупки офлайн». Фильтр «Только с заказами» смотрит на сводку онлайн-заказов (stats.ordersTotal).`,
+            }
+        }
+        return { orders: [], ordersHint: null }
+    }, [card?.orders, listRow.stats?.orders, listRow.stats?.ordersTotal, listRow.offlinePurchasesSummary?.linesCount])
+
     const cart = card?.cart
 
     const tabBtn = (id: TabId, label: string) => (
@@ -719,9 +770,18 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#333] bg-[#1a1a1a] p-4">
                     <div>
                         <h1 className="text-[var(--mint-bright)] text-lg font-bold font-durik">CRM — клиент</h1>
-                        <p className="text-white/60 text-sm">
-                            Telegram ID: <span className="text-white font-mono">{telegramId}</span>
+                        <p className="text-white/60 text-xs break-all">
+                            accountId:{' '}
+                            <span className="font-mono text-white/90" title="Mongo _id — ключ CRM и заказов">
+                                {accountId || '—'}
+                            </span>
                         </p>
+                        {telegramNumericId != null && (
+                            <p className="text-white/60 text-sm">
+                                Telegram ID:{' '}
+                                <span className="text-white font-mono">{telegramNumericId}</span>
+                            </p>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -1166,7 +1226,12 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
 
                     {!loading && !error && tab === 'orders' && (
                         <div className="space-y-4">
-                            {orders.length === 0 && <p className="text-white/50">Заказов нет</p>}
+                            {ordersHint && (
+                                <p className="rounded border border-amber-500/40 bg-amber-950/35 px-3 py-2 text-xs text-amber-100/95 whitespace-pre-wrap">
+                                    {ordersHint}
+                                </p>
+                            )}
+                            {orders.length === 0 && !ordersHint && <p className="text-white/50">Заказов нет</p>}
                             {orders.map((o: PinkPunkOrder) => {
                                 return (
                                     <div key={o._id} className="bg-[#252525] border border-[#333] p-3 text-sm space-y-3">

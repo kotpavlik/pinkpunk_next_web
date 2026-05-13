@@ -21,7 +21,6 @@ export const useImagePreload = (urls: string[]) => {
                 }
                 
                 img.onerror = () => {
-                    console.warn(`Ошибка загрузки изображения: ${url}`)
                     setHasError(prev => new Set([...prev, url]))
                     resolve() // Всё равно resolve, чтобы не блокировать остальные
                 }
@@ -31,8 +30,9 @@ export const useImagePreload = (urls: string[]) => {
         }
 
         // Загружаем все изображения параллельно
-        Promise.all(urls.map(url => loadImage(url)))
-            .catch(err => console.error('Ошибка предзагрузки изображений:', err))
+        Promise.all(urls.map(url => loadImage(url))).catch(() => {
+            /* игнорируем — отдельные onerror уже пометили hasError */
+        })
 
     }, [urls])
 

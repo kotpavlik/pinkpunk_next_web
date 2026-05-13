@@ -58,9 +58,9 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
         }, 300) // Длительность анимации
     }, [onClose])
 
-    // Обработка перенаправления на страницу заказа после успешного логина
+    // Перенаправление после успешного логина только когда модалка логина закрыта (иначе OTP обрывается при refresh токена)
     useEffect(() => {
-        if (pendingOrder && user._id && isAuthenticated()) {
+        if (pendingOrder && user._id && isAuthenticated() && !isLoginModalOpen) {
             const handleRedirect = async () => {
                 setIsLoginModalOpen(false)
                 await new Promise(resolve => setTimeout(resolve, 300))
@@ -70,7 +70,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             }
             handleRedirect()
         }
-    }, [pendingOrder, user._id, isAuthenticated, router, handleClose])
+    }, [pendingOrder, user._id, isAuthenticated, isLoginModalOpen, router, handleClose])
 
     // Закрытие по Escape
     useEffect(() => {

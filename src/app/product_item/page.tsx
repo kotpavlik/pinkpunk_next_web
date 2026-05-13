@@ -489,9 +489,9 @@ function ProductItemContent() {
         }
     }, [cartError, setCartError])
 
-    // Обработка добавления товара после логина
+    // Обработка добавления товара после логина (не трогаем пока модалка открыта — иначе фоновый refresh токена закроет её до OTP)
     useEffect(() => {
-        if (pendingProduct && user._id && isAuthenticated()) {
+        if (pendingProduct && user._id && isAuthenticated() && !isLoginModalOpen) {
             const handleAddToCart = async () => {
                 if (isAddingToCart) {
                     return // Предотвращаем повторные нажатия
@@ -519,7 +519,7 @@ function ProductItemContent() {
             }
             handleAddToCart()
         }
-    }, [pendingProduct, user._id, isAuthenticated, addToCart, isAddingToCart])
+    }, [pendingProduct, user._id, isAuthenticated, isLoginModalOpen, addToCart, isAddingToCart])
 
     const handleAddToCartClick = async (e?: React.MouseEvent) => {
         if (e) {

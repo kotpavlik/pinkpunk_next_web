@@ -23,7 +23,9 @@ export interface ICartItem {
 
 export interface IPinkPunkCart {
     _id: string;
-    userId: string;
+    accountId?: string;
+    /** @deprecated бэкенд после миграции отдаёт accountId */
+    userId?: string;
     items: ICartItem[];
     totalItems: number;
     totalPrice: number;
@@ -68,19 +70,19 @@ export interface StockError {
 }
 
 export interface AddToCartRequest {
-    userId: string;
+    accountId: string;
     productId: string;
     quantity: number;
 }
 
 export interface UpdateCartItemRequest {
-    userId: string;
+    accountId: string;
     cartItemId: string;
     quantity: number;
 }
 
 export interface RemoveFromCartRequest {
-    userId: string;
+    accountId: string;
     productId: string;
 }
 
@@ -111,16 +113,16 @@ export interface ValidateCartResponse {
 // API функции для корзины
 export const CartApi = {
     // Получить корзину пользователя
-    async getCart(userId: string): Promise<CartResponse> {
-            const response = await instance.get(`cart/${userId}`);
+    async getCart(accountId: string): Promise<CartResponse> {
+            const response = await instance.get(`cart/${accountId}`);
             return response.data;
     },
 
     // Добавить товар в корзину
-    async addToCart(userId: string, productId: string, quantity: number): Promise<CartResponse | StockError> {
+    async addToCart(accountId: string, productId: string, quantity: number): Promise<CartResponse | StockError> {
         try {
             const response = await instance.post('cart/add', {
-                userId,
+                accountId,
                 productId,
                 quantity
             });
@@ -136,7 +138,7 @@ export const CartApi = {
             
             return {
                 _id: '',
-                userId,
+                accountId,
                 items: [],
                 totalItems: 0,
                 totalPrice: 0,
@@ -151,10 +153,10 @@ export const CartApi = {
     },
 
     // Обновить количество товара в корзине
-    async updateCartItem(userId: string, cartItemId: string, quantity: number): Promise<CartResponse | StockError> {
+    async updateCartItem(accountId: string, cartItemId: string, quantity: number): Promise<CartResponse | StockError> {
         try {
             const response = await instance.put('cart/update', {
-                userId,
+                accountId,
                 cartItemId,
                 quantity
             });
@@ -170,7 +172,7 @@ export const CartApi = {
             
             return {
                 _id: '',
-                userId,
+                accountId,
                 items: [],
                 totalItems: 0,
                 totalPrice: 0,
@@ -184,11 +186,11 @@ export const CartApi = {
     },
 
     // Удалить товар из корзины
-    async removeFromCart(userId: string, cartItemId: string): Promise<CartResponse> {
+    async removeFromCart(accountId: string, cartItemId: string): Promise<CartResponse> {
         try {
             const response = await instance.delete('cart/remove', {
                 data: {
-                    userId,
+                    accountId,
                     cartItemId
                 }
             });
@@ -196,7 +198,7 @@ export const CartApi = {
         } catch {
             return {
                 _id: '',
-                userId,
+                accountId,
                 items: [],
                 totalItems: 0,
                 totalPrice: 0,
@@ -210,9 +212,9 @@ export const CartApi = {
     },
 
     // Очистить корзину
-    async clearCart(userId: string): Promise<{ message: string }> {
+    async clearCart(accountId: string): Promise<{ message: string }> {
         try {
-            const response = await instance.delete(`cart/clear/${userId}`);
+            const response = await instance.delete(`cart/clear/${accountId}`);
             return response.data;
         } catch {
             return {
@@ -222,8 +224,8 @@ export const CartApi = {
     },
 
     // Получить статистику корзины
-    async getCartStats(userId: string): Promise<CartStats> {
-            const response = await instance.get(`cart/stats/${userId}`);
+    async getCartStats(accountId: string): Promise<CartStats> {
+            const response = await instance.get(`cart/stats/${accountId}`);
             return response.data;
     },
 
