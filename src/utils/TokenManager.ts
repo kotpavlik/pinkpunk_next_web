@@ -15,6 +15,8 @@
  * ✅ Добавлено фоновое обновление токенов
  */
 
+import { normalizeAuthTokensFromResponse } from '@/utils/normalizeAuthTokensPayload';
+
 const ACCESS_TOKEN_KEY = 'pinkpunk_access_token';
 const REFRESH_TOKEN_KEY = 'pinkpunk_refresh_token';
 const EXPIRES_AT_KEY = 'pinkpunk_expires_at';
@@ -64,7 +66,7 @@ class TokenManager {
         this.eventListeners.forEach(listener => {
             try {
                 listener(event, data);
-            } catch (error) {
+            } catch {
                 // Silent error handling
             }
         });
@@ -100,7 +102,6 @@ class TokenManager {
 
         try {
             const expiresAt = Date.now() + data.expiresIn * 1000;
-            const timeUntilExpiry = Math.round((expiresAt - Date.now()) / 1000 / 60);
 
             localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
             localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
@@ -112,7 +113,7 @@ class TokenManager {
 
             // Запускаем фоновое обновление
             this.startBackgroundRefresh();
-        } catch (error) {
+        } catch {
             // Silent error handling
         }
     }
@@ -181,7 +182,7 @@ class TokenManager {
             try {
                 const newToken = await this.refreshAccessToken();
                 return newToken;
-            } catch (error) {
+            } catch {
                 return null;
             }
         }
@@ -215,7 +216,6 @@ class TokenManager {
      * Обновляет access token используя refresh token
      */
     async refreshAccessToken(): Promise<string> {
-        // Если уже идет refresh, ждем его
         if (this.refreshPromise) {
             return await this.refreshPromise;
         }
@@ -249,7 +249,7 @@ class TokenManager {
                 return token;
             } catch (error) {
                 lastError = error as Error;
-                
+
                 // Проверяем тип ошибки
                 const errorMessage = lastError.message || '';
                 
@@ -295,7 +295,7 @@ class TokenManager {
 
         try {
             const baseURL = process.env.NEXT_PUBLIC_BASE_URL || 'https://pinkpunknestbot-production.up.railway.app';
-            
+
             const response = await fetch(`${baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: {
@@ -346,11 +346,15 @@ class TokenManager {
                 throw new Error(error.message || 'Failed to refresh token');
             }
 
-            const data = await response.json();
-            
-            this.saveTokens(data);
-            
-            return data.accessToken;
+            const raw = await response.json();
+            const tokens = normalizeAuthTokensFromResponse(raw);
+            if (!tokens) {
+                throw new Error('Неверный ответ /auth/refresh: нет accessToken, refreshToken или expiresIn');
+            }
+
+            this.saveTokens(tokens);
+
+            return tokens.accessToken;
         } catch (error) {
             // Если это сетевая ошибка (нет интернета и т.д.), НЕ очищаем токены
             if (error instanceof TypeError && error.message.includes('fetch')) {

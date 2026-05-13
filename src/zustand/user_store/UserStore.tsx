@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { HandleError } from "@/features/HandleError";
 import { UserApi, TelegramLoginWidgetData, AuthLoginSuccessResponse } from "@/api/UserApi";
 import { tokenManager } from "@/utils/TokenManager";
+import { normalizeAuthTokensFromResponse } from "@/utils/normalizeAuthTokensPayload";
 import { digitsToPlusE164, isPhoneDigitsProbablyValid, normalizePhoneDigits } from "@/utils/phoneNormalize";
 
 // Тип для данных от TelegramLoginWidget
@@ -215,16 +216,12 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
     const finishStorefrontAuthSession = async (
         responseData: Partial<AuthLoginSuccessResponse>,
     ) => {
-        const { accessToken, refreshToken, expiresIn } = responseData;
-        if (!accessToken || !refreshToken || expiresIn === undefined) {
+        const tokens = normalizeAuthTokensFromResponse(responseData as unknown);
+        if (!tokens) {
             throw new Error('Данные сессии не получены от бэкенда');
         }
 
-        tokenManager.saveTokens({
-            accessToken,
-            refreshToken,
-            expiresIn,
-        });
+        tokenManager.saveTokens(tokens);
 
         const userNormalized = normalizeUserProfileFromBackend(responseData);
 
@@ -587,20 +584,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                 errorMessage = err.message
             }
             return { success: false, error: errorMessage }
-        }
-    },
-
-    /**
-     * Обновляет access token используя refresh token
-     * @returns Promise с новым access token или null при ошибке
-     */
-    refreshAccessToken: async () => {
-        try {
-            const newAccessToken = await tokenManager.refreshAccessToken();
-            return newAccessToken;
-        } catch {
-            // При ошибке refresh токены уже очищены в TokenManager
-            return null;
         }
     },
 
