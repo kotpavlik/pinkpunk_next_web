@@ -368,12 +368,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
      * @returns Promise с результатом авторизации
      */
     authenticateTelegramLoginWidget: async (telegramUser: TelegramUser) => {
-        const { setStatus } = useAppStore.getState()
-
         try {
-            setStatus('loading')
-
-            // Проверяем обязательные поля перед отправкой
             if (!telegramUser.hash) {
                 throw new Error('Hash is missing')
             }
@@ -416,7 +411,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
 
             if (response.data) {
                 await finishStorefrontAuthSession(response.data)
-                setStatus('success')
                 return { success: true }
             } else {
                 throw new Error('Данные пользователя не получены от бэкенда')
@@ -471,15 +465,11 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                 errorMessage = axiosError.message
             }
 
-            setStatus('failed')
-            HandleError(err)
-
             return { success: false, error: errorMessage }
         }
     },
 
     requestPhoneAuthCode: async (phone: string) => {
-        const { setStatus } = useAppStore.getState()
         const trimmed = phone.trim()
         if (!trimmed) {
             return { success: false, error: 'Введите номер телефона' }
@@ -500,14 +490,12 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             }
         }
         try {
-            setStatus('loading')
             const deviceInfo = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
             const res = await UserApi.RequestPhoneAuthCode({
                 phone: phoneForApi,
                 deviceId,
                 ...(deviceInfo ? { deviceInfo } : {}),
             })
-            setStatus('success')
             const data = res.data
             const codeTtlSeconds =
                 typeof data?.ttlSeconds === 'number' && Number.isFinite(data.ttlSeconds) ? data.ttlSeconds : 120
@@ -541,14 +529,11 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             } else if (err instanceof Error && err.message) {
                 errorMessage = err.message
             }
-            setStatus('failed')
-            HandleError(err)
             return { success: false, error: errorMessage }
         }
     },
 
     verifyPhoneAuth: async (phone: string, code: string) => {
-        const { setStatus } = useAppStore.getState()
         const trimmedPhoneRaw = phone.trim()
         if (!trimmedPhoneRaw) {
             return { success: false, error: 'Введите номер телефона' }
@@ -573,7 +558,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             }
         }
         try {
-            setStatus('loading')
             const deviceInfo = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
             const response = await UserApi.VerifyPhoneAuth({
                 phone: phoneForApi,
@@ -586,7 +570,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             } else {
                 throw new Error('Пустой ответ сервера')
             }
-            setStatus('success')
             return { success: true }
         } catch (err) {
             const axiosError = err as AxiosError<unknown>
@@ -603,8 +586,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             } else if (err instanceof Error && err.message && !err.message.includes('Данные сессии')) {
                 errorMessage = err.message
             }
-            setStatus('failed')
-            HandleError(err)
             return { success: false, error: errorMessage }
         }
     },

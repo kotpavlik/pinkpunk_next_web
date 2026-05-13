@@ -4,7 +4,6 @@ import dynamic from "next/dynamic"
 import CarouselSection from "@/components/ui/shared/CarouselSection"
 import CarouselSectionSkeleton from "@/components/ui/shared/CarouselSectionSkeleton"
 import { useProductsStore } from "@/zustand/products_store/ProductsStore"
-import { useAppStore } from "@/zustand/app_store/AppStore"
 
 const CountdownWidgetVIP = dynamic(() => import("@/components/ui/shared/CountdownWidgetVIP"), {
   ssr: false,
@@ -22,7 +21,6 @@ export default function Home() {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [shouldShowSeasonalWidgets, setShouldShowSeasonalWidgets] = useState(false)
   const { products, getProducts } = useProductsStore()
-  const status = useAppStore((state) => state.status)
 
   useEffect(() => {
     const timerId = setTimeout(() => setVisible(true), 300)
@@ -102,8 +100,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Показываем скелетон при загрузке или если нет товаров */}
-      {status === 'loading' || filteredProducts.length === 0 ? (
+      {/* Скелетон только пока нет товаров для карусели; не по глобальному status — иначе любой loading размонтирует карусель и модалку входа */}
+      {filteredProducts.length === 0 ? (
         <CarouselSectionSkeleton
           title="КАТАЛОГ"
           viewAllLink="/catalog"

@@ -218,6 +218,15 @@ export default function TelegramLoginModal({
 
     const handlePhoneKeyDown = useCallback((e: ReactKeyboardEvent<HTMLInputElement>) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return
+
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            if (phoneReady && !phoneSending && !busyGlobal && cooldown === 0) {
+                void handleRequestCode()
+            }
+            return
+        }
+
         const allowNav = [
             'Backspace',
             'Delete',
@@ -228,12 +237,11 @@ export default function TelegramLoginModal({
             'ArrowDown',
             'Home',
             'End',
-            'Enter',
         ]
         if (allowNav.includes(e.key)) return
         if (/^\d$/.test(e.key)) return
         e.preventDefault()
-    }, [])
+    }, [phoneReady, phoneSending, busyGlobal, cooldown, handleRequestCode])
 
     const handleSmsPaste = useCallback((e: ReactClipboardEvent<HTMLDivElement>) => {
         e.preventDefault()
@@ -289,6 +297,14 @@ export default function TelegramLoginModal({
             return
         }
 
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            if (!verifyLoading && !busyGlobal && code.length === SMS_CODE_LEN) {
+                void handleVerify()
+            }
+            return
+        }
+
         if (e.key === 'Backspace') {
             e.preventDefault()
             setCode((c) => {
@@ -311,7 +327,7 @@ export default function TelegramLoginModal({
             e.preventDefault()
             codeInputRefs.current[index + 1]?.focus()
         }
-    }, [])
+    }, [code, verifyLoading, busyGlobal, handleVerify])
 
     useEffect(() => {
         if (!isOpen || phase !== 'code') return
@@ -383,7 +399,14 @@ export default function TelegramLoginModal({
                     )}
 
                     {phase === 'phone' ? (
-                        <div className="space-y-4">
+                        <form
+                            className="space-y-4"
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                if (phoneSending || busyGlobal || cooldown > 0 || !phoneReady) return
+                                void handleRequestCode()
+                            }}
+                        >
                             <label className="block">
                                 <span className="mb-1.5 block text-sm text-white/55">Номер телефона</span>
                                 <input
@@ -408,8 +431,7 @@ export default function TelegramLoginModal({
                                 />
                             </label>
                             <button
-                                type="button"
-                                onClick={() => void handleRequestCode()}
+                                type="submit"
                                 disabled={phoneSending || busyGlobal || cooldown > 0 || !phoneReady}
                                 className={`w-full rounded-xl bg-[#12c998] px-4 py-3 font-semibold text-white transition hover:bg-[#0fa87a] disabled:pointer-events-none disabled:opacity-45 ${
                                     phoneReady && !phoneSending && !busyGlobal && cooldown === 0
@@ -423,9 +445,16 @@ export default function TelegramLoginModal({
                                         ? `Повторить через ${cooldown} с`
                                         : 'Получить код'}
                             </button>
-                        </div>
+                        </form>
                     ) : (
-                        <div className="space-y-4">
+                        <form
+                            className="space-y-4"
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                if (verifyLoading || busyGlobal || code.length !== SMS_CODE_LEN) return
+                                void handleVerify()
+                            }}
+                        >
                             <p className="text-center text-sm text-white/55">
                                 Код отправлен на{' '}
                                 <span className="font-medium text-white">{phoneDisplay.trim()}</span>
@@ -461,8 +490,7 @@ export default function TelegramLoginModal({
                                 </div>
                             </div>
                             <button
-                                type="button"
-                                onClick={() => void handleVerify()}
+                                type="submit"
                                 disabled={verifyLoading || busyGlobal || code.length !== 4}
                                 className="w-full rounded-xl bg-[#ff2b9c] px-4 py-3 font-semibold text-white transition hover:bg-[#e02488] disabled:pointer-events-none disabled:opacity-45"
                             >
@@ -487,7 +515,7 @@ export default function TelegramLoginModal({
                             >
                                 {cooldown > 0 ? `Отправить код снова через ${cooldown} с` : 'Отправить код снова'}
                             </button>
-                        </div>
+                        </form>
                     )}
 
                     <div className="mt-12 border-t border-white/[0.06] pt-6">

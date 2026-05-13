@@ -196,12 +196,15 @@ const Catalog = () => {
         }
     }
 
-    // Показываем loader только при загрузке продуктов, НЕ при операциях с корзиной
+    // Показываем loader только при загрузке продуктов, НЕ при операциях с корзиной / SMS (глобальный status не должен скрывать окно авторизации)
     // 1. Локальная загрузка активна (только для продуктов)
     // 2. Первоначальная загрузка
     // 3. Нет продуктов и статус не failed (значит еще загружается)
-    // Исключаем операции с корзиной - они не должны показывать fullscreen loader
-    const shouldShowLoader = (isLoading || isInitialLoad || (safeProducts.length === 0 && status !== 'failed')) && !isCartLoading
+    // Исключаем операции с корзиной — и открытую модалку входа, иначе при пустом каталоге + status loading/failed дерево с TelegramLoginModal размонтируется
+    const shouldShowLoader =
+        (isLoading || isInitialLoad || (safeProducts.length === 0 && status !== 'failed')) &&
+        !isCartLoading &&
+        !isLoginModalOpen
 
     if (shouldShowLoader) {
         return <Loader fullScreen showText />
