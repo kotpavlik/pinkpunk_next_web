@@ -1,8 +1,28 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { AxiosError } from 'axios';
-import { CartApi, CartItemUI, CartStats, SyncCartResponse, ValidateCartResponse } from '@/api/CartApi';
+import { CartApi, CartItemUI, CartStats, ICartItem, SyncCartResponse, ValidateCartResponse } from '@/api/CartApi';
 import { HandleError } from '@/features/HandleError';
+import { formatProductName } from '@/utils/formatProductName';
+
+function mapCartItem(item: ICartItem): CartItemUI {
+    return {
+        _id: item._id,
+        product: {
+            _id: item.product._id,
+            productId: item.product.productId,
+            name: formatProductName(item.product.name),
+            price: item.product.price,
+            size: item.product.size,
+            description: item.product.description,
+            stockQuantity: item.product.stockQuantity,
+            photos: item.product.photos,
+            category: item.product.category,
+        },
+        quantity: item.quantity,
+        addedAt: item.addedAt,
+    };
+}
 
 
 // Используем типы из CartApi
@@ -61,22 +81,7 @@ export const useCartStore = create<CartStateType>()(
                 set((state) => {
                     // Используем ВСЕ данные из API - они уже полные!
                     state.cartId = response._id;
-                    state.items = response.items.map((item) => ({
-                        _id: item._id,
-                        product: {
-                            _id: item.product._id,
-                            productId: item.product.productId,
-                            name: item.product.name,
-                            price: item.product.price,
-                            size: item.product.size,
-                            description: item.product.description,
-                            stockQuantity: item.product.stockQuantity,
-                            photos: item.product.photos,
-                            category: item.product.category
-                        },
-                        quantity: item.quantity,
-                        addedAt: item.addedAt
-                    }));
+                    state.items = response.items.map(mapCartItem);
                     state.stats = {
                         totalItems: response.totalItems,
                         totalPrice: response.totalPrice
@@ -120,22 +125,7 @@ export const useCartStore = create<CartStateType>()(
                     set((state) => {
                         // Используем ВСЕ данные из API - они уже полные!
                         state.cartId = response._id;
-                        state.items = response.items.map((item) => ({
-                            _id: item._id,
-                            product: {
-                                _id: item.product._id,
-                                productId: item.product.productId,
-                                name: item.product.name,
-                                price: item.product.price,
-                                size: item.product.size,
-                                description: item.product.description,
-                                stockQuantity: item.product.stockQuantity,
-                                photos: item.product.photos,
-                                category: item.product.category
-                            },
-                            quantity: item.quantity,
-                            addedAt: item.addedAt
-                        }));
+                        state.items = response.items.map(mapCartItem);
                         state.stats = {
                             totalItems: response.totalItems,
                             totalPrice: response.totalPrice
@@ -183,22 +173,7 @@ export const useCartStore = create<CartStateType>()(
                 if ('items' in response) {
                     set((state) => {
                         state.cartId = response._id;
-                        state.items = response.items.map((item) => ({
-                            _id: item._id,
-                            product: {
-                                _id: item.product._id,
-                                productId: item.product.productId,
-                                name: item.product.name,
-                                price: item.product.price,
-                                size: item.product.size,
-                                description: item.product.description,
-                                stockQuantity: item.product.stockQuantity,
-                                photos: item.product.photos,
-                                category: item.product.category
-                            },
-                            quantity: item.quantity,
-                            addedAt: item.addedAt
-                        }));
+                        state.items = response.items.map(mapCartItem);
                         state.stats = {
                             totalItems: response.totalItems,
                             totalPrice: response.totalPrice
@@ -237,22 +212,7 @@ export const useCartStore = create<CartStateType>()(
                 // API возвращает полную корзину, обновляем состояние
                 set((state) => {
                     state.cartId = response._id;
-                    state.items = response.items.map((item) => ({
-                        _id: item._id,
-                        product: {
-                            _id: item.product._id,
-                            productId: item.product.productId,
-                            name: item.product.name,
-                            price: item.product.price,
-                            size: item.product.size,
-                            description: item.product.description,
-                            stockQuantity: item.product.stockQuantity,
-                            photos: item.product.photos,
-                            category: item.product.category
-                        },
-                        quantity: item.quantity,
-                        addedAt: item.addedAt
-                    }));
+                    state.items = response.items.map(mapCartItem);
                     state.stats = {
                         totalItems: response.totalItems,
                         totalPrice: response.totalPrice
@@ -365,22 +325,7 @@ export const useCartStore = create<CartStateType>()(
 
                 // Обновляем корзину с актуальными данными
                 set((state) => {
-                    state.items = syncResponse.updatedCart.items.map(item => ({
-                        _id: item._id,
-                        product: {
-                            _id: item.product._id,
-                            productId: item.product.productId,
-                            name: item.product.name,
-                            price: item.product.price,
-                            size: item.product.size,
-                            description: item.product.description,
-                            stockQuantity: item.product.stockQuantity,
-                            photos: item.product.photos,
-                            category: item.product.category
-                        },
-                        quantity: item.quantity,
-                        addedAt: item.addedAt
-                    }));
+                    state.items = syncResponse.updatedCart.items.map(mapCartItem);
                     state.stats = {
                         totalItems: syncResponse.updatedCart.totalItems,
                         totalPrice: syncResponse.updatedCart.totalPrice

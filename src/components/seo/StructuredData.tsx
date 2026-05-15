@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { formatProductName } from '@/utils/formatProductName'
 
 interface ProductStructuredDataProps {
   product: {
@@ -39,7 +40,7 @@ export function ProductStructuredData({ product, categoryName }: ProductStructur
     return {
       "@context": "https://schema.org",
       "@type": "Product",
-      "name": product.name,
+      "name": formatProductName(product.name),
       "description": product.description,
       "image": images,
       "sku": product.productId,
@@ -207,7 +208,7 @@ export function CollectionPageStructuredData({ name, description, url, items }: 
         "itemListElement": items?.map((item, index) => ({
           "@type": "ListItem",
           "position": index + 1,
-          "name": item.name,
+          "name": formatProductName(item.name),
           "url": item.url,
           "image": item.image
         })) || []

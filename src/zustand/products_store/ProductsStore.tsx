@@ -5,6 +5,11 @@ import { AxiosError } from 'axios';
 import { useAppStore } from '../app_store/AppStore';
 import { ProductApi, ProductResponse, UpdateProductRequest } from '@/api/ProductApi';
 import { HandleError } from '@/features/HandleError';
+import { formatProductName } from '@/utils/formatProductName';
+
+function normalizeProduct(p: ProductResponse): ProductResponse {
+    return { ...p, name: formatProductName(p.name) };
+}
 
 export type ClothingSize = 's' | 'm' | 'l' | 'xl';
 
@@ -29,7 +34,7 @@ export const useProductsStore = create<ProductsStateType>()(
                 setStatus("loading")
                 const response = await ProductApi.GetAllProducts(includeInactive)
                 set((state) => {
-                    state.products = response.data || []
+                    state.products = (response.data || []).map(normalizeProduct)
                 })
                 setStatus("success")
             } catch (error) {
@@ -49,7 +54,7 @@ export const useProductsStore = create<ProductsStateType>()(
                 setStatus("loading")
                 const response = await ProductApi.GetProductById(id)
                 set((state) => {
-                    state.currentProduct = response.data
+                    state.currentProduct = response.data ? normalizeProduct(response.data) : null
                 })
                 setStatus("success")
             } catch (error) {
@@ -82,11 +87,11 @@ export const useProductsStore = create<ProductsStateType>()(
                 const response = await ProductApi.UpdateProduct(id, product, photos)
                 set((state) => {
                     const index = state.products.findIndex(p => p._id === id)
-                    if (index !== -1) {
-                        state.products[index] = response.data
+                    if (index !== -1 && response.data) {
+                        state.products[index] = normalizeProduct(response.data)
                     }
-                    if (state.currentProduct?._id === id) {
-                        state.currentProduct = response.data
+                    if (state.currentProduct?._id === id && response.data) {
+                        state.currentProduct = normalizeProduct(response.data)
                     }
                 })
                 setStatus("success")

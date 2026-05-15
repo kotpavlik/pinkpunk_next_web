@@ -11,6 +11,7 @@ import {
     readOrderSuccessFromStorage,
     type OrderSuccessPayload,
 } from '@/app/order/orderSuccessUtils'
+import { formatProductName } from '@/utils/formatProductName'
 
 export default function OrderSuccessPage() {
     const router = useRouter()
@@ -83,7 +84,7 @@ export default function OrderSuccessPage() {
                                     <div key={`${item.name}-${index}`} className="border-b border-white/10 pb-3 last:border-b-0 last:pb-0">
                                         <div className="flex items-start justify-between gap-4">
                                             <div>
-                                                <p className="text-white font-semibold">{item.name}</p>
+                                                <p className="text-white font-semibold">{formatProductName(item.name)}</p>
                                                 <p className="text-white/60 text-sm">
                                                     {item.size ? `${item.size} · ` : ''}
                                                     {item.quantity} шт. × {item.price.toFixed(2)} BYN

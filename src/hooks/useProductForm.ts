@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import * as yup from 'yup';
 import { RequestProductType, ProductResponse } from "@/api/ProductApi";
+import { isAllowedProductPhotoFile, PRODUCT_PHOTO_FORMATS_LABEL } from '@/utils/productPhotoUpload';
 
 const createProductSchema = (isEditMode: boolean) => yup.object().shape({
     productId: yup
@@ -160,14 +161,12 @@ export const useProductForm = (product?: ProductResponse | null) => {
             return;
         }
 
-        // Проверка типа файла
-        const invalidTypeFiles = files.filter(file => {
-            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-            return !validTypes.includes(file.type);
-        });
+        const invalidTypeFiles = files.filter((file) => !isAllowedProductPhotoFile(file));
 
         if (invalidTypeFiles.length > 0) {
-            setErrors({ photos: `Неподдерживаемые форматы: ${invalidTypeFiles.map(f => f.name).join(', ')}. Разрешены только JPEG, PNG, WebP` });
+            setErrors({
+                photos: `Неподдерживаемые форматы: ${invalidTypeFiles.map((f) => f.name).join(', ')}. Разрешены только ${PRODUCT_PHOTO_FORMATS_LABEL}`,
+            });
             return;
         }
 

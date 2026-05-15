@@ -8,6 +8,7 @@ import { useAppStore } from "@/zustand/app_store/AppStore";
 import Image from 'next/image';
 import { useProductForm } from "@/hooks/useProductForm";
 import { useProductSubmission } from "@/hooks/useProductSubmission";
+import { PRODUCT_PHOTO_ACCEPT, PRODUCT_PHOTO_FORMATS_LABEL } from '@/utils/productPhotoUpload';
 
 type AdminProductsProps = {
     onClose: () => void
@@ -401,7 +402,7 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
 
                     <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept={PRODUCT_PHOTO_ACCEPT}
                         multiple
                         onChange={handleFiles}
                         disabled={processingPhotos || isSubmitting}
@@ -420,7 +421,7 @@ export const AdminProducts = ({ onClose, product, onSuccess, onGetSubmitHandler,
                             Максимальный размер при загрузке: 8 МБ на файл
                         </p>
                         <p className="text-xs text-white/60">
-                            Форматы: JPEG, PNG, WebP
+                            Форматы: {PRODUCT_PHOTO_FORMATS_LABEL}
                         </p>
                         {!isEditMode && (
                             <p className="text-xs text-white/60">

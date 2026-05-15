@@ -15,6 +15,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { writeOrderSuccessToStorage } from '@/app/order/orderSuccessUtils'
+import { formatProductName } from '@/utils/formatProductName'
 import OrderPendingSplash from '@/app/order/OrderPendingSplash'
 
 type OrderPaymentMethod = 'card_online' | 'card_offline' | 'cash' | 'crypto' | 'bank_transfer'
@@ -496,7 +497,7 @@ export default function OrderPage() {
                 items: order.items.map((item) => {
                     const pop = isOrderItemProductPopulated(item.product) ? item.product : null
                     return {
-                        name: pop?.name ?? 'Товар',
+                        name: formatProductName(pop?.name ?? 'Товар'),
                         size: item.size || pop?.size || '',
                         quantity: item.quantity,
                         price: item.price,

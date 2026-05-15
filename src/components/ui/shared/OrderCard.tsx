@@ -9,6 +9,7 @@ import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
+import { formatProductName } from '@/utils/formatProductName'
 
 interface OrderCardProps {
     order: PinkPunkOrder
@@ -191,7 +192,7 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                 <div key={index} className="w-10 h-10 flex-shrink-0 rounded overflow-hidden border border-white/10">
                                     <LazyImage
                                         src={item.product.photos[0]}
-                                        alt={item.product.name || 'Товар'}
+                                        alt={formatProductName(item.product.name) || 'Товар'}
                                         className="w-full h-full"
                                     />
                                 </div>
@@ -414,13 +415,13 @@ export const OrderCard: React.FC<OrderCardProps> = React.memo(({ order, onDelete
                                                                 <div className="relative w-16 h-20 flex-shrink-0 overflow-hidden border border-white/10">
                                                                     <LazyImage
                                                                         src={firstPhoto}
-                                                                        alt={prod.name || 'Товар'}
+                                                                        alt={formatProductName(prod.name) || 'Товар'}
                                                                         className="w-full h-full"
                                                                     />
                                                                 </div>
                                                             )}
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-white font-medium text-sm mb-1">{prod.name}</p>
+                                                                <p className="text-white font-medium text-sm mb-1">{formatProductName(prod.name)}</p>
                                                                 <div className="space-y-1 text-xs text-white/70">
                                                                     <p>Размер: {item.size || 'Не указан'}</p>
                                                                     <p>Количество: {item.quantity} шт</p>

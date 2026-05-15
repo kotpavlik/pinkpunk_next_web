@@ -22,6 +22,7 @@ import {
 import { ProductApi, type ProductResponse } from '@/api/ProductApi'
 import LazyImage from '@/components/common/LazyImage'
 import { useAppStore } from '@/zustand/app_store/AppStore'
+import { formatProductName } from '@/utils/formatProductName'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 
 type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals'
@@ -166,8 +167,8 @@ function axiosResponseMessage(e: unknown): string {
 
 function offlineLineLabel(line: CrmOfflineLine): string {
     if (line.kind === 'custom') return line.customName
-    if (isPopulatedProduct(line.product)) return line.product.name
-    return line.productNameSnapshot
+    if (isPopulatedProduct(line.product)) return formatProductName(line.product.name)
+    return formatProductName(line.productNameSnapshot)
 }
 
 function fmtMoney(n: number) {
@@ -248,7 +249,7 @@ const ORDER_STATUS_RU: Record<PinkPunkOrder['status'], string> = {
 }
 
 function orderItemLabel(it: OrderItem): string {
-    if (isOrderItemProductPopulated(it.product)) return it.product.name
+    if (isOrderItemProductPopulated(it.product)) return formatProductName(it.product.name)
     if (typeof it.product === 'string' && it.product) return `Товар (id: ${it.product})`
     return 'Товар'
 }
@@ -435,7 +436,11 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         if (productsLoaded) return
         try {
             const { data } = await ProductApi.GetAllProducts(true)
-            setProducts(Array.isArray(data) ? data : [])
+            setProducts(
+                Array.isArray(data)
+                    ? data.map((p) => ({ ...p, name: formatProductName(p.name) }))
+                    : [],
+            )
             setProductsLoaded(true)
         } catch {
             setProducts([])
@@ -624,7 +629,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                 if (d?.code === 'INSUFFICIENT_STOCK') {
                     setCrmBannerError(
                         d.message?.trim() ||
-                            `Недостаточно на складе: «${d.productName ?? 'товар'}» — запрошено ${d.requestedQty ?? q} шт., в наличии ${d.availableQty ?? '?'}.`
+                            `Недостаточно на складе: «${formatProductName(d.productName ?? 'товар')}» — запрошено ${d.requestedQty ?? q} шт., в наличии ${d.availableQty ?? '?'}.`
                     )
                     return
                 }
@@ -1417,14 +1422,14 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                                                                     <LazyImage
                                                                                         src={photo}
                                                                                         alt={
-                                                                                            line.name?.trim() || 'Товар'
+                                                                                            formatProductName(line.name?.trim()) || 'Товар'
                                                                                         }
                                                                                         className="w-full h-full"
                                                                                     />
                                                                                 </div>
                                                                             ) : null}
                                                                             <span className="font-medium min-w-0 break-words">
-                                                                                {line.name?.trim() || '—'}
+                                                                                {formatProductName(line.name?.trim()) || '—'}
                                                                             </span>
                                                                         </div>
                                                                     </td>
