@@ -249,6 +249,17 @@ function crmPath(suffix: string): string {
     return `/${seg}${path}`
 }
 
+export type DeleteUserCascadeStats = {
+    ordersDeleted: number
+    ordersAnonymized: number
+    cartsDeleted: number
+}
+
+export type DeleteUserResponse = {
+    success: true
+    cascade?: DeleteUserCascadeStats
+}
+
 export const CrmApi = {
     async getUsers(): Promise<CrmListUser[]> {
         const path = crmPath('/admin/crm/users')
@@ -294,6 +305,29 @@ export const CrmApi = {
         const { data } = await instance.delete<CrmOfflinePurchasesMutationResponse>(
             crmPath(`/admin/crm/users/${encodeURIComponent(id)}/offline-purchases/${encodeURIComponent(lineId)}`)
         )
+        return data
+    },
+
+    /**
+     * DELETE /admin/users/:id
+     * @param cascade — `orders,cart`: заказы по политике статусов + удаление корзин; `none` — только pp_users
+     */
+    async deleteUser(
+        accountId: string,
+        cascade: 'full' | 'none' = 'full',
+    ): Promise<DeleteUserResponse> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const path = crmPath(`/admin/users/${encodeURIComponent(id)}`)
+
+        if (cascade === 'none') {
+            const { data } = await instance.delete<DeleteUserResponse>(path)
+            return data
+        }
+
+        const { data } = await instance.delete<DeleteUserResponse>(path, {
+            params: { cascade: 'orders,cart' },
+            data: { deleteOrders: true, clearCart: true },
+        })
         return data
     },
 }

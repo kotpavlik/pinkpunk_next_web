@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type Mou
 import { createPortal } from 'react-dom'
 import type { AxiosError } from 'axios'
 import { ShieldCheckIcon, ShoppingBagIcon, SparklesIcon } from '@heroicons/react/24/solid'
-import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
-import { CrmApi, type CrmListUser } from '@/api/CrmApi'
+import { CheckIcon, ClipboardDocumentIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { CrmApi, type CrmListUser, type DeleteUserCascadeStats } from '@/api/CrmApi'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailModal'
 import { tokenManager } from '@/utils/TokenManager'
@@ -42,12 +42,93 @@ function formatCrmLoadError(err: unknown): string {
     return err instanceof Error ? err.message : 'Не удалось загрузить CRM'
 }
 
+function formatDeleteUserError(err: unknown): string {
+    if (err && typeof err === 'object' && 'response' in err) {
+        const ax = err as AxiosError<{ message?: string | string[]; error?: string }>
+        const status = ax.response?.status
+        const d = ax.response?.data
+        let msg = ''
+        if (d && typeof d === 'object') {
+            const m = d.message
+            if (Array.isArray(m)) msg = m.join(', ')
+            else if (typeof m === 'string') msg = m
+            if (!msg && typeof d.error === 'string') msg = d.error
+        }
+        if (status === 403) {
+            return msg || 'Нельзя удалить аккаунт владельца'
+        }
+        if (status === 400) {
+            return msg || 'Пользователь не найден'
+        }
+        if (status === 401) {
+            return msg || 'Нет доступа. Войдите в админку заново.'
+        }
+        const tail = msg || ax.message || ''
+        return status ? `${status} — ${tail}` : tail || 'Не удалось удалить пользователя'
+    }
+    return err instanceof Error ? err.message : 'Не удалось удалить пользователя'
+}
+
+/** Telegram id владельцев — на бэкенде DELETE вернёт 403 */
+const PROTECTED_OWNER_TELEGRAM_IDS = new Set([6399340874, 412971440])
+
+function isProtectedOwnerUser(u: CrmListUser): boolean {
+    const tg = u.telegramUserId ?? u.userId
+    return tg != null && PROTECTED_OWNER_TELEGRAM_IDS.has(tg)
+}
+
+function displayNameForUser(u: CrmListUser): string {
+    const personal = [u.personalFirstName, u.personalLastName].filter(Boolean).join(' ').trim()
+    if (personal) return personal
+    const tg = [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
+    if (tg) return tg
+    if (u.username?.trim()) return `@${u.username.trim()}`
+    const phone = phoneFromRow(u)
+    if (phone) return phone
+    return u._id
+}
+
 type OrdersSort =
     | 'none'
-    | 'orders_desc'
-    | 'orders_asc'
-    | 'sum_desc'
-    | 'sum_asc'
+    | 'online_sum_desc'
+    | 'offline_sum_desc'
+    | 'total_orders_desc'
+    | 'total_orders_asc'
+    | 'total_sum_desc'
+    | 'total_sum_asc'
+
+function statSortTileClass(active: boolean, accent: 'mint' | 'amber'): string {
+    const base =
+        'flex flex-col justify-between gap-1.5 bg-white/10 backdrop-blur-sm border p-3 text-left w-full transition-all cursor-pointer hover:bg-white/15 focus:outline-none focus-visible:ring-2'
+    if (!active) return `${base} border-white/20`
+    return accent === 'mint'
+        ? `${base} border-[var(--mint-bright)] ring-1 ring-[var(--mint-bright)]/50`
+        : `${base} border-amber-400/90 ring-1 ring-amber-400/40`
+}
+
+function onlineOrdersCount(u: CrmListUser): number {
+    return u.stats?.ordersTotal ?? 0
+}
+
+function onlineOrdersSum(u: CrmListUser): number {
+    return u.stats?.totalSpent ?? 0
+}
+
+function offlineOrdersCount(u: CrmListUser): number {
+    return u.offlinePurchasesSummary?.linesCount ?? 0
+}
+
+function offlineOrdersSum(u: CrmListUser): number {
+    return u.offlinePurchasesSummary?.totalAmount ?? 0
+}
+
+function totalOrdersCount(u: CrmListUser): number {
+    return onlineOrdersCount(u) + offlineOrdersCount(u)
+}
+
+function totalOrdersSum(u: CrmListUser): number {
+    return onlineOrdersSum(u) + offlineOrdersSum(u)
+}
 
 function phoneFromRow(u: CrmListUser): string {
     return (
@@ -65,6 +146,139 @@ function hasItemsInCart(u: CrmListUser): boolean {
     if ((c.totalItems ?? 0) > 0) return true
     if (c.items && c.items.length > 0) return true
     return false
+}
+
+function formatCascadeSummary(c: DeleteUserCascadeStats): string {
+    const parts: string[] = []
+    if (c.ordersDeleted > 0) parts.push(`заказов удалено: ${c.ordersDeleted}`)
+    if (c.ordersAnonymized > 0) parts.push(`заказов анонимизировано: ${c.ordersAnonymized}`)
+    if (c.cartsDeleted > 0) parts.push(`корзин удалено: ${c.cartsDeleted}`)
+    return parts.length > 0 ? parts.join(' · ') : 'дополнительных изменений не было'
+}
+
+function CrmDeleteUserConfirmModal({
+    user,
+    isDeleting,
+    error,
+    cascadeResult,
+    onCancel,
+    onConfirm,
+    onCloseAfterSuccess,
+}: {
+    user: CrmListUser
+    isDeleting: boolean
+    error: string | null
+    cascadeResult: DeleteUserCascadeStats | null
+    onCancel: () => void
+    onConfirm: () => void
+    onCloseAfterSuccess: () => void
+}) {
+    const label = displayNameForUser(user)
+    const accountId = accountObjectIdFromCrmListRow(user)
+    const success = cascadeResult != null
+
+    return (
+        <div
+            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="crm-delete-user-title"
+            onClick={(e) => {
+                if (e.target === e.currentTarget && !isDeleting) {
+                    success ? onCloseAfterSuccess() : onCancel()
+                }
+            }}
+        >
+            <div className="relative w-full max-w-md max-h-[min(90dvh,640px)] overflow-y-auto bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-5 sm:p-6 shadow-2xl">
+                <h3
+                    id="crm-delete-user-title"
+                    className="text-white font-semibold text-lg sm:text-xl font-durik mb-3"
+                >
+                    {success ? 'Пользователь удалён' : 'Удаление пользователя'}
+                </h3>
+
+                {success && cascadeResult ? (
+                    <>
+                        <p className="text-white/80 text-sm sm:text-base mb-3">
+                            <span className="text-[var(--mint-bright)] font-semibold break-words">{label}</span>{' '}
+                            удалён из CRM вместе со связанными данными.
+                        </p>
+                        <div className="text-sm text-emerald-200/95 bg-emerald-950/35 border border-emerald-500/30 rounded p-3 mb-4 space-y-1.5">
+                            <p className="font-medium">Результат каскада:</p>
+                            <ul className="list-disc list-inside text-emerald-100/90 text-xs sm:text-sm space-y-1">
+                                <li>Заказов удалено: {cascadeResult.ordersDeleted}</li>
+                                <li>
+                                    Заказов анонимизировано (оплачено / завершено):{' '}
+                                    {cascadeResult.ordersAnonymized}
+                                </li>
+                                <li>Корзин удалено: {cascadeResult.cartsDeleted}</li>
+                            </ul>
+                            <p className="text-emerald-100/70 text-[10px] sm:text-xs pt-1">
+                                {formatCascadeSummary(cascadeResult)}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onCloseAfterSuccess}
+                            className="w-full sm:w-auto sm:ml-auto sm:block px-4 py-2.5 rounded-md bg-[var(--mint-bright)] text-black text-sm font-semibold hover:opacity-90 transition-opacity"
+                        >
+                            Закрыть
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-white/80 text-sm sm:text-base mb-2">
+                            Вы точно хотите удалить пользователя{' '}
+                            <span className="text-[var(--mint-bright)] font-semibold break-words">{label}</span>?
+                        </p>
+                        <div className="text-white/55 text-xs sm:text-sm mb-4 leading-relaxed space-y-2 border border-white/10 bg-white/[0.03] rounded p-3">
+                            <p className="text-white/70 font-medium">Будет выполнено атомарно:</p>
+                            <ul className="list-disc list-inside space-y-1 pl-0.5">
+                                <li>Удаление профиля в CRM</li>
+                                <li>
+                                    <strong className="text-white/80">Заказы:</strong> ожидающие и подтверждённые —
+                                    удаление и возврат на склад; отменённые — удаление; оплаченные и завершённые —
+                                    только анонимизация контактов (суммы и позиции сохраняются)
+                                </li>
+                                <li>
+                                    <strong className="text-white/80">Корзины:</strong> полное удаление по аккаунту
+                                </li>
+                            </ul>
+                            <p className="text-white/45 text-[10px] sm:text-xs">
+                                При ошибке все изменения каскада откатываются. Действие необратимо.
+                            </p>
+                        </div>
+                {accountId && (
+                    <p className="text-white/40 text-[10px] sm:text-xs font-mono mb-4 break-all">id: {accountId}</p>
+                )}
+                {error && (
+                    <p className="text-sm text-red-200/90 break-words whitespace-pre-wrap bg-red-950/40 border border-red-500/30 p-3 rounded mb-4">
+                        {error}
+                    </p>
+                )}
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isDeleting}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white/10 text-white/90 hover:bg-white/15 text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={isDeleting}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-red-600/90 text-white hover:bg-red-600 text-sm font-semibold transition-colors disabled:opacity-50"
+                    >
+                        {isDeleting ? 'Удаляем…' : 'Удалить'}
+                    </button>
+                </div>
+                    </>
+                )}
+            </div>
+        </div>
+    )
 }
 
 function CrmCopyIconBtn({ text, label }: { text: string; label: string }) {
@@ -113,6 +327,10 @@ const AdminUsers = () => {
     const { status, setStatus } = useAppStore()
     const [loadError, setLoadError] = useState<string | null>(null)
     const [portalMounted, setPortalMounted] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<CrmListUser | null>(null)
+    const [isDeletingUser, setIsDeletingUser] = useState(false)
+    const [deleteUserError, setDeleteUserError] = useState<string | null>(null)
+    const [deleteCascadeResult, setDeleteCascadeResult] = useState<DeleteUserCascadeStats | null>(null)
 
     useEffect(() => {
         setPortalMounted(true)
@@ -165,7 +383,7 @@ const AdminUsers = () => {
                 if (!hit) return false
             }
             if (onlyWithPhone && !resolvedUserPhone(u)) return false
-            if (onlyWithOrders && (u.stats?.ordersTotal ?? 0) < 1) return false
+            if (onlyWithOrders && totalOrdersCount(u) < 1) return false
             if (onlyWithCartItems && !hasItemsInCart(u)) return false
             return true
         })
@@ -173,17 +391,23 @@ const AdminUsers = () => {
         if (ordersSort !== 'none') {
             const copy = [...list]
             switch (ordersSort) {
-                case 'orders_desc':
-                    copy.sort((a, b) => (b.stats?.ordersTotal ?? 0) - (a.stats?.ordersTotal ?? 0))
+                case 'online_sum_desc':
+                    copy.sort((a, b) => onlineOrdersSum(b) - onlineOrdersSum(a))
                     break
-                case 'orders_asc':
-                    copy.sort((a, b) => (a.stats?.ordersTotal ?? 0) - (b.stats?.ordersTotal ?? 0))
+                case 'offline_sum_desc':
+                    copy.sort((a, b) => offlineOrdersSum(b) - offlineOrdersSum(a))
                     break
-                case 'sum_desc':
-                    copy.sort((a, b) => (b.stats?.totalSpent ?? 0) - (a.stats?.totalSpent ?? 0))
+                case 'total_orders_desc':
+                    copy.sort((a, b) => totalOrdersCount(b) - totalOrdersCount(a))
                     break
-                case 'sum_asc':
-                    copy.sort((a, b) => (a.stats?.totalSpent ?? 0) - (b.stats?.totalSpent ?? 0))
+                case 'total_orders_asc':
+                    copy.sort((a, b) => totalOrdersCount(a) - totalOrdersCount(b))
+                    break
+                case 'total_sum_desc':
+                    copy.sort((a, b) => totalOrdersSum(b) - totalOrdersSum(a))
+                    break
+                case 'total_sum_asc':
+                    copy.sort((a, b) => totalOrdersSum(a) - totalOrdersSum(b))
                     break
             }
             list = copy
@@ -198,8 +422,52 @@ const AdminUsers = () => {
         setOrdersSort('none')
     }
 
-    const totalOrdersAll = users.reduce((s, u) => s + (u.stats?.ordersTotal ?? 0), 0)
-    const totalSpentAgg = users.reduce((s, u) => s + (u.stats?.totalSpent ?? 0), 0)
+    const aggOnlineOrders = users.reduce((s, u) => s + onlineOrdersCount(u), 0)
+    const aggOnlineSum = users.reduce((s, u) => s + onlineOrdersSum(u), 0)
+    const aggOfflineOrders = users.reduce((s, u) => s + offlineOrdersCount(u), 0)
+    const aggOfflineSum = users.reduce((s, u) => s + offlineOrdersSum(u), 0)
+    const aggTotalOrders = aggOnlineOrders + aggOfflineOrders
+    const aggTotalSum = aggOnlineSum + aggOfflineSum
+
+    const toggleOrdersSort = (next: OrdersSort) => {
+        setOrdersSort((prev) => (prev === next ? 'none' : next))
+    }
+
+    const closeDeleteModal = () => {
+        if (isDeletingUser) return
+        setUserToDelete(null)
+        setDeleteUserError(null)
+        setDeleteCascadeResult(null)
+    }
+
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return
+        const accountId = accountObjectIdFromCrmListRow(userToDelete)
+        if (!accountId) {
+            setDeleteUserError('Нет валидного Mongo ObjectId для удаления')
+            return
+        }
+        try {
+            setIsDeletingUser(true)
+            setDeleteUserError(null)
+            const res = await CrmApi.deleteUser(accountId, 'full')
+            setUsers((prev) => prev.filter((row) => accountObjectIdFromCrmListRow(row) !== accountId))
+            if (detailRow && accountObjectIdFromCrmListRow(detailRow) === accountId) {
+                setDetailRow(null)
+            }
+            setDeleteCascadeResult(
+                res.cascade ?? {
+                    ordersDeleted: 0,
+                    ordersAnonymized: 0,
+                    cartsDeleted: 0,
+                },
+            )
+        } catch (e) {
+            setDeleteUserError(formatDeleteUserError(e))
+        } finally {
+            setIsDeletingUser(false)
+        }
+    }
 
     return (
         <>
@@ -254,7 +522,7 @@ const AdminUsers = () => {
                                 onChange={e => setOnlyWithOrders(e.target.checked)}
                                 className="rounded border-white/30 bg-white/10 text-[var(--mint-bright)] focus:ring-[var(--mint-bright)]"
                             />
-                            <span className="text-white/90" title="Фильтр по stats.ordersTotal в ответе GET /admin/crm/users (онлайн-заказы). В карточке список берётся из поля orders в GET …/users/:id — при расхождении смотрите подсказку во вкладке «Заказы».">
+                            <span className="text-white/90" title="Есть хотя бы один онлайн- или офлайн-заказ">
                                 Только с заказами
                             </span>
                         </label>
@@ -272,13 +540,19 @@ const AdminUsers = () => {
                             <select
                                 value={ordersSort}
                                 onChange={e => setOrdersSort(e.target.value as OrdersSort)}
-                                className="bg-white/10 border border-white/20 text-white text-sm py-1.5 px-2 rounded-none focus:outline-none focus:border-[var(--mint-bright)] max-w-[min(100%,240px)]"
+                                className="bg-white/10 border border-white/20 text-white text-sm py-1.5 px-2 rounded-none focus:outline-none focus:border-[var(--mint-bright)] max-w-[min(100%,320px)]"
                             >
                                 <option value="none">Как пришло с сервера</option>
-                                <option value="orders_desc">Заказы: больше → меньше</option>
-                                <option value="orders_asc">Заказы: меньше → больше</option>
-                                <option value="sum_desc">Сумма (оплачено + завершено): больше → меньше</option>
-                                <option value="sum_asc">Сумма (оплачено + завершено): меньше → больше</option>
+                                <option value="online_sum_desc">Онлайн: сумма больше → меньше</option>
+                                <option value="offline_sum_desc">Офлайн: сумма больше → меньше</option>
+                                <option value="total_orders_desc">
+                                    Заказы онлайн + офлайн: больше → меньше
+                                </option>
+                                <option value="total_orders_asc">
+                                    Заказы онлайн + офлайн: меньше → больше
+                                </option>
+                                <option value="total_sum_desc">Сумма онлайн + офлайн: больше → меньше</option>
+                                <option value="total_sum_asc">Сумма онлайн + офлайн: меньше → больше</option>
                             </select>
                         </div>
                         {(onlyWithPhone || onlyWithOrders || onlyWithCartItems || ordersSort !== 'none') && (
@@ -305,26 +579,43 @@ const AdminUsers = () => {
                         </div>
                     </div>
                     <div className="flex flex-col  justify-between  gap-1.5 bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-left">
-                        <div className="text-xs text-white/60 leading-snug">Премиум</div>
-                        <div className="text-2xl font-bold text-[var(--mint-bright)] leading-tight">
-                            {users.filter(u => u.isPremium).length}
-                        </div>
-                    </div>
-                    <div className="flex flex-col  justify-between  gap-1.5 bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-left">
                         <div className="text-xs text-white/60 leading-snug">С телефоном</div>
                         <div className="text-2xl font-bold text-white leading-tight">
                             {users.filter(u => phoneFromRow(u)).length}
                         </div>
                     </div>
-                    <div className="flex flex-col  justify-between  gap-1.5 bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-left">
-                        <div className="text-xs text-white/60 leading-snug">Всего заказов (все статусы)</div>
-                        <div className="text-2xl font-bold text-[var(--mint-bright)] leading-tight">{totalOrdersAll}</div>
-                    </div>
-                    <div className="flex flex-col  justify-between   gap-1.5 bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-left">
-                        <div className="text-xs text-white/60 leading-snug">Сумма (оплачено + завершено)</div>
-                        <div className="text-lg md:text-xl font-bold text-[var(--mint-bright)] break-words leading-tight">
-                            {totalSpentAgg.toFixed(0)} BYN
+                    <button
+                        type="button"
+                        onClick={() => toggleOrdersSort('online_sum_desc')}
+                        title="Сортировать карточки по сумме онлайн-заказов (больше → меньше). Повторный клик — сброс."
+                        className={statSortTileClass(ordersSort === 'online_sum_desc', 'mint')}
+                        aria-pressed={ordersSort === 'online_sum_desc'}
+                    >
+                        <div className="text-xs text-white/60 leading-snug">Онлайн-заказы</div>
+                        <div className="text-lg md:text-xl font-bold text-[var(--mint-bright)] leading-tight">
+                            {aggOnlineOrders} шт
                         </div>
+                        <div className="text-xs text-white/70 mt-0.5">{aggOnlineSum.toFixed(0)} BYN</div>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => toggleOrdersSort('offline_sum_desc')}
+                        title="Сортировать карточки по сумме офлайн-заказов (больше → меньше). Повторный клик — сброс."
+                        className={statSortTileClass(ordersSort === 'offline_sum_desc', 'amber')}
+                        aria-pressed={ordersSort === 'offline_sum_desc'}
+                    >
+                        <div className="text-xs text-white/60 leading-snug">Офлайн-заказы</div>
+                        <div className="text-lg md:text-xl font-bold text-amber-300/95 leading-tight">
+                            {aggOfflineOrders} шт
+                        </div>
+                        <div className="text-xs text-white/70 mt-0.5">{aggOfflineSum.toFixed(0)} BYN</div>
+                    </button>
+                    <div className="flex flex-col justify-between gap-1.5 bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-left col-span-2 md:col-span-1">
+                        <div className="text-xs text-white/60 leading-snug">Итого онлайн + офлайн</div>
+                        <div className="text-lg md:text-xl font-bold text-white leading-tight">
+                            {aggTotalOrders} шт
+                        </div>
+                        <div className="text-xs text-white/80 mt-0.5 font-medium">{aggTotalSum.toFixed(0)} BYN</div>
                     </div>
                 </div>
 
@@ -360,6 +651,7 @@ const AdminUsers = () => {
                                     (u.username ? `@${u.username}` : '—')
                                 const phoneDisplay = phoneFromRow(u)
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
+                                const protectedOwner = isProtectedOwnerUser(u)
                                 return (
                                     <div
                                         key={u._id}
@@ -391,6 +683,28 @@ const AdminUsers = () => {
                                                     {tgName}
                                                 </span>
                                                 <span className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!crmAccountId || protectedOwner}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            if (!crmAccountId || protectedOwner) return
+                                                            setDeleteUserError(null)
+                                                            setDeleteCascadeResult(null)
+                                                            setUserToDelete(u)
+                                                        }}
+                                                        title={
+                                                            protectedOwner
+                                                                ? 'Нельзя удалить аккаунт владельца'
+                                                                : crmAccountId
+                                                                  ? 'Удалить пользователя'
+                                                                  : 'Нет id для удаления'
+                                                        }
+                                                        className="inline-flex rounded p-0.5 text-white/40 hover:text-red-400 hover:bg-red-500/10 disabled:pointer-events-none disabled:opacity-25 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
+                                                        aria-label="Удалить пользователя"
+                                                    >
+                                                        <TrashIcon className="h-3.5 w-3.5" aria-hidden />
+                                                    </button>
                                                     <span title={u.isAdmin ? 'Администратор' : 'Не администратор'}>
                                                         <ShieldCheckIcon
                                                             className={`h-3.5 w-3.5 ${u.isAdmin ? 'text-[var(--pink-punk)]' : 'text-white/20'}`}
@@ -474,6 +788,23 @@ const AdminUsers = () => {
                     )}
                 </div>
             </div>
+
+            {portalMounted &&
+                userToDelete &&
+                typeof document !== 'undefined' &&
+                document.body &&
+                createPortal(
+                    <CrmDeleteUserConfirmModal
+                        user={userToDelete}
+                        isDeleting={isDeletingUser}
+                        error={deleteUserError}
+                        cascadeResult={deleteCascadeResult}
+                        onCancel={closeDeleteModal}
+                        onConfirm={() => void confirmDeleteUser()}
+                        onCloseAfterSuccess={closeDeleteModal}
+                    />,
+                    document.body,
+                )}
 
             {portalMounted &&
                 detailRow &&
