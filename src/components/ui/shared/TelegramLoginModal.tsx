@@ -16,6 +16,7 @@ import {
     isBelarusMobileComplete,
     parseBelarusNationalInput,
 } from '@/utils/belarusPhone'
+import { listenForWebOtpSms, normalizeSmsOtpCode } from '@/utils/smsOtpAutofill'
 
 interface TelegramLoginModalProps {
     isOpen: boolean
@@ -47,7 +48,8 @@ export default function TelegramLoginModal({
     const [cooldown, setCooldown] = useState(0)
     const closingRef = useRef(false)
     const closeTimeoutRef = useRef<number | null>(null)
-    const codeInputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null, null])
+    /** Одно поле для автоподстановки кода из SMS (iOS / Android). */
+    const otpCaptureRef = useRef<HTMLInputElement | null>(null)
 
     const {
         authenticateTelegramLoginWidget,
@@ -175,7 +177,7 @@ export default function TelegramLoginModal({
 
         if (phase === 'code') {
             setCode('')
-            queueMicrotask(() => codeInputRefs.current[0]?.focus())
+            queueMicrotask(() => otpCaptureRef.current?.focus())
         }
 
         setPhoneSending(true)
@@ -243,97 +245,50 @@ export default function TelegramLoginModal({
         e.preventDefault()
     }, [phoneReady, phoneSending, busyGlobal, cooldown, handleRequestCode])
 
-    const handleSmsPaste = useCallback((e: ReactClipboardEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, SMS_CODE_LEN)
-        if (!pasted) return
-        setCode(pasted)
-        queueMicrotask(() => {
-            const idx = Math.min(Math.max(pasted.length - 1, 0), SMS_CODE_LEN - 1)
-            codeInputRefs.current[idx]?.focus()
-        })
+    const applySmsCode = useCallback((raw: string) => {
+        setCode(normalizeSmsOtpCode(raw, SMS_CODE_LEN))
     }, [])
 
-    const handleSmsDigitChange = useCallback((index: number, raw: string) => {
-        const digits = raw.replace(/\D/g, '')
-        if (digits.length >= SMS_CODE_LEN) {
-            const next = digits.slice(0, SMS_CODE_LEN)
-            setCode(next)
-            queueMicrotask(() => codeInputRefs.current[SMS_CODE_LEN - 1]?.focus())
-            return
-        }
-        if (digits === '') {
-            setCode((c) => c.slice(0, index) + c.slice(index + 1))
-            return
-        }
-        const digit = digits.slice(-1)
-        setCode((c) => {
-            const next = (c.slice(0, index) + digit + c.slice(index + 1)).slice(0, SMS_CODE_LEN)
-            queueMicrotask(() => {
-                if (digit && index < SMS_CODE_LEN - 1) {
-                    codeInputRefs.current[index + 1]?.focus()
+    const handleOtpCaptureChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            applySmsCode(e.target.value)
+        },
+        [applySmsCode],
+    )
+
+    const handleOtpCapturePaste = useCallback(
+        (e: ReactClipboardEvent<HTMLInputElement>) => {
+            e.preventDefault()
+            applySmsCode(e.clipboardData.getData('text'))
+        },
+        [applySmsCode],
+    )
+
+    const handleOtpCaptureKeyDown = useCallback(
+        (e: ReactKeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter') {
+                e.preventDefault()
+                if (!verifyLoading && !busyGlobal && code.length === SMS_CODE_LEN) {
+                    void handleVerify()
                 }
-            })
-            return next
-        })
-    }, [])
-
-    const handleSmsKeyDown = useCallback((index: number, e: ReactKeyboardEvent<HTMLInputElement>) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return
-
-        const navKeys = new Set([
-            'Backspace',
-            'Delete',
-            'Tab',
-            'ArrowLeft',
-            'ArrowRight',
-            'ArrowUp',
-            'ArrowDown',
-            'Home',
-            'End',
-        ])
-        if (!navKeys.has(e.key) && e.key.length === 1 && !/^\d$/.test(e.key)) {
-            e.preventDefault()
-            return
-        }
-
-        if (e.key === 'Enter') {
-            e.preventDefault()
-            if (!verifyLoading && !busyGlobal && code.length === SMS_CODE_LEN) {
-                void handleVerify()
             }
-            return
-        }
-
-        if (e.key === 'Backspace') {
-            e.preventDefault()
-            setCode((c) => {
-                if (c[index]) {
-                    return c.slice(0, index) + c.slice(index + 1)
-                }
-                if (index > 0) {
-                    queueMicrotask(() => codeInputRefs.current[index - 1]?.focus())
-                    return c.slice(0, index - 1) + c.slice(index)
-                }
-                return c
-            })
-            return
-        }
-        if (e.key === 'ArrowLeft' && index > 0) {
-            e.preventDefault()
-            codeInputRefs.current[index - 1]?.focus()
-        }
-        if (e.key === 'ArrowRight' && index < SMS_CODE_LEN - 1) {
-            e.preventDefault()
-            codeInputRefs.current[index + 1]?.focus()
-        }
-    }, [code, verifyLoading, busyGlobal, handleVerify])
+        },
+        [code.length, verifyLoading, busyGlobal, handleVerify],
+    )
 
     useEffect(() => {
         if (!isOpen || phase !== 'code') return
-        const t = window.setTimeout(() => codeInputRefs.current[0]?.focus(), 80)
+        const t = window.setTimeout(() => otpCaptureRef.current?.focus(), 80)
         return () => window.clearTimeout(t)
     }, [isOpen, phase])
+
+    /** WebOTP: Android Chrome, если SMS содержит `@домен #код` (см. документацию бэкенда). */
+    useEffect(() => {
+        if (!isOpen || phase !== 'code') return
+        const ac = new AbortController()
+        listenForWebOtpSms((raw) => applySmsCode(raw), ac.signal)
+        return () => ac.abort()
+    }, [isOpen, phase, applySmsCode])
 
     if (!isOpen) return null
 
@@ -463,29 +418,44 @@ export default function TelegramLoginModal({
                                 <span className="mb-2 block text-sm text-white/55" id="sms-code-label">
                                     Код из SMS (4 цифры)
                                 </span>
+                                <p className="mb-3 text-center text-xs text-white/40">
+                                    Нажмите на поле — телефон может предложить код из сообщения
+                                </p>
                                 <div
                                     role="group"
                                     aria-labelledby="sms-code-label"
-                                    className="flex justify-center gap-2 sm:gap-3"
-                                    onPaste={handleSmsPaste}
+                                    className="relative mx-auto flex w-fit justify-center gap-2 sm:gap-3"
+                                    onClick={() => otpCaptureRef.current?.focus()}
                                 >
+                                    <input
+                                        ref={otpCaptureRef}
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        name="one-time-code"
+                                        enterKeyHint="done"
+                                        autoCapitalize="off"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        maxLength={SMS_CODE_LEN}
+                                        value={code}
+                                        disabled={verifyLoading || busyGlobal}
+                                        onChange={handleOtpCaptureChange}
+                                        onKeyDown={handleOtpCaptureKeyDown}
+                                        onPaste={handleOtpCapturePaste}
+                                        className="absolute inset-0 z-10 h-full w-full cursor-text opacity-[0.02] caret-transparent"
+                                        aria-label="Код из SMS"
+                                    />
                                     {Array.from({ length: SMS_CODE_LEN }, (_, i) => (
-                                        <input
+                                        <div
                                             key={i}
-                                            ref={(el) => {
-                                                codeInputRefs.current[i] = el
-                                            }}
-                                            type="text"
-                                            inputMode="numeric"
-                                            autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                                            maxLength={1}
-                                            value={code[i] ?? ''}
-                                            onChange={(e) => handleSmsDigitChange(i, e.target.value)}
-                                            onKeyDown={(e) => handleSmsKeyDown(i, e)}
-                                            disabled={verifyLoading || busyGlobal}
-                                            aria-label={`Цифра ${i + 1} кода из SMS`}
-                                            className="h-12 w-11 shrink-0 rounded-xl border border-white/15 bg-white/[0.06] text-center text-xl font-semibold tabular-nums text-white focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 sm:h-14 sm:w-12 sm:text-2xl"
-                                        />
+                                            aria-hidden
+                                            className={`pointer-events-none flex h-12 w-11 shrink-0 items-center justify-center rounded-xl border bg-white/[0.06] text-center text-xl font-semibold tabular-nums text-white sm:h-14 sm:w-12 sm:text-2xl ${
+                                                code[i] ? 'border-[#12c998]/50' : 'border-white/15'
+                                            }`}
+                                        >
+                                            {code[i] ?? ''}
+                                        </div>
                                     ))}
                                 </div>
                             </div>
