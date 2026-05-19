@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { isAxiosError } from 'axios'
 import {
     CrmApi,
@@ -40,6 +40,8 @@ type CrmDblEditRowProps = {
     rows?: number
     /** Для type=number: нижняя граница и блокировка ввода ниже неё */
     numberMin?: number
+    /** После завершения редактирования (blur / Enter) — сохранить на сервер */
+    onAfterBlur?: () => void
 }
 
 function CrmDblEditRow({
@@ -53,12 +55,18 @@ function CrmDblEditRow({
     inputType = 'text',
     rows = 3,
     numberMin,
+    onAfterBlur,
 }: CrmDblEditRowProps) {
     const editing = editingField === editKey
     const shown = displayValue.trim() ? displayValue : '—'
     const isTextarea = inputType === 'textarea'
 
     const commit = () => setEditingField(null)
+
+    const finishEditing = () => {
+        commit()
+        onAfterBlur?.()
+    }
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (!isTextarea && inputType === 'number' && e.key === '-') {
@@ -68,11 +76,11 @@ function CrmDblEditRow({
         if (isTextarea) {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault()
-                commit()
+                finishEditing()
             }
         } else if (e.key === 'Enter') {
             e.preventDefault()
-            commit()
+            finishEditing()
         }
     }
 
@@ -116,7 +124,7 @@ function CrmDblEditRow({
                             className="box-border min-h-[68px] w-full resize-y rounded border border-[var(--mint-bright)] bg-[#2a2a2a] px-2 py-1 text-sm text-white outline-none"
                             value={value}
                             onChange={e => onChange(e.target.value)}
-                            onBlur={commit}
+                            onBlur={finishEditing}
                             onKeyDown={handleKeyDown}
                         />
                     ) : (
@@ -131,7 +139,7 @@ function CrmDblEditRow({
                                     ? handleNumberChange(e.target.value)
                                     : onChange(e.target.value)
                             }
-                            onBlur={commit}
+                            onBlur={finishEditing}
                             onKeyDown={handleKeyDown}
                         />
                     )
@@ -170,6 +178,12 @@ function offlineLineLabel(line: CrmOfflineLine): string {
     if (line.kind === 'custom') return line.customName
     if (isPopulatedProduct(line.product)) return formatProductName(line.product.name)
     return formatProductName(line.productNameSnapshot)
+}
+
+function offlineLineDescription(line: CrmOfflineLine): string | undefined {
+    if (line.kind !== 'custom') return undefined
+    const desc = line.customDescription?.trim()
+    return desc || undefined
 }
 
 function fmtMoney(n: number) {
@@ -284,6 +298,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
     const [card, setCard] = useState<CrmUserCardResponse | null>(null)
 
     const [saving, setSaving] = useState(false)
+    const saveInFlightRef = useRef(false)
     const [products, setProducts] = useState<ProductResponse[]>([])
     const [productsLoaded, setProductsLoaded] = useState(false)
 
@@ -555,11 +570,13 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         return p
     }, [form, profile])
 
-    const handleSaveProfile = async () => {
+    const persistProfileChanges = useCallback(async () => {
+        if (!profile || saveInFlightRef.current) return
+
         const patch = buildPatch()
-        if (!Object.keys(patch).length) {
-            return
-        }
+        if (!Object.keys(patch).length) return
+
+        saveInFlightRef.current = true
         setSaving(true)
         setStatus('loading')
         setCrmBannerError(null)
@@ -570,13 +587,12 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                 data = await CrmApi.getUserCard(accountId)
             } catch {
                 setCrmBannerError(
-                    'Изменения отправлены на сервер, но не удалось перезагрузить карточку. Закройте окно и откройте клиента снова.'
+                    'Изменения отправлены на сервер, но не удалось перезагрузить карточку. Закройте окно и откройте клиента снова.',
                 )
                 setStatus('failed')
                 return
             }
 
-            /* CRM в GET дозаполняет пустые поля адреса из заказов — поверх кладём то, что только что сохранили PATCH'ем. */
             if (patch.shippingAddress && data.profile) {
                 const base: ShippingAddress = {
                     fullName: '',
@@ -593,14 +609,20 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             setCard(data)
             onListRefresh()
             setStatus('success')
-            onClose()
         } catch (e: unknown) {
             setStatus('failed')
             setCrmBannerError(axiosResponseMessage(e) || 'Ошибка сохранения')
         } finally {
+            saveInFlightRef.current = false
             setSaving(false)
         }
-    }
+    }, [accountId, buildPatch, onListRefresh, profile])
+
+    const saveProfileOnBlur = useCallback(() => {
+        window.setTimeout(() => {
+            void persistProfileChanges()
+        }, 0)
+    }, [persistProfileChanges])
 
     /** Каталог: склад и строка CRM — один запрос POST; остаток в ответе (`productStock`). */
     const handleAddCatalogOffline = async () => {
@@ -638,6 +660,9 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             if (res.productStock) applyProductStockFromCrm(res.productStock)
             onListRefresh()
             setCrmBannerError(null)
+            setCatalogProductId('')
+            setCatalogQty('')
+            setCatalogPriceOverride('')
         } catch (e) {
             if (isAxiosError(e) && e.response?.status === 409) {
                 const d = e.response.data as CrmInsufficientStockErrorBody
@@ -696,6 +721,10 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             )
             onListRefresh()
             setCrmBannerError(null)
+            setCustomName('')
+            setCustomDesc('')
+            setCustomPrice('')
+            setCustomQty('')
         } catch (e) {
             const err = axiosResponseMessage(e)
             setCrmBannerError(err ? `Не удалось добавить кастомную позицию.\n${err}` : 'Не удалось добавить кастомную позицию.')
@@ -850,6 +879,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, personalFirstName: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="personalLastName"
@@ -859,6 +889,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, personalLastName: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="firstName"
@@ -868,6 +899,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, firstName: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="lastName"
@@ -877,6 +909,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, lastName: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="email"
@@ -886,6 +919,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, email: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="userPhoneNumber"
@@ -895,6 +929,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, userPhoneNumber: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmReadOnlyCopyRow
                                     label="Username"
@@ -918,6 +953,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, walletAddress: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                 />
                                 <CrmDblEditRow
                                     editKey="dateOfBirth"
@@ -927,6 +963,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                     onChange={v => setForm(f => ({ ...f, dateOfBirth: v }))}
                                     editingField={editingField}
                                     setEditingField={setEditingField}
+                                    onAfterBlur={saveProfileOnBlur}
                                     inputType="date"
                                 />
                             </div>
@@ -947,11 +984,15 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                                     className="rounded border-white/30"
                                                     checked={form.isAdmin}
                                                     onChange={e => setForm(f => ({ ...f, isAdmin: e.target.checked }))}
-                                                    onBlur={() => setEditingField(null)}
+                                                    onBlur={() => {
+                                                        setEditingField(null)
+                                                        saveProfileOnBlur()
+                                                    }}
                                                     onKeyDown={e => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault()
                                                             setEditingField(null)
+                                                            saveProfileOnBlur()
                                                         }
                                                     }}
                                                 />
@@ -990,6 +1031,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                             onChange={v => setForm(f => ({ ...f, [key]: v } as typeof f))}
                                             editingField={editingField}
                                             setEditingField={setEditingField}
+                                            onAfterBlur={saveProfileOnBlur}
                                             inputType="number"
                                             numberMin={
                                                 key === 'heightCm' ||
@@ -1012,6 +1054,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                             className="box-border min-h-[88px] w-full resize-y rounded border border-white/15 bg-[#2a2a2a] px-2 py-1 text-sm text-white outline-none focus:border-[var(--mint-bright)]"
                                             value={form.adminNotes}
                                             onChange={e => setForm(f => ({ ...f, adminNotes: e.target.value }))}
+                                            onBlur={saveProfileOnBlur}
                                             placeholder="Внутренние заметки (видны только в CRM)…"
                                         />
                                     </div>
@@ -1031,6 +1074,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipFullName: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipPhone"
@@ -1040,6 +1084,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipPhone: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipCity"
@@ -1049,6 +1094,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipCity: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipPostal"
@@ -1058,6 +1104,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipPostal: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipCountry"
@@ -1067,6 +1114,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipCountry: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipStreet"
@@ -1076,6 +1124,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipStreet: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipHouse"
@@ -1085,6 +1134,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipHouse: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipApartment"
@@ -1094,6 +1144,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipApartment: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                     />
                                     <CrmDblEditRow
                                         editKey="shipNotes"
@@ -1103,20 +1154,18 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                         onChange={v => setForm(f => ({ ...f, shipNotes: v }))}
                                         editingField={editingField}
                                         setEditingField={setEditingField}
+                                        onAfterBlur={saveProfileOnBlur}
                                         inputType="textarea"
                                         rows={2}
                                     />
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                disabled={saving}
-                                onClick={() => void handleSaveProfile()}
-                                className="bg-[var(--pink-punk)] px-4 py-2 font-semibold text-white disabled:opacity-50"
-                            >
-                                {saving ? 'Сохранение…' : 'Сохранить профиль'}
-                            </button>
+                            <p className="text-xs text-white/40">
+                                {saving
+                                    ? 'Сохранение…'
+                                    : 'Изменения сохраняются при выходе из поля (двойной щелчок — редактирование)'}
+                            </p>
                         </div>
                     )}
 
@@ -1128,6 +1177,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                             <tr className="text-white/50 border-b border-white/10">
                                                 <th className="py-2 pr-2">Тип</th>
                                                 <th className="py-2 pr-2">Позиция</th>
+                                                <th className="py-2 pr-2">Описание</th>
                                                 <th className="py-2 pr-2">Размер</th>
                                                 <th className="py-2 pr-2">Кол-во</th>
                                                 <th className="py-2 pr-2">Сумма</th>
@@ -1138,7 +1188,12 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                             {(profile.crmOfflinePurchases ?? []).map(line => (
                                                 <tr key={line._id} className="border-b border-white/5">
                                                     <td className="py-2 pr-2">{line.kind}</td>
-                                                    <td className="py-2 pr-2">{offlineLineLabel(line)}</td>
+                                                    <td className="py-2 pr-2 font-medium text-white/90">
+                                                        {offlineLineLabel(line)}
+                                                    </td>
+                                                    <td className="py-2 pr-2 max-w-[200px] text-white/55 whitespace-pre-wrap break-words">
+                                                        {offlineLineDescription(line) ?? '—'}
+                                                    </td>
                                                     <td className="py-2 pr-2">
                                                         {line.kind === 'catalog' ? line.sizeSnapshot : '—'}
                                                     </td>
