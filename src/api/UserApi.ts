@@ -41,6 +41,14 @@ export interface TelegramLoginWidgetData {
     hash: string;
 }
 
+/** Body POST /auth/telegram-login-widget */
+export type TelegramLoginWidgetRequestBody = TelegramLoginWidgetData & {
+    deviceId?: string;
+    deviceInfo?: string;
+    /** Mongo `_id` после SMS — привязка TG к существующему аккаунту */
+    linkAccountId?: string;
+};
+
 
 
 
@@ -82,24 +90,28 @@ export const UserApi = {
      */
     async ValidateTelegramLoginWidget(
         telegramData: TelegramLoginWidgetData,
-        deviceId?: string,
-        deviceInfo?: string
+        options?: {
+            deviceId?: string;
+            deviceInfo?: string;
+            linkAccountId?: string;
+        },
     ): Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>> {
-        const body: TelegramLoginWidgetData & { deviceId?: string; deviceInfo?: string } = {
+        const body: TelegramLoginWidgetRequestBody = {
             ...telegramData,
         };
 
-        if (deviceId) {
-            body.deviceId = deviceId;
-        }
-        if (deviceInfo) {
-            body.deviceInfo = deviceInfo;
-        }
+        const deviceId = options?.deviceId?.trim();
+        const deviceInfo = options?.deviceInfo?.trim();
+        const linkAccountId = options?.linkAccountId?.trim();
 
-        const response = await instance.post<typeof body, Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>>>(
-            'auth/telegram-login-widget',
-            body
-        );
+        if (deviceId) body.deviceId = deviceId;
+        if (deviceInfo) body.deviceInfo = deviceInfo;
+        if (linkAccountId) body.linkAccountId = linkAccountId;
+
+        const response = await instance.post<
+            TelegramLoginWidgetRequestBody,
+            Promise<AxiosResponse<Partial<AuthLoginSuccessResponse>>>
+        >('auth/telegram-login-widget', body);
         return response;
     },
 

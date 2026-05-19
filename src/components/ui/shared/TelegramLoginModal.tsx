@@ -55,6 +55,8 @@ export default function TelegramLoginModal({
         authenticateTelegramLoginWidget,
         requestPhoneAuthCode,
         verifyPhoneAuth,
+        user,
+        isAuthenticated,
     } = useUserStore()
     const { status } = useAppStore()
 
@@ -214,6 +216,10 @@ export default function TelegramLoginModal({
     }, [phoneNational, code, verifyPhoneAuth, requestCloseAnimated])
 
     const busyGlobal = status === 'loading'
+
+    const sessionActive = isAuthenticated()
+    const canLinkTelegram =
+        sessionActive && Boolean(user._id?.trim()) && (user.telegramUserId == null || user.telegramUserId === undefined)
 
     const phoneDisplay = formatBelarusPhoneDisplay(phoneNational)
     const phoneReady = isBelarusMobileComplete(phoneNational)
@@ -503,12 +509,23 @@ export default function TelegramLoginModal({
                                     setTelegramModalOpen(true)
                                 }}
                                 className="mx-auto grid w-full max-w-md grid-cols-[minmax(0,1fr)_5.5rem] grid-rows-1 overflow-hidden rounded-xl border border-white/15 bg-white/[0.06] text-left font-semibold text-white shadow-none transition hover:border-white/22 hover:bg-white/[0.09] active:opacity-95 sm:grid-cols-[minmax(0,1fr)_6.75rem]"
-                                aria-label="Войти с помощью Telegram"
+                                aria-label={
+                                    canLinkTelegram
+                                        ? 'Привязать Telegram к аккаунту'
+                                        : 'Войти с помощью Telegram'
+                                }
                             >
                                 <div className="flex min-h-[5.5rem] min-w-0 flex-col justify-center py-3 pl-4 pr-2 sm:min-h-[6.75rem] sm:pr-3">
                                     <p className="text-sm font-semibold uppercase leading-snug tracking-wide text-white sm:text-base">
-                                        Войти с помощью Telegram
+                                        {canLinkTelegram
+                                            ? 'Привязать Telegram'
+                                            : 'Войти с помощью Telegram'}
                                     </p>
+                                    {canLinkTelegram && (
+                                        <p className="mt-1 text-[11px] font-normal normal-case leading-snug text-white/45">
+                                            Один аккаунт с номером телефона
+                                        </p>
+                                    )}
                                 </div>
                                 <div
                                     className="relative min-h-[5.5rem] overflow-hidden border-l border-white/[0.1] bg-white/[0.04] sm:min-h-[6.75rem]"
@@ -556,7 +573,11 @@ export default function TelegramLoginModal({
                             <h3 id="telegram-auth-title" className="text-base font-medium text-white">
                                 Telegram
                             </h3>
-                            <p className="mt-2 text-xs text-white/45">Подтвердите вход через бота ниже.</p>
+                            <p className="mt-2 text-xs text-white/45">
+                                {canLinkTelegram
+                                    ? 'Telegram будет привязан к текущему аккаунту с телефоном.'
+                                    : 'Подтвердите вход через бота ниже.'}
+                            </p>
                         </div>
 
                         {telegramError && (

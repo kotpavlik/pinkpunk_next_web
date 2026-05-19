@@ -8,6 +8,7 @@ import { UserApi, TelegramLoginWidgetData, AuthLoginSuccessResponse } from "@/ap
 import { tokenManager } from "@/utils/TokenManager";
 import { normalizeAuthTokensFromResponse } from "@/utils/normalizeAuthTokensPayload";
 import { digitsToPlusE164, isPhoneDigitsProbablyValid, normalizePhoneDigits } from "@/utils/phoneNormalize";
+import { resolveLinkAccountIdForTelegramWidget } from "@/utils/resolveLinkAccountId";
 
 // Тип для данных от TelegramLoginWidget
 export interface TelegramUser {
@@ -399,12 +400,19 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                 telegramData.photo_url = telegramUser.photo_url
             }
 
-            // Получаем deviceId и deviceInfo для отправки на бэкенд
             const deviceId = tokenManager.getOrCreateDeviceId()
             const deviceInfo = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
 
-            // Отправляем данные на бэкенд для валидации
-            const response = await UserApi.ValidateTelegramLoginWidget(telegramData, deviceId, deviceInfo)
+            const linkAccountId = resolveLinkAccountIdForTelegramWidget(
+                get().user._id,
+                get().isAuthenticated(),
+            )
+
+            const response = await UserApi.ValidateTelegramLoginWidget(telegramData, {
+                deviceId,
+                deviceInfo,
+                ...(linkAccountId ? { linkAccountId } : {}),
+            })
 
             if (response.data) {
                 await finishStorefrontAuthSession(response.data)
@@ -416,22 +424,32 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             const axiosError = err as AxiosError<{ message?: string; error?: string }>
 
             let errorMessage = 'Ошибка авторизации'
+            let clearStoredAccountId = false
 
             if (axiosError.response) {
                 const status = axiosError.response.status
                 const data = axiosError.response.data
+                const msg = data?.message ?? ''
 
                 switch (status) {
                     case 400:
-                        // Обработка различных ошибок 400
-                        if (data?.message?.includes('Hash is missing')) {
+                        if (msg.includes('Hash is missing')) {
                             errorMessage = 'Ошибка: Отсутствует подпись. Пожалуйста, попробуйте еще раз.'
-                        } else if (data?.message?.includes('Auth date is missing')) {
+                        } else if (msg.includes('Auth date is missing')) {
                             errorMessage = 'Ошибка: Отсутствует дата авторизации. Пожалуйста, попробуйте еще раз.'
-                        } else if (data?.message?.includes('User ID is missing')) {
+                        } else if (msg.includes('User ID is missing')) {
                             errorMessage = 'Ошибка: Отсутствует ID пользователя. Пожалуйста, попробуйте еще раз.'
+                        } else if (msg.includes('linkAccountId') && msg.includes('valid MongoDB ObjectId')) {
+                            errorMessage = 'Ошибка привязки аккаунта. Войдите по SMS и попробуйте снова.'
+                            clearStoredAccountId = true
+                        } else if (msg.includes('User not found')) {
+                            errorMessage = 'Сессия устарела. Войдите по номеру телефона и повторите привязку Telegram.'
+                            clearStoredAccountId = true
+                        } else if (msg.includes('already linked to another Telegram')) {
+                            errorMessage =
+                                'Этот профиль уже привязан к другому Telegram. Войдите в нужный аккаунт Telegram или используйте другой номер.'
                         } else {
-                            errorMessage = data?.message || 'Невалидные данные. Пожалуйста, попробуйте еще раз.'
+                            errorMessage = msg || 'Невалидные данные. Пожалуйста, попробуйте еще раз.'
                         }
                         break
                     case 401:
@@ -460,6 +478,13 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                 }
             } else if (axiosError.message) {
                 errorMessage = axiosError.message
+            }
+
+            if (clearStoredAccountId) {
+                set(state => {
+                    state.user._id = ''
+                    saveUserToStorage(state.user)
+                })
             }
 
             return { success: false, error: errorMessage }
