@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { isAxiosError } from 'axios'
 import { CrmApi } from '@/api/CrmApi'
 import {
@@ -8,6 +9,7 @@ import {
     formatExpPoints,
     loyaltySourceLabel,
 } from '@/api/LoyaltyApi'
+import { getLevelTheme } from '@/utils/loyaltyLevelTheme'
 
 function fmtDt(iso?: string) {
     if (!iso) return '—'
@@ -110,72 +112,110 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
 
     const isMaxLevel = loyalty.nextLevel == null
     const progress = loyalty.progressPercent ?? 0
+    const levelTheme = getLevelTheme(loyalty.level.id)
+    const progressClamped = Math.min(100, Math.max(0, progress))
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="bg-[#252525] border border-[#333] p-4 flex-1 min-w-[200px]">
-                    <p className="text-white/45 text-xs uppercase tracking-wide mb-1">Уровень</p>
-                    <p className="text-[var(--mint-bright)] text-2xl font-bold">{loyalty.level.label}</p>
-                    <p className="text-white/50 text-xs mt-1 font-mono">{loyalty.level.id}</p>
-                </div>
-                <div className="bg-[#252525] border border-[#333] p-4 flex-1 min-w-[200px]">
-                    <p className="text-white/45 text-xs uppercase tracking-wide mb-1">Баланс</p>
-                    <p className="text-white text-2xl font-bold tabular-nums">
-                        {formatExpPoints(loyalty.expPoints)} <span className="text-sm font-normal text-white/50">pts</span>
+            <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-stretch gap-1.5">
+                <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
+                    <p className="text-white/45 text-[10px] uppercase tracking-wide leading-none mb-0.5">
+                        Уровень
                     </p>
-                </div>
-                <button
-                    type="button"
-                    disabled={refreshing}
-                    onClick={() => void refreshLoyalty()}
-                    className="rounded border border-white/20 px-3 py-2 text-sm text-white/70 hover:text-white disabled:opacity-40 self-start"
-                >
-                    {refreshing ? '…' : 'Обновить'}
-                </button>
-            </div>
-
-            {!isMaxLevel && (
-                <div className="bg-[#252525] border border-[#333] p-4 space-y-2">
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                            className="h-full bg-[var(--mint-bright)] transition-all"
-                            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-                        />
-                    </div>
-                    <p className="text-white/60 text-xs">
-                        До {loyalty.nextLevel?.label}:{' '}
-                        <span className="text-white tabular-nums">
-                            {loyalty.pointsToNextLevel != null
-                                ? formatExpPoints(loyalty.pointsToNextLevel)
-                                : '—'}{' '}
-                            pts
+                    <p className="text-sm font-bold leading-tight" style={{ color: levelTheme.labelColor }}>
+                        {loyalty.level.label}
+                        <span className="ml-1 text-[9px] font-normal text-white/40 font-mono">
+                            {loyalty.level.id}
                         </span>
-                        {loyalty.progressPercent != null && ` (${Math.round(progress)}%)`}
                     </p>
                 </div>
-            )}
-
-            {isMaxLevel && (
-                <p className="text-[var(--mint-bright)] text-sm">Максимальный уровень (Legend).</p>
-            )}
+                <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
+                    <p className="text-white/45 text-[10px] uppercase tracking-wide leading-none mb-0.5">
+                        Баланс
+                    </p>
+                    <p className="text-sm font-bold tabular-nums leading-tight text-white">
+                        {formatExpPoints(loyalty.expPoints)}
+                        <span className="ml-0.5 text-[9px] font-normal text-white/50">pts</span>
+                    </p>
+                </div>
+                <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
+                    <p className="text-white/45 text-[10px] uppercase tracking-wide leading-none mb-0.5">
+                        {isMaxLevel ? 'Следующий уровень' : `До ${loyalty.nextLevel?.label}`}
+                    </p>
+                    {isMaxLevel ? (
+                        <p
+                            className="text-[10px] font-semibold leading-tight"
+                            style={{ color: levelTheme.labelColor }}
+                        >
+                            Максимальный уровень
+                        </p>
+                    ) : (
+                        <>
+                            <div
+                                className="mb-0.5 h-1 w-full overflow-hidden rounded-full"
+                                style={{
+                                    backgroundColor: `color-mix(in srgb, ${levelTheme.labelColor} 22%, var(--loyalty-progress-track))`,
+                                }}
+                            >
+                                <div
+                                    className="h-full rounded-full transition-[width] duration-300"
+                                    style={{
+                                        width: `${progressClamped}%`,
+                                        backgroundColor: levelTheme.labelColor,
+                                        boxShadow: levelTheme.glow,
+                                    }}
+                                />
+                            </div>
+                            <p className="text-[10px] leading-tight text-white/60 tabular-nums">
+                                <span style={{ color: levelTheme.labelColor }}>
+                                    {loyalty.pointsToNextLevel != null
+                                        ? formatExpPoints(loyalty.pointsToNextLevel)
+                                        : '—'}{' '}
+                                    pts
+                                </span>
+                                {loyalty.progressPercent != null && (
+                                    <span className="text-white/45"> · {Math.round(progressClamped)}%</span>
+                                )}
+                            </p>
+                        </>
+                    )}
+                </div>
+                <div className="flex min-h-0 items-stretch justify-self-stretch">
+                    <button
+                        type="button"
+                        disabled={refreshing}
+                        onClick={() => void refreshLoyalty()}
+                        aria-busy={refreshing}
+                        aria-label="Обновить данные лояльности"
+                        title="Обновить"
+                        className="flex aspect-square h-full w-auto items-center justify-center rounded border border-white/20 hover:border-white/35 disabled:cursor-wait disabled:opacity-70"
+                        style={{ color: levelTheme.labelColor }}
+                    >
+                        <ArrowPathIcon
+                            className={`h-3.5 w-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`}
+                            aria-hidden
+                        />
+                    </button>
+                </div>
+            </div>
 
             <div className="bg-[#252525] border border-[#333] p-4 space-y-3">
                 <h3 className="text-white font-semibold text-sm">Ручное начисление / списание</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="block text-xs text-white/50">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label className="block w-full min-w-0 text-xs text-white/50">
                         delta (+ начислить, − списать)
                         <input
                             type="number"
                             step={1}
                             value={adjustDelta}
                             onChange={e => setAdjustDelta(e.target.value)}
+                            onWheel={e => e.currentTarget.blur()}
                             placeholder="500 или -200"
-                            className="mt-1 w-full rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5 text-white text-sm"
+                            className="mt-1 w-full rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5 text-white text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             disabled={adjustBusy}
                         />
                     </label>
-                    <label className="block text-xs text-white/50 sm:col-span-2">
+                    <label className="block w-full min-w-0 text-xs text-white/50">
                         reason (обязательно)
                         <input
                             type="text"
@@ -188,14 +228,16 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                         />
                     </label>
                 </div>
-                <button
-                    type="button"
-                    disabled={adjustBusy}
-                    onClick={() => void handleAdjust()}
-                    className="rounded border border-[var(--pink-punk)] bg-[var(--pink-punk)]/20 px-4 py-2 text-sm font-semibold text-[var(--pink-punk)] disabled:opacity-40"
-                >
-                    {adjustBusy ? 'Сохранение…' : 'Применить'}
-                </button>
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        disabled={adjustBusy}
+                        onClick={() => void handleAdjust()}
+                        className="rounded border border-[var(--mint-bright)] bg-transparent px-4 py-2 text-sm font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:opacity-40"
+                    >
+                        {adjustBusy ? 'Сохранение…' : 'Применить'}
+                    </button>
+                </div>
             </div>
 
             <div>

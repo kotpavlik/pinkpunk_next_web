@@ -126,6 +126,59 @@ export function normalizeCrmLoyalty(raw: unknown): CrmLoyalty | null {
     return { ...status, history }
 }
 
+export function isUsableLoyaltyStatus(
+    loyalty: LoyaltyStatus | null | undefined,
+): loyalty is LoyaltyStatus {
+    return (
+        loyalty != null &&
+        typeof loyalty.level?.id === 'string' &&
+        loyalty.level.id.length > 0 &&
+        typeof loyalty.level.label === 'string' &&
+        loyalty.level.label.length > 0
+    )
+}
+
+function loyaltyPayloadCandidates(data: unknown): unknown[] {
+    if (data == null || typeof data !== 'object') return []
+    const o = data as Record<string, unknown>
+    const candidates: unknown[] = []
+    if (o.loyalty !== undefined) candidates.push(o.loyalty)
+    if (o.data != null && typeof o.data === 'object') {
+        const inner = o.data as Record<string, unknown>
+        if (inner.loyalty !== undefined) candidates.push(inner.loyalty)
+        candidates.push(inner)
+    }
+    candidates.push(o)
+    return candidates
+}
+
+/** Разбор тела GET …/loyalty и вложенных обёрток `{ loyalty }` / `{ data }`. */
+export function parseLoyaltyApiResponse(data: unknown): LoyaltyStatus | null {
+    for (const candidate of loyaltyPayloadCandidates(data)) {
+        if (candidate == null) continue
+        const crm = normalizeCrmLoyalty(candidate)
+        if (crm) {
+            const { history: _history, ...status } = crm
+            return status
+        }
+        const status = normalizeLoyaltyStatus(candidate)
+        if (status) return status
+    }
+    return null
+}
+
+/** CRM loyalty с журналом — тот же разбор, что и для списка. */
+export function parseCrmLoyaltyApiResponse(data: unknown): CrmLoyalty | null {
+    for (const candidate of loyaltyPayloadCandidates(data)) {
+        if (candidate == null) continue
+        const crm = normalizeCrmLoyalty(candidate)
+        if (crm) return crm
+        const status = normalizeLoyaltyStatus(candidate)
+        if (status) return { ...status, history: [] }
+    }
+    return null
+}
+
 export const LOYALTY_SOURCE_LABELS: Record<string, string> = {
     order: 'Заказ',
     offline: 'Офлайн',

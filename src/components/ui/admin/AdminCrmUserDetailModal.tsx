@@ -25,9 +25,9 @@ import { useAppStore } from '@/zustand/app_store/AppStore'
 import { formatProductName } from '@/utils/formatProductName'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
-import type { CrmLoyalty } from '@/api/LoyaltyApi'
-import { formatExpPoints } from '@/api/LoyaltyApi'
+import type { CrmLoyalty, LoyaltyStatus } from '@/api/LoyaltyApi'
 import AdminCrmLoyaltyTab from '@/components/ui/admin/AdminCrmLoyaltyTab'
+import CrmUserHeaderMeta from '@/components/ui/admin/CrmUserHeaderMeta'
 
 type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals' | 'loyalty'
 
@@ -281,11 +281,19 @@ type Props = {
     listRow: CrmListUser
     onClose: () => void
     onListRefresh: () => void
+    /** Обновить loyalty в строке списка (рамка карточки) */
+    onUserLoyaltyChange?: (accountId: string, loyalty: LoyaltyStatus) => void
     /** В потоке страницы у блока CRM: без фикс. оверлея, без скролла только внутри панели */
     embedded?: boolean
 }
 
-export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefresh, embedded = false }: Props) {
+export default function AdminCrmUserDetailModal({
+    listRow,
+    onClose,
+    onListRefresh,
+    onUserLoyaltyChange,
+    embedded = false,
+}: Props) {
     const accountId = accountObjectIdFromCrmListRow(listRow) ?? ''
     const telegramNumericId =
         listRow.telegramUserId != null && typeof listRow.telegramUserId === 'number'
@@ -377,6 +385,14 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         return () => window.removeEventListener('keydown', onKey)
     }, [confirmDeleteLine, offlineBusy])
 
+    const syncListLoyalty = useCallback(
+        (data: LoyaltyStatus) => {
+            if (!accountId || !onUserLoyaltyChange) return
+            onUserLoyaltyChange(accountId, data)
+        },
+        [accountId, onUserLoyaltyChange],
+    )
+
     const loadCard = useCallback(async () => {
         if (!accountId) {
             setLoading(false)
@@ -390,12 +406,16 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         try {
             const data = await CrmApi.getUserCard(accountId)
             setCard(data)
-            setLoyalty(data.loyalty ?? null)
-            if (!data.loyalty) {
+            if (data.loyalty) {
+                setLoyalty(data.loyalty)
+                syncListLoyalty(data.loyalty)
+            } else {
+                setLoyalty(null)
                 try {
                     const loyaltyData = await CrmApi.getUserLoyalty(accountId)
                     setLoyalty(loyaltyData)
                     setCard(c => (c ? { ...c, loyalty: loyaltyData } : c))
+                    syncListLoyalty(loyaltyData)
                 } catch {
                     /* loyalty endpoint может отсутствовать на старом бэке */
                 }
@@ -409,7 +429,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         } finally {
             setLoading(false)
         }
-    }, [accountId])
+    }, [accountId, syncListLoyalty])
 
     const refreshLoyalty = useCallback(async () => {
         if (!accountId) return
@@ -417,10 +437,11 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             const data = await CrmApi.getUserLoyalty(accountId)
             setLoyalty(data)
             setCard(c => (c ? { ...c, loyalty: data } : c))
+            syncListLoyalty(data)
         } catch {
             /* тихо — ошибку покажет вкладка loyalty */
         }
-    }, [accountId])
+    }, [accountId, syncListLoyalty])
 
     const handleRefreshCart = useCallback(async () => {
         if (!accountId) return
@@ -844,34 +865,20 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             className={`relative w-full max-w-4xl mx-auto flex max-h-[90vh] flex-col overflow-hidden rounded-lg border border-[#333] bg-[#1a1a1a] ${embedded ? 'shadow-2xl' : ''}`}
             onClick={e => e.stopPropagation()}
         >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#333] bg-[#1a1a1a] p-4">
-                    <div className="min-w-0">
-                        <p className="text-white text-lg font-bold break-words">{headerClientName}</p>
-                        <h1 className="text-[var(--mint-bright)] text-sm font-semibold font-durik mt-0.5">
-                            CRM — клиент
-                        </h1>
-                        <p className="text-white/60 text-xs break-all mt-1">
-                            accountId:{' '}
-                            <span className="font-mono text-white/90" title="Mongo _id — ключ CRM и заказов">
-                                {accountId || '—'}
-                            </span>
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#333] bg-[#1a1a1a] p-4">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                        <p className="text-lg font-bold text-white break-words leading-tight">
+                            {headerClientName}
                         </p>
-                        {telegramNumericId != null && (
-                            <p className="text-white/60 text-sm">
-                                Telegram ID:{' '}
-                                <span className="text-white font-mono">{telegramNumericId}</span>
-                            </p>
-                        )}
-                        {loyalty && (
-                            <p className="text-white/70 text-sm mt-1">
-                                Loyalty:{' '}
-                                <span className="text-[var(--mint-bright)] font-semibold">
-                                    {loyalty.level.label}
-                                </span>
-                                <span className="text-white/50"> · </span>
-                                <span className="tabular-nums">{formatExpPoints(loyalty.expPoints)} pts</span>
-                            </p>
-                        )}
+                        <p className="text-xs font-semibold uppercase tracking-wider text-white/50 font-durik">
+                            CRM — клиент
+                        </p>
+                        <CrmUserHeaderMeta
+                            accountId={accountId}
+                            telegramId={telegramNumericId}
+                            loyalty={loyalty ?? listRow.loyalty ?? null}
+                            className="pt-0.5"
+                        />
                     </div>
                     <button
                         type="button"
@@ -888,7 +895,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                     {tabBtn('offline', 'Покупки офлайн')}
                     {tabBtn('orders', `Заказы (${orders.length})`)}
                     {tabBtn('cart', 'Корзина')}
-                    {tabBtn('loyalty', 'Loyalty')}
+                    {tabBtn('loyalty', 'Прогресс')}
                     {tabBtn('referrals', 'Рефералы')}
                 </div>
 
@@ -1587,6 +1594,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                             onLoyaltyUpdated={updated => {
                                 setLoyalty(updated)
                                 setCard(c => (c ? { ...c, loyalty: updated } : c))
+                                syncListLoyalty(updated)
                             }}
                             onError={setCrmBannerError}
                         />

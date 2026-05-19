@@ -11,6 +11,8 @@ import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailMod
 import { tokenManager } from '@/utils/TokenManager'
 import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
+import { formatExpPoints, type LoyaltyStatus } from '@/api/LoyaltyApi'
+import { getLevelTheme, getLoyaltyLevelBorderStyle } from '@/utils/loyaltyLevelTheme'
 
 function formatCrmLoadError(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
@@ -329,6 +331,7 @@ const AdminUsers = () => {
     const [isDeletingUser, setIsDeletingUser] = useState(false)
     const [deleteUserError, setDeleteUserError] = useState<string | null>(null)
     const [deleteCascadeResult, setDeleteCascadeResult] = useState<DeleteUserCascadeStats | null>(null)
+    const [loyaltyEnriching, setLoyaltyEnriching] = useState(false)
 
     useEffect(() => {
         setPortalMounted(true)
@@ -347,9 +350,16 @@ const AdminUsers = () => {
                 setStatus('failed')
                 return
             }
-            const data = await CrmApi.getUsers()
-            setUsers(data)
+            const rows = await CrmApi.getUsers()
+            setUsers(rows)
             setStatus('success')
+            setLoyaltyEnriching(true)
+            try {
+                const enriched = await CrmApi.enrichUsersWithLoyalty(rows)
+                setUsers(enriched)
+            } finally {
+                setLoyaltyEnriching(false)
+            }
         } catch (e) {
             setUsers([])
             setLoadError(formatCrmLoadError(e))
@@ -360,6 +370,31 @@ const AdminUsers = () => {
     useEffect(() => {
         void loadUsers()
     }, [loadUsers])
+
+    const handleUserLoyaltyChange = useCallback((accountId: string, loyalty: LoyaltyStatus) => {
+        setUsers(prev =>
+            prev.map(row => {
+                if (accountObjectIdFromCrmListRow(row) !== accountId) return row
+                if (
+                    row.loyalty?.level.id === loyalty.level.id &&
+                    row.loyalty?.expPoints === loyalty.expPoints
+                ) {
+                    return row
+                }
+                return { ...row, loyalty }
+            }),
+        )
+        setDetailRow(row => {
+            if (!row || accountObjectIdFromCrmListRow(row) !== accountId) return row
+            if (
+                row.loyalty?.level.id === loyalty.level.id &&
+                row.loyalty?.expPoints === loyalty.expPoints
+            ) {
+                return row
+            }
+            return { ...row, loyalty }
+        })
+    }, [])
 
     const resolvedUserPhone = (u: CrmListUser) => phoneFromRow(u)
 
@@ -618,8 +653,11 @@ const AdminUsers = () => {
                 </div>
 
                 <div>
+                    {loyaltyEnriching && status === 'success' && (
+                        <p className="mb-2 text-center text-xs text-white/50">Подгрузка уровней лояльности…</p>
+                    )}
                     {status === 'loading' ? (
-                        <div className="text-center py-10 text-white/60">Загрузка CRM…</div>
+                        <div className="text-center py-10 text-white/60">Загрузка клиентов…</div>
                     ) : status === 'failed' ? (
                         <div className="text-center py-10 text-red-300/90 max-w-xl mx-auto space-y-3">
                             <p className="font-semibold">Не удалось загрузить список клиентов (CRM).</p>
@@ -648,6 +686,13 @@ const AdminUsers = () => {
                                 const phoneDisplay = phoneFromRow(u)
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
                                 const protectedOwner = isProtectedOwnerUser(u)
+                                const userLoyalty = u.loyalty
+                                const levelTheme = userLoyalty
+                                    ? getLevelTheme(userLoyalty.level.id)
+                                    : null
+                                const levelBorderStyle = getLoyaltyLevelBorderStyle(
+                                    userLoyalty?.level.id,
+                                )
                                 return (
                                     <div
                                         key={u._id}
@@ -667,9 +712,10 @@ const AdminUsers = () => {
                                                 ? 'Открыть карточку CRM'
                                                 : 'Нет валидного Mongo ObjectId в _id — проверьте ответ GET /admin/crm/users'
                                         }
-                                        className={`text-left bg-white/10 backdrop-blur-sm border border-white/20 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${
+                                        style={levelBorderStyle}
+                                        className={`text-left bg-white/10 backdrop-blur-sm border-2 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${
                                             crmAccountId
-                                                ? 'hover:border-[var(--mint-bright)] cursor-pointer'
+                                                ? 'cursor-pointer hover:brightness-110'
                                                 : 'cursor-not-allowed opacity-60'
                                         }`}
                                     >
@@ -724,6 +770,20 @@ const AdminUsers = () => {
                                                     </span>
                                                 </span>
                                             </div>
+                                            {userLoyalty && levelTheme && (
+                                                <p className="text-[10px] leading-snug">
+                                                    <span
+                                                        className="font-semibold"
+                                                        style={{ color: levelTheme.labelColor }}
+                                                    >
+                                                        {userLoyalty.level.label}
+                                                    </span>
+                                                    <span className="text-white/45"> · </span>
+                                                    <span className="text-white/80 tabular-nums">
+                                                        {formatExpPoints(userLoyalty.expPoints)} pts
+                                                    </span>
+                                                </p>
+                                            )}
                                             <div className="text-white/55 truncate" title="Имя из профиля">
                                                 Имя:{' '}
                                                 <span className="text-white/85">
@@ -820,6 +880,7 @@ const AdminUsers = () => {
                                 listRow={detailRow}
                                 onClose={() => setDetailRow(null)}
                                 onListRefresh={() => void loadUsers()}
+                                onUserLoyaltyChange={handleUserLoyaltyChange}
                             />
                         </div>
                     </div>,

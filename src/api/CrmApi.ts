@@ -1,7 +1,14 @@
 import { instance } from './Api'
 import type { PinkPunkOrder, ShippingAddress } from './OrderApi'
-import { requireMongoObjectIdString } from '@/utils/mongoObjectId'
-import { type CrmLoyalty, normalizeCrmLoyalty, normalizeLoyaltyStatus } from './LoyaltyApi'
+import { accountObjectIdFromCrmListRow, requireMongoObjectIdString } from '@/utils/mongoObjectId'
+import {
+    type CrmLoyalty,
+    type LoyaltyStatus,
+    isUsableLoyaltyStatus,
+    normalizeCrmLoyalty,
+    parseCrmLoyaltyApiResponse,
+    parseLoyaltyApiResponse,
+} from './LoyaltyApi'
 
 /** Сводка + полные заказы в списке CRM (GET /admin/crm/users) */
 export type CrmUserStats = {
@@ -88,6 +95,8 @@ export type CrmListUser = {
     referralsCount?: number
     cart?: CrmCartSummary | null
     offlinePurchasesSummary?: CrmOfflinePurchasesSummary
+    /** Сводка loyalty, если бэкенд отдаёт в списке CRM */
+    loyalty?: LoyaltyStatus | null
 }
 
 /** Populate товара в офлайн-строке / заказе */
@@ -268,12 +277,128 @@ export type DeleteUserResponse = {
     cascade?: DeleteUserCascadeStats
 }
 
+const LOYALTY_FETCH_CONCURRENCY = 10
+
+/**
+ * undefined — в списке нет пригодных данных loyalty, нужна подгрузка.
+ * null из API (`loyalty: null`) не считаем «известным» статусом.
+ */
+function extractLoyaltyFromListRow(o: Record<string, unknown>): LoyaltyStatus | null | undefined {
+    if (o.loyalty !== undefined) {
+        if (o.loyalty === null) return undefined
+        const parsed = parseLoyaltyApiResponse(o.loyalty)
+        return parsed ?? undefined
+    }
+    const level = o.level ?? o.loyaltyLevel
+    if (o.expPoints !== undefined && level) {
+        const parsed = parseLoyaltyApiResponse({
+            expPoints: o.expPoints,
+            level,
+            nextLevel: o.nextLevel ?? null,
+            pointsToNextLevel: o.pointsToNextLevel ?? null,
+            progressPercent: o.progressPercent ?? null,
+        })
+        return parsed ?? undefined
+    }
+    return undefined
+}
+
+function listRowNeedsLoyaltyFetch(u: CrmListUser): boolean {
+    if (!accountObjectIdFromCrmListRow(u)) return false
+    return !isUsableLoyaltyStatus(u.loyalty)
+}
+
+function mapCrmListUser(row: unknown): CrmListUser {
+    const u = row as CrmListUser
+    if (!row || typeof row !== 'object' || typeof u._id !== 'string') {
+        return u
+    }
+    const o = row as Record<string, unknown>
+    const loyalty = extractLoyaltyFromListRow(o)
+    if (loyalty !== undefined) {
+        return { ...u, loyalty }
+    }
+    return u
+}
+
+async function fetchUserLoyaltyFromCard(accountId: string): Promise<LoyaltyStatus | null> {
+    const id = requireMongoObjectIdString(accountId, 'accountId')
+    const { data: raw } = await instance.get<unknown>(
+        crmPath(`/admin/crm/users/${encodeURIComponent(id)}`),
+    )
+    let card = normalizeCrmUserCardPayload(raw)
+    if (!card && raw && typeof raw === 'object' && 'data' in raw) {
+        card = normalizeCrmUserCardPayload((raw as { data: unknown }).data)
+    }
+    if (!card?.loyalty) return null
+    const { history: _history, ...status } = card.loyalty
+    return status
+}
+
+async function fetchUserLoyaltyStatus(accountId: string): Promise<LoyaltyStatus | null> {
+    const id = requireMongoObjectIdString(accountId, 'accountId')
+
+    try {
+        const { data } = await instance.get<unknown>(
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/loyalty`),
+        )
+        const status = parseLoyaltyApiResponse(data)
+        if (status) return status
+    } catch {
+        try {
+            return await fetchUserLoyaltyFromCard(accountId)
+        } catch {
+            return null
+        }
+    }
+
+    try {
+        return await fetchUserLoyaltyFromCard(accountId)
+    } catch {
+        return null
+    }
+}
+
+export async function enrichCrmUsersWithLoyalty(users: CrmListUser[]): Promise<CrmListUser[]> {
+    const pending = users.filter(listRowNeedsLoyaltyFetch)
+    if (pending.length === 0) return users
+
+    const byAccountId = new Map<string, LoyaltyStatus | null>()
+
+    for (let i = 0; i < pending.length; i += LOYALTY_FETCH_CONCURRENCY) {
+        const batch = pending.slice(i, i + LOYALTY_FETCH_CONCURRENCY)
+        await Promise.all(
+            batch.map(async row => {
+                const accountId = accountObjectIdFromCrmListRow(row)
+                if (!accountId) return
+                const loyalty = await fetchUserLoyaltyStatus(accountId)
+                byAccountId.set(accountId, loyalty)
+            }),
+        )
+    }
+
+    return users.map(u => {
+        if (!listRowNeedsLoyaltyFetch(u)) return u
+        const accountId = accountObjectIdFromCrmListRow(u)
+        if (!accountId) return u
+        return { ...u, loyalty: byAccountId.get(accountId) ?? null }
+    })
+}
+
 export const CrmApi = {
     async getUsers(): Promise<CrmListUser[]> {
         const path = crmPath('/admin/crm/users')
         const { data } = await instance.get<unknown>(path)
-        return unwrapList<CrmListUser>(data)
+        return unwrapList<unknown>(data).map(mapCrmListUser)
     },
+
+    /** Список CRM + loyalty по каждому аккаунту (для рамок и уровней в гриде). */
+    async getUsersWithLoyalty(): Promise<CrmListUser[]> {
+        const users = await CrmApi.getUsers()
+        return enrichCrmUsersWithLoyalty(users)
+    },
+
+    enrichUsersWithLoyalty: enrichCrmUsersWithLoyalty,
 
     async getUserCard(accountId: string): Promise<CrmUserCardResponse> {
         const id = requireMongoObjectIdString(accountId, 'accountId')
@@ -321,7 +446,7 @@ export const CrmApi = {
         const { data } = await instance.get<unknown>(
             crmPath(`/admin/crm/users/${encodeURIComponent(id)}/loyalty`),
         )
-        const loyalty = normalizeCrmLoyalty(data)
+        const loyalty = parseCrmLoyaltyApiResponse(data)
         if (!loyalty) {
             throw new Error('Неожиданный формат ответа loyalty')
         }
@@ -338,8 +463,7 @@ export const CrmApi = {
             body,
         )
         const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : null
-        const loyaltyPayload = raw?.loyalty ?? raw
-        const status = normalizeLoyaltyStatus(loyaltyPayload)
+        const status = parseLoyaltyApiResponse(data)
         if (!status) {
             throw new Error('Неожиданный формат ответа adjust loyalty')
         }

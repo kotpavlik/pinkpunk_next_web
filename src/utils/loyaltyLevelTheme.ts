@@ -79,6 +79,18 @@ export function formatExpRange(min: number, max: number | null): string {
     return `${min.toLocaleString('ru-RU')} – ${max.toLocaleString('ru-RU')} exp`
 }
 
+/** Рамка карточки CRM / профиля по градации лояльности. */
+export function getLoyaltyLevelBorderStyle(levelId: string | null | undefined): CSSProperties {
+    if (!levelId) {
+        return { borderColor: 'rgba(255, 255, 255, 0.2)' }
+    }
+    const theme = getLevelTheme(levelId)
+    return {
+        borderColor: theme.labelColor,
+        boxShadow: theme.glow,
+    }
+}
+
 export function getLevelTheme(levelId: string): LevelTheme {
     const item = getLadderItem(levelId)
     const color = `var(${item.colorVar})`
