@@ -1,6 +1,7 @@
 import { AxiosResponse } from "axios";
 import { UserType } from "@/zustand/user_store/UserStore";
 import { instance } from "./Api";
+import { LoyaltyStatus, normalizeLoyaltyStatus } from "./LoyaltyApi";
 
 /** Ответ авторизации Telegram / телефон (общий контракт бэкенда) */
 export type AuthLoginSuccessResponse = UserType & {
@@ -286,6 +287,16 @@ export const UserApi = {
     async GetAllUsers(): Promise<AxiosResponse<UserType[]>> {
         const response = await instance.get<UserType[], Promise<AxiosResponse<UserType[]>>>('user/all');
         return response;
-    }
+    },
+
+    /** GET /user/loyalty — статус программы лояльности текущего пользователя */
+    async getLoyalty(): Promise<LoyaltyStatus> {
+        const { data } = await instance.get<unknown>('user/loyalty');
+        const status = normalizeLoyaltyStatus(data);
+        if (!status) {
+            throw new Error('Неожиданный формат ответа loyalty');
+        }
+        return status;
+    },
 
 }

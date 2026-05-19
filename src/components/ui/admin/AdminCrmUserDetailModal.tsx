@@ -25,8 +25,11 @@ import { useAppStore } from '@/zustand/app_store/AppStore'
 import { formatProductName } from '@/utils/formatProductName'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
+import type { CrmLoyalty } from '@/api/LoyaltyApi'
+import { formatExpPoints } from '@/api/LoyaltyApi'
+import AdminCrmLoyaltyTab from '@/components/ui/admin/AdminCrmLoyaltyTab'
 
-type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals'
+type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals' | 'loyalty'
 
 type CrmDblEditRowProps = {
     editKey: string
@@ -345,6 +348,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
     const [crmBannerError, setCrmBannerError] = useState<string | null>(null)
     const [confirmDeleteLine, setConfirmDeleteLine] = useState<{ lineId: string; label: string } | null>(null)
     const [cartRefreshing, setCartRefreshing] = useState(false)
+    const [loyalty, setLoyalty] = useState<CrmLoyalty | null>(null)
 
     const headerClientName = useMemo(
         () =>
@@ -386,6 +390,16 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
         try {
             const data = await CrmApi.getUserCard(accountId)
             setCard(data)
+            setLoyalty(data.loyalty ?? null)
+            if (!data.loyalty) {
+                try {
+                    const loyaltyData = await CrmApi.getUserLoyalty(accountId)
+                    setLoyalty(loyaltyData)
+                    setCard(c => (c ? { ...c, loyalty: loyaltyData } : c))
+                } catch {
+                    /* loyalty endpoint может отсутствовать на старом бэке */
+                }
+            }
         } catch (e: unknown) {
             const msg =
                 e && typeof e === 'object' && 'response' in e
@@ -394,6 +408,17 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             setError(msg || 'Не удалось загрузить карточку клиента')
         } finally {
             setLoading(false)
+        }
+    }, [accountId])
+
+    const refreshLoyalty = useCallback(async () => {
+        if (!accountId) return
+        try {
+            const data = await CrmApi.getUserLoyalty(accountId)
+            setLoyalty(data)
+            setCard(c => (c ? { ...c, loyalty: data } : c))
+        } catch {
+            /* тихо — ошибку покажет вкладка loyalty */
         }
     }, [accountId])
 
@@ -659,6 +684,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             )
             if (res.productStock) applyProductStockFromCrm(res.productStock)
             onListRefresh()
+            void refreshLoyalty()
             setCrmBannerError(null)
             setCatalogProductId('')
             setCatalogQty('')
@@ -720,6 +746,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                 c ? { ...c, profile: { ...c.profile, crmOfflinePurchases: res.crmOfflinePurchases } } : c
             )
             onListRefresh()
+            void refreshLoyalty()
             setCrmBannerError(null)
             setCustomName('')
             setCustomDesc('')
@@ -751,6 +778,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             )
             if (res.productStock) applyProductStockFromCrm(res.productStock)
             onListRefresh()
+            void refreshLoyalty()
             setCrmBannerError(null)
         } catch (e) {
             const err = axiosResponseMessage(e)
@@ -834,6 +862,16 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                 <span className="text-white font-mono">{telegramNumericId}</span>
                             </p>
                         )}
+                        {loyalty && (
+                            <p className="text-white/70 text-sm mt-1">
+                                Loyalty:{' '}
+                                <span className="text-[var(--mint-bright)] font-semibold">
+                                    {loyalty.level.label}
+                                </span>
+                                <span className="text-white/50"> · </span>
+                                <span className="tabular-nums">{formatExpPoints(loyalty.expPoints)} pts</span>
+                            </p>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -850,6 +888,7 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                     {tabBtn('offline', 'Покупки офлайн')}
                     {tabBtn('orders', `Заказы (${orders.length})`)}
                     {tabBtn('cart', 'Корзина')}
+                    {tabBtn('loyalty', 'Loyalty')}
                     {tabBtn('referrals', 'Рефералы')}
                 </div>
 
@@ -1539,6 +1578,18 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {!loading && !error && tab === 'loyalty' && accountId && (
+                        <AdminCrmLoyaltyTab
+                            accountId={accountId}
+                            loyalty={loyalty}
+                            onLoyaltyUpdated={updated => {
+                                setLoyalty(updated)
+                                setCard(c => (c ? { ...c, loyalty: updated } : c))
+                            }}
+                            onError={setCrmBannerError}
+                        />
                     )}
 
                     {!loading && !error && tab === 'referrals' && (

@@ -6,6 +6,8 @@ interface LazyTelegramLoginModalProps {
     isOpen: boolean
     onClose: () => void
     botName?: string
+    openTelegramOnMount?: boolean
+    linkTelegramOnly?: boolean
 }
 
 const TelegramLoginModal = dynamic(() => import('./TelegramLoginModal'), {

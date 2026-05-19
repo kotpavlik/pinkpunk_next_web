@@ -12,6 +12,21 @@
   --mint-light: #4dd4a7;
   --mint-dark: #12c998;
   --green: #439f76;
+
+  /* Уровни лояльности (металл / камни) */
+  --level-bronze: #cd7f32;
+  --level-silver: #c0c0c0;
+  --level-gold: #ffd700;
+  --level-sapphire: #0f52ba;
+  --level-ruby: #e0115f;
+
+  --glow-bronze: 0 0 4px var(--level-bronze);
+  --glow-silver: 0 0 6px var(--level-silver);
+  --glow-gold: 0 0 8px var(--level-gold);
+  --glow-sapphire: 0 0 8px var(--level-sapphire);
+  --glow-ruby: 0 0 12px var(--level-ruby);
+
+  --loyalty-progress-track: #2a2d35;
 }
 
 @theme inline {
@@ -274,4 +289,30 @@ body::before {
 
 .animate-blink {
   animation: blink 1s step-end infinite;
+}
+
+/* ——— Loyalty levels ——— */
+.loyalty-avatar-ring {
+  border-width: 2px;
+  border-style: solid;
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+@keyframes loyalty-marker-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 3px var(--marker-glow-color);
+  }
+  50% {
+    box-shadow:
+      0 0 7px var(--marker-glow-color),
+      0 0 12px color-mix(in srgb, var(--marker-glow-color) 45%, transparent);
+  }
+}
+
+.loyalty-marker-glow {
+  animation: loyalty-marker-glow-pulse 2.8s ease-in-out infinite;
+  will-change: box-shadow;
 }

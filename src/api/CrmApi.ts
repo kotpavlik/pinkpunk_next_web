@@ -1,6 +1,7 @@
 import { instance } from './Api'
 import type { PinkPunkOrder, ShippingAddress } from './OrderApi'
 import { requireMongoObjectIdString } from '@/utils/mongoObjectId'
+import { type CrmLoyalty, normalizeCrmLoyalty, normalizeLoyaltyStatus } from './LoyaltyApi'
 
 /** Сводка + полные заказы в списке CRM (GET /admin/crm/users) */
 export type CrmUserStats = {
@@ -139,6 +140,7 @@ export type CrmUserCardResponse = {
     orders: PinkPunkOrder[]
     referralsCount: number
     cart: CrmCartSummary | null
+    loyalty?: CrmLoyalty | null
 }
 
 /** PATCH /admin/crm/users/:accountId — только разрешённые поля, без owner */
@@ -224,7 +226,13 @@ function normalizeCrmUserCardPayload(raw: unknown): CrmUserCardResponse | null {
     if (o.cart === null) cart = null
     else if (o.cart && typeof o.cart === 'object') cart = o.cart as CrmCartSummary
 
-    return { profile, orders, referralsCount, cart }
+    let loyalty: CrmLoyalty | null = null
+    if (o.loyalty === null) loyalty = null
+    else if (o.loyalty && typeof o.loyalty === 'object') {
+        loyalty = normalizeCrmLoyalty(o.loyalty)
+    }
+
+    return { profile, orders, referralsCount, cart, loyalty }
 }
 
 function unwrapList<T>(data: unknown): T[] {
@@ -306,6 +314,40 @@ export const CrmApi = {
             crmPath(`/admin/crm/users/${encodeURIComponent(id)}/offline-purchases/${encodeURIComponent(lineId)}`)
         )
         return data
+    },
+
+    async getUserLoyalty(accountId: string): Promise<CrmLoyalty> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.get<unknown>(
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/loyalty`),
+        )
+        const loyalty = normalizeCrmLoyalty(data)
+        if (!loyalty) {
+            throw new Error('Неожиданный формат ответа loyalty')
+        }
+        return loyalty
+    },
+
+    async adjustLoyalty(
+        accountId: string,
+        body: { delta: number; reason: string },
+    ): Promise<CrmLoyalty> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.post<unknown>(
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/loyalty/adjust`),
+            body,
+        )
+        const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : null
+        const loyaltyPayload = raw?.loyalty ?? raw
+        const status = normalizeLoyaltyStatus(loyaltyPayload)
+        if (!status) {
+            throw new Error('Неожиданный формат ответа adjust loyalty')
+        }
+        try {
+            return await CrmApi.getUserLoyalty(accountId)
+        } catch {
+            return { ...status, history: [] }
+        }
     },
 
     /**

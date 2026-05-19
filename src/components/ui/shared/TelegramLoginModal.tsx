@@ -28,6 +28,10 @@ interface TelegramLoginModalProps {
     isOpen: boolean
     onClose: () => void
     botName?: string
+    /** Сразу открыть виджет Telegram (привязка из профиля). */
+    openTelegramOnMount?: boolean
+    /** Только привязка TG к текущей SMS-сессии — без формы телефона. */
+    linkTelegramOnly?: boolean
 }
 
 const DRAWER_TRANSITION_MS = 320
@@ -38,6 +42,8 @@ export default function TelegramLoginModal({
     isOpen,
     onClose,
     botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'pinkpunk_brand',
+    openTelegramOnMount = false,
+    linkTelegramOnly = false,
 }: TelegramLoginModalProps) {
     const [mounted, setMounted] = useState(false)
     const [drawerEntered, setDrawerEntered] = useState(false)
@@ -117,6 +123,16 @@ export default function TelegramLoginModal({
             cancelAnimationFrame(rafNest)
         }
     }, [isOpen])
+
+    const sessionActive = isAuthenticated()
+    const canLinkTelegram =
+        sessionActive && Boolean(user._id?.trim()) && (user.telegramUserId == null || user.telegramUserId === undefined)
+    const linkOnlyMode = linkTelegramOnly && canLinkTelegram
+
+    useEffect(() => {
+        if (!isOpen || !linkOnlyMode || !openTelegramOnMount) return
+        setTelegramModalOpen(true)
+    }, [isOpen, linkOnlyMode, openTelegramOnMount])
 
     useEffect(() => {
         if (telegramModalOpen) {
@@ -302,10 +318,6 @@ export default function TelegramLoginModal({
 
     const busyGlobal = status === 'loading'
 
-    const sessionActive = isAuthenticated()
-    const canLinkTelegram =
-        sessionActive && Boolean(user._id?.trim()) && (user.telegramUserId == null || user.telegramUserId === undefined)
-
     const phoneDisplay = formatBelarusPhoneDisplay(phoneNational)
     const phoneReady = isBelarusMobileComplete(phoneNational)
 
@@ -442,6 +454,19 @@ export default function TelegramLoginModal({
                                     стильный человек!
                                 </h2>
                             </>
+                        ) : linkOnlyMode ? (
+                            <>
+                                <h2
+                                    id="auth-drawer-title"
+                                    className="text-base font-extrabold text-white sm:text-lg"
+                                >
+                                    Привязать Telegram
+                                </h2>
+                                <p className="mt-3 max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                                    Telegram будет привязан к аккаунту с номером{' '}
+                                    {user.userPhoneNumber?.trim() || 'телефона'} — один профиль в магазине.
+                                </p>
+                            </>
                         ) : (
                             <>
                                 <h2
@@ -465,7 +490,22 @@ export default function TelegramLoginModal({
                         </div>
                     )}
 
-                    {phase === 'phone' && (
+                    {linkOnlyMode && !telegramModalOpen && (
+                        <div className="mb-6">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setTelegramModalOpen(true)
+                                    setTelegramWidgetEnabled(true)
+                                }}
+                                className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-white/22 hover:bg-white/[0.09]"
+                            >
+                                Открыть виджет Telegram
+                            </button>
+                        </div>
+                    )}
+
+                    {phase === 'phone' && !linkOnlyMode && (
                         <form
                             className="space-y-4"
                             onSubmit={(e) => {
@@ -515,7 +555,7 @@ export default function TelegramLoginModal({
                         </form>
                     )}
 
-                    {phase === 'code' && (
+                    {phase === 'code' && !linkOnlyMode && (
                         <form
                             className="space-y-4"
                             onSubmit={(e) => {
@@ -680,7 +720,7 @@ export default function TelegramLoginModal({
                         </div>
                     )}
 
-                    {!telegramModalOpen && phase !== 'intro' && (
+                    {!telegramModalOpen && phase !== 'intro' && !linkOnlyMode && (
                         <div className="mt-6">
                             <button
                                 type="button"

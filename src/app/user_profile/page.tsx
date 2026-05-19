@@ -13,6 +13,19 @@ import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
+import { storefrontProfileDisplayName } from '@/utils/crmUserDisplayName'
+import { UserApi } from '@/api/UserApi'
+import type { LoyaltyStatus } from '@/api/LoyaltyApi'
+import LoyaltyStatusBlock, {
+    LoyaltyAvatarRing,
+    LoyaltyLevelsSection,
+} from '@/components/ui/shared/LoyaltyStatusBlock'
+import LoyaltyLevelUpToast from '@/components/ui/shared/LoyaltyLevelUpToast'
+import {
+    detectLevelUp,
+    readStoredLoyaltyLevelId,
+    storeLoyaltyLevelId,
+} from '@/utils/loyaltyLevelTheme'
 
 export default function UserProfile() {
     const router = useRouter()
@@ -25,9 +38,34 @@ export default function UserProfile() {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
     const [hasLoaded, setHasLoaded] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+    const [isTelegramLinkModalOpen, setIsTelegramLinkModalOpen] = useState(false)
     const [isCheckingToken, setIsCheckingToken] = useState(true)
     const [paymentMessage, setPaymentMessage] = useState<{ type: 'success' | 'error'; title: string; description?: string } | null>(null)
     const hasCheckedPaymentRef = useRef(false)
+    const [loyalty, setLoyalty] = useState<LoyaltyStatus | null>(null)
+    const [loyaltyLoading, setLoyaltyLoading] = useState(false)
+    const [loyaltyError, setLoyaltyError] = useState<string | null>(null)
+    const [levelUpToast, setLevelUpToast] = useState<{ levelId: string; apiLabel: string } | null>(null)
+
+    const loadLoyalty = useCallback(async () => {
+        if (!user._id || !tokenManager.isAuthenticated()) return
+        setLoyaltyLoading(true)
+        setLoyaltyError(null)
+        try {
+            const data = await UserApi.getLoyalty()
+            const prevId = readStoredLoyaltyLevelId()
+            const { isNew } = detectLevelUp(prevId, data.level.id)
+            if (isNew) {
+                setLevelUpToast({ levelId: data.level.id, apiLabel: data.level.label })
+            }
+            storeLoyaltyLevelId(data.level.id)
+            setLoyalty(data)
+        } catch {
+            setLoyaltyError('Не удалось загрузить программу лояльности')
+        } finally {
+            setLoyaltyLoading(false)
+        }
+    }, [user._id])
 
     useEffect(() => {
         if (!paymentMessage) return
@@ -128,6 +166,7 @@ export default function UserProfile() {
                     if (user._id) {
                         await getMyOrders(user._id)
                         setHasLoaded(true)
+                        void loadLoyalty()
                     }
                 } else {
                     setPaymentMessage({
@@ -148,7 +187,7 @@ export default function UserProfile() {
         }
 
         void confirmPayment()
-    }, [user._id, getMyOrders, router])
+    }, [user._id, getMyOrders, router, loadLoyalty])
 
     // Отдельный эффект для загрузки заказов - срабатывает когда user._id становится доступным
     useEffect(() => {
@@ -166,13 +205,20 @@ export default function UserProfile() {
         }
     }, [user._id, hasLoaded, getMyOrders])
 
+    useEffect(() => {
+        if (!isCheckingToken && user._id && tokenManager.isAuthenticated()) {
+            void loadLoyalty()
+        }
+    }, [isCheckingToken, user._id, loadLoyalty])
+
     const handleRefresh = useCallback(() => {
         if (user._id) {
             getMyOrders(user._id).catch(() => {
                 // Ошибка обновления заказов
             })
+            void loadLoyalty()
         }
-    }, [user._id, getMyOrders])
+    }, [user._id, getMyOrders, loadLoyalty])
     const handleLogoutClick = () => {
         setIsLogoutModalOpen(true)
     }
@@ -202,6 +248,11 @@ export default function UserProfile() {
         }
     }
 
+    const profileDisplayName = storefrontProfileDisplayName(user)
+    const telegramUsername = user.username?.trim()
+    const canLinkTelegram =
+        Boolean(user._id?.trim()) &&
+        (user.telegramUserId == null || user.telegramUserId === undefined)
 
     return (
         <div className="relative min-h-screen pt-20 pb-20 px-4 md:px-6 lg:px-8">
@@ -210,6 +261,14 @@ export default function UserProfile() {
                 <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <Loader fullScreen showText />
                 </div>
+            )}
+
+            {levelUpToast && (
+                <LoyaltyLevelUpToast
+                    levelId={levelUpToast.levelId}
+                    apiLabel={levelUpToast.apiLabel}
+                    onDismiss={() => setLevelUpToast(null)}
+                />
             )}
 
             {paymentMessage && (
@@ -260,40 +319,84 @@ export default function UserProfile() {
                     <div className="lg:col-span-1 space-y-4 md:space-y-6">
                         {/* Карточка профиля - компактная */}
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl hover:shadow-2xl transition-shadow">
-                            <div className="flex flex-col items-center text-center">
-                                {/* Аватар */}
-                                <div className="relative mb-4">
-                                    <div className="h-24 w-24 md:h-28 md:w-28 rounded-full bg-white/10 border-2 border-[var(--pink-punk)] flex items-center justify-center overflow-hidden">
-                                        <AvatarLoader className="w-full h-full" />
+                            <div className="flex w-full min-w-0 flex-col items-stretch text-center">
+                                <div className="flex items-center gap-4 w-full mb-4 text-left">
+                                    <div className="relative shrink-0">
+                                        <LoyaltyAvatarRing
+                                            levelId={loyalty?.level.id}
+                                            loading={loyaltyLoading}
+                                            className="h-24 w-24 md:h-28 md:w-28"
+                                        >
+                                            <AvatarLoader className="w-full h-full" />
+                                        </LoyaltyAvatarRing>
+                                        {user.isPremium && (
+                                            <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] rounded-full p-1.5 shadow-lg">
+                                                <CheckBadgeIconSolid className="h-4 w-4 text-white" />
+                                            </div>
+                                        )}
                                     </div>
-                                    {/* Бейдж премиум */}
-                                    {user.isPremium && (
-                                        <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-[var(--pink-punk)] to-[var(--pink-dark)] rounded-full p-1.5 shadow-lg">
-                                            <CheckBadgeIconSolid className="h-4 w-4 text-white" />
-                                        </div>
-                                    )}
+                                    <div className="text-left min-w-0 flex-1">
+                                        <h2 className="text-lg md:text-xl font-bold text-white leading-tight truncate">
+                                            {profileDisplayName}
+                                        </h2>
+                                        {telegramUsername && (
+                                            <p className="text-white/70 text-sm mt-0.5 truncate">
+                                                @{telegramUsername.replace(/^@/, '')}
+                                            </p>
+                                        )}
+                                        {user.userPhoneNumber && (
+                                            <p className="text-white/60 text-xs mt-1 truncate">
+                                                {user.userPhoneNumber}
+                                            </p>
+                                        )}
+                                        {user.telegramUserId != null ? (
+                                            <p className="text-white/50 text-xs mt-1">
+                                                Telegram подключён
+                                            </p>
+                                        ) : (
+                                            <p className="text-white/50 text-xs mt-1">Telegram не привязан</p>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Основная информация */}
-                                <h2 className="text-xl md:text-2xl font-bold text-white mb-1">
-                                    {user.firstName && user.lastName
-                                        ? `${user.firstName} ${user.lastName}`
-                                        : user.firstName || user.username || 'Пользователь'}
-                                </h2>
-                                {user.username && (
-                                    <p className="text-white/70 text-sm mb-1">
-                                        @{user.username}
-                                    </p>
-                                )}
-                                {user.telegramUserId != null && (
-                                    <p className="text-white/50 text-xs">
-                                        Telegram ID: {user.telegramUserId}
-                                    </p>
-                                )}
+                                <LoyaltyLevelsSection
+                                    embedded
+                                    status={loyalty}
+                                    loading={loyaltyLoading}
+                                />
+
+                                <LoyaltyStatusBlock
+                                    embedded
+                                    hideLevels
+                                    status={loyalty}
+                                    loading={loyaltyLoading}
+                                    error={loyaltyError}
+                                    onRetry={() => void loadLoyalty()}
+                                />
                             </div>
                         </div>
 
-                        {/* Активность - компактная карточка */}
+                        {canLinkTelegram && (
+                            <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
+                                <h3 className="text-base font-bold text-white mb-2">Telegram</h3>
+                                <p className="text-white/60 text-xs leading-relaxed mb-3">
+                                    Привяжите Telegram к аккаунту с номером {user.userPhoneNumber || 'телефона'}, чтобы
+                                    не создавать второй профиль в магазине.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTelegramLinkModalOpen(true)}
+                                    className="w-full px-4 py-2.5 bg-[#2AABEE]/20 hover:bg-[#2AABEE]/30 border border-[#2AABEE]/40 text-white text-sm font-semibold rounded-lg transition-colors"
+                                >
+                                    Привязать Telegram
+                                </button>
+                            </div>
+                        )}
+
+                    </div>
+
+                    {/* Правая колонка - Контактная информация и адрес */}
+                    <div className="lg:col-span-2 space-y-4 md:space-y-6">
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
                             <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
                                 <CalendarIcon className="h-4 w-4 text-[var(--pink-punk)]" />
@@ -306,15 +409,11 @@ export default function UserProfile() {
                                 </p>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Правая колонка - Контактная информация и адрес */}
-                    <div className="lg:col-span-2 space-y-4 md:space-y-6">
                         {/* Контактная информация */}
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <PhoneIcon className="h-5 w-5 text-[#16ffbd]" />
+                                <h3 className="text-lg font-bold text-white">
                                     Контактная информация
                                 </h3>
                                 {user.userPhoneNumber && (
@@ -328,6 +427,12 @@ export default function UserProfile() {
                                     </button>
                                 )}
                             </div>
+                            {user.email?.trim() && (
+                                <div className="mb-4 pb-4 border-b border-white/10">
+                                    <span className="text-white/60 text-xs block mb-1">Email</span>
+                                    <p className="text-white font-semibold break-all">{user.email.trim()}</p>
+                                </div>
+                            )}
                             {user.userPhoneNumber ? (
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-[#16ffbd]/10 rounded-lg">
@@ -349,8 +454,7 @@ export default function UserProfile() {
                         {/* Адрес доставки */}
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <MapPinIcon className="h-5 w-5 text-[var(--pink-punk)]" />
+                                <h3 className="text-lg font-bold text-white">
                                     Адрес доставки
                                 </h3>
                                 {user.shippingAddress && (
@@ -543,6 +647,15 @@ export default function UserProfile() {
                             router.push('/')
                         }
                     }}
+                />
+            )}
+
+            {isTelegramLinkModalOpen && (
+                <TelegramLoginModal
+                    isOpen={isTelegramLinkModalOpen}
+                    linkTelegramOnly
+                    openTelegramOnMount
+                    onClose={() => setIsTelegramLinkModalOpen(false)}
                 />
             )}
 
