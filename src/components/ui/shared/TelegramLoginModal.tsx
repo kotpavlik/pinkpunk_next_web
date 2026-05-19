@@ -17,6 +17,12 @@ import {
     parseBelarusNationalInput,
 } from '@/utils/belarusPhone'
 import { listenForWebOtpSms, normalizeSmsOtpCode } from '@/utils/smsOtpAutofill'
+import {
+    userNeedsPersonalName,
+    validatePersonalNameField,
+    personalNameFieldsSchema,
+} from '@/utils/personalNameValidation'
+import * as yup from 'yup'
 
 interface TelegramLoginModalProps {
     isOpen: boolean
@@ -26,6 +32,7 @@ interface TelegramLoginModalProps {
 
 const DRAWER_TRANSITION_MS = 320
 const SMS_CODE_LEN = 4
+type AuthPhase = 'phone' | 'code' | 'intro'
 
 export default function TelegramLoginModal({
     isOpen,
@@ -44,7 +51,14 @@ export default function TelegramLoginModal({
     /** 9 национальных цифр без +375 (только оператор и абонент). */
     const [phoneNational, setPhoneNational] = useState('')
     const [code, setCode] = useState('')
-    const [phase, setPhase] = useState<'phone' | 'code'>('phone')
+    const [phase, setPhase] = useState<AuthPhase>('phone')
+    const [personalFirstName, setPersonalFirstName] = useState('')
+    const [personalLastName, setPersonalLastName] = useState('')
+    const [nameErrors, setNameErrors] = useState<{
+        personalFirstName?: string
+        personalLastName?: string
+    }>({})
+    const [nameSaving, setNameSaving] = useState(false)
     const [cooldown, setCooldown] = useState(0)
     const closingRef = useRef(false)
     const closeTimeoutRef = useRef<number | null>(null)
@@ -55,6 +69,7 @@ export default function TelegramLoginModal({
         authenticateTelegramLoginWidget,
         requestPhoneAuthCode,
         verifyPhoneAuth,
+        updateContactInfo,
         user,
         isAuthenticated,
     } = useUserStore()
@@ -76,6 +91,10 @@ export default function TelegramLoginModal({
             setPhase('phone')
             setPhoneNational('')
             setCode('')
+            setPersonalFirstName('')
+            setPersonalLastName('')
+            setNameErrors({})
+            setNameSaving(false)
             setCooldown(0)
             setError(null)
             setTelegramLoading(false)
@@ -137,7 +156,10 @@ export default function TelegramLoginModal({
         }
     }, [])
 
-    const requestCloseAnimated = useCallback(() => {
+    const introPhaseLocked = phase === 'intro'
+
+    const requestCloseAnimated = useCallback((force = false) => {
+        if (!force && introPhaseLocked) return
         if (closingRef.current || !isOpen) return
         closingRef.current = true
         setTelegramModalOpen(false)
@@ -151,11 +173,15 @@ export default function TelegramLoginModal({
             closingRef.current = false
             onClose()
         }, DRAWER_TRANSITION_MS)
-    }, [isOpen, onClose])
+    }, [isOpen, onClose, introPhaseLocked])
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key !== 'Escape' || !isOpen) return
+            if (introPhaseLocked) {
+                e.preventDefault()
+                return
+            }
             if (telegramModalOpen) {
                 setTelegramModalOpen(false)
                 e.preventDefault()
@@ -171,7 +197,7 @@ export default function TelegramLoginModal({
         return () => {
             document.removeEventListener('keydown', handleEscape)
         }
-    }, [isOpen, telegramModalOpen, requestCloseAnimated])
+    }, [isOpen, telegramModalOpen, requestCloseAnimated, introPhaseLocked])
 
     const handleRequestCode = useCallback(async () => {
         setError(null)
@@ -209,11 +235,70 @@ export default function TelegramLoginModal({
         const result = await verifyPhoneAuth(phoneE164, code)
         setVerifyLoading(false)
         if (result.success) {
-            requestCloseAnimated()
+            const profile = useUserStore.getState().user
+            if (userNeedsPersonalName(profile)) {
+                setPhase('intro')
+                setPersonalFirstName(profile.personalFirstName?.trim() ?? '')
+                setPersonalLastName(profile.personalLastName?.trim() ?? '')
+                setNameErrors({})
+                setError(null)
+            } else {
+                requestCloseAnimated()
+            }
         } else {
             setError(result.error || 'Ошибка входа')
         }
     }, [phoneNational, code, verifyPhoneAuth, requestCloseAnimated])
+
+    const handlePersonalFirstNameChange = useCallback(async (value: string) => {
+        setPersonalFirstName(value)
+        const err = await validatePersonalNameField('personalFirstName', value)
+        setNameErrors((prev) => ({ ...prev, personalFirstName: err }))
+    }, [])
+
+    const handlePersonalLastNameChange = useCallback(async (value: string) => {
+        setPersonalLastName(value)
+        const err = await validatePersonalNameField('personalLastName', value)
+        setNameErrors((prev) => ({ ...prev, personalLastName: err }))
+    }, [])
+
+    const handleSavePersonalName = useCallback(async () => {
+        setError(null)
+        const first = personalFirstName.trim()
+        const last = personalLastName.trim()
+
+        try {
+            await personalNameFieldsSchema.validate(
+                { personalFirstName: first, personalLastName: last },
+                { abortEarly: false },
+            )
+            setNameErrors({})
+        } catch (err) {
+            if (err instanceof yup.ValidationError) {
+                const next: { personalFirstName?: string; personalLastName?: string } = {}
+                for (const inner of err.inner) {
+                    if (inner.path === 'personalFirstName' || inner.path === 'personalLastName') {
+                        next[inner.path] = inner.message
+                    }
+                }
+                setNameErrors(next)
+            }
+            return
+        }
+
+        setNameSaving(true)
+        const result = await updateContactInfo({
+            personalFirstName: first,
+            personalLastName: last,
+        })
+        setNameSaving(false)
+
+        if (result.success) {
+            requestCloseAnimated(true)
+        } else {
+            setError(result.error || 'Не удалось сохранить имя')
+        }
+    }, [personalFirstName, personalLastName, updateContactInfo, requestCloseAnimated])
 
     const busyGlobal = status === 'loading'
 
@@ -311,7 +396,9 @@ export default function TelegramLoginModal({
                     opacity: drawerEntered ? 1 : 0,
                     pointerEvents: isOpen ? 'auto' : 'none',
                 }}
-                onClick={requestCloseAnimated}
+                onClick={() => {
+                    if (!introPhaseLocked) requestCloseAnimated()
+                }}
                 aria-hidden
             />
 
@@ -328,29 +415,48 @@ export default function TelegramLoginModal({
                 aria-labelledby="auth-drawer-title"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
-                    <button
-                        type="button"
-                        onClick={requestCloseAnimated}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
-                        aria-label="Закрыть"
-                    >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                {!introPhaseLocked && (
+                    <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
+                        <button
+                            type="button"
+                            onClick={() => requestCloseAnimated()}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+                            aria-label="Закрыть"
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-6 sm:px-8">
                     <header className="mb-8">
-                        <h2 id="auth-drawer-title" className="text-base font-extrabold uppercase tracking-[0.18em] text-white sm:text-lg">
-                            Вход / регистрация
-                        </h2>
-                        <p className="mt-3 max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
-                            Получите доступ к эксклюзивным преимуществам учетной записи
-                            <br />
-                            PINK PUNK™
-                        </p>
+                        {phase === 'intro' ? (
+                            <>
+                                <h2
+                                    id="auth-drawer-title"
+                                    className="text-base font-extrabold leading-snug text-white sm:text-lg"
+                                >
+                                    Познакомимся? Имя и фамилия нужны, чтобы мы не гадали, кто этот
+                                    стильный человек!
+                                </h2>
+                            </>
+                        ) : (
+                            <>
+                                <h2
+                                    id="auth-drawer-title"
+                                    className="text-base font-extrabold uppercase tracking-[0.18em] text-white sm:text-lg"
+                                >
+                                    Вход / регистрация
+                                </h2>
+                                <p className="mt-3 max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                                    Получите доступ к эксклюзивным преимуществам учетной записи
+                                    <br />
+                                    PINK PUNK™
+                                </p>
+                            </>
+                        )}
                     </header>
 
                     {error && (
@@ -359,7 +465,7 @@ export default function TelegramLoginModal({
                         </div>
                     )}
 
-                    {phase === 'phone' ? (
+                    {phase === 'phone' && (
                         <form
                             className="space-y-4"
                             onSubmit={(e) => {
@@ -407,7 +513,9 @@ export default function TelegramLoginModal({
                                         : 'Получить код'}
                             </button>
                         </form>
-                    ) : (
+                    )}
+
+                    {phase === 'code' && (
                         <form
                             className="space-y-4"
                             onSubmit={(e) => {
@@ -494,13 +602,85 @@ export default function TelegramLoginModal({
                         </form>
                     )}
 
-                    <div className="mt-12 border-t border-white/[0.06] pt-6">
-                        <p className="text-center text-[11px] leading-snug text-white/35">
-                            Продолжая, вы принимаете условия сервиса.
-                        </p>
-                    </div>
+                    {phase === 'intro' && (
+                        <form
+                            className="space-y-4"
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                if (nameSaving || busyGlobal) return
+                                void handleSavePersonalName()
+                            }}
+                        >
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <label className="block">
+                                    <span className="mb-1.5 block text-sm text-white/55">Имя</span>
+                                    <input
+                                        type="text"
+                                        autoComplete="given-name"
+                                        value={personalFirstName}
+                                        onChange={(e) => void handlePersonalFirstNameChange(e.target.value)}
+                                        disabled={nameSaving || busyGlobal}
+                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${
+                                            nameErrors.personalFirstName
+                                                ? 'border-[#ff2b9c]/80'
+                                                : 'border-white/15'
+                                        }`}
+                                        placeholder="Имя"
+                                    />
+                                    {nameErrors.personalFirstName && (
+                                        <p className="mt-1.5 text-xs text-[#ff8ec4]">
+                                            {nameErrors.personalFirstName}
+                                        </p>
+                                    )}
+                                </label>
+                                <label className="block">
+                                    <span className="mb-1.5 block text-sm text-white/55">Фамилия</span>
+                                    <input
+                                        type="text"
+                                        autoComplete="family-name"
+                                        value={personalLastName}
+                                        onChange={(e) => void handlePersonalLastNameChange(e.target.value)}
+                                        disabled={nameSaving || busyGlobal}
+                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${
+                                            nameErrors.personalLastName
+                                                ? 'border-[#ff2b9c]/80'
+                                                : 'border-white/15'
+                                        }`}
+                                        placeholder="Фамилия"
+                                    />
+                                    {nameErrors.personalLastName && (
+                                        <p className="mt-1.5 text-xs text-[#ff8ec4]">
+                                            {nameErrors.personalLastName}
+                                        </p>
+                                    )}
+                                </label>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={
+                                    nameSaving ||
+                                    busyGlobal ||
+                                    !personalFirstName.trim() ||
+                                    !personalLastName.trim() ||
+                                    Boolean(nameErrors.personalFirstName) ||
+                                    Boolean(nameErrors.personalLastName)
+                                }
+                                className="w-full rounded-xl bg-[#ff2b9c] px-4 py-3 font-semibold text-white transition hover:bg-[#e02488] disabled:pointer-events-none disabled:opacity-45"
+                            >
+                                {nameSaving || busyGlobal ? 'Сохранение…' : 'Продолжить'}
+                            </button>
+                        </form>
+                    )}
 
-                    {!telegramModalOpen && (
+                    {phase !== 'intro' && (
+                        <div className="mt-12 border-t border-white/[0.06] pt-6">
+                            <p className="text-center text-[11px] leading-snug text-white/35">
+                                Продолжая, вы принимаете условия сервиса.
+                            </p>
+                        </div>
+                    )}
+
+                    {!telegramModalOpen && phase !== 'intro' && (
                         <div className="mt-6">
                             <button
                                 type="button"

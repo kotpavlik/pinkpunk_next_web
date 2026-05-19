@@ -10,6 +10,7 @@ import { useAppStore } from '@/zustand/app_store/AppStore'
 import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailModal'
 import { tokenManager } from '@/utils/TokenManager'
 import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
+import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 
 function formatCrmLoadError(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
@@ -78,11 +79,8 @@ function isProtectedOwnerUser(u: CrmListUser): boolean {
 }
 
 function displayNameForUser(u: CrmListUser): string {
-    const personal = [u.personalFirstName, u.personalLastName].filter(Boolean).join(' ').trim()
-    if (personal) return personal
-    const tg = [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
-    if (tg) return tg
-    if (u.username?.trim()) return `@${u.username.trim()}`
+    const title = crmUserDisplayName(u)
+    if (title !== '—') return title
     const phone = phoneFromRow(u)
     if (phone) return phone
     return u._id
@@ -646,9 +644,7 @@ const AdminUsers = () => {
                                 const offlineSum = off?.totalAmount ?? 0
                                 const totalAll = onlineSum + offlineSum
                                 const crmAccountId = accountObjectIdFromCrmListRow(u)
-                                const tgName =
-                                    [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
-                                    (u.username ? `@${u.username}` : '—')
+                                const cardTitle = crmUserDisplayName(u)
                                 const phoneDisplay = phoneFromRow(u)
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
                                 const protectedOwner = isProtectedOwnerUser(u)
@@ -680,7 +676,7 @@ const AdminUsers = () => {
                                         <div className="min-w-0 space-y-1 text-[10px] leading-snug">
                                             <div className="flex items-center justify-between gap-2">
                                                 <span className="text-xs font-semibold text-white break-words min-w-0">
-                                                    {tgName}
+                                                    {cardTitle}
                                                 </span>
                                                 <span className="flex items-center gap-1 shrink-0">
                                                     <button

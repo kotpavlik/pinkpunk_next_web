@@ -618,6 +618,9 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
      * @returns Promise с результатом операции
      */
     updateContactInfo: async (data: {
+        personalFirstName?: string;
+        personalLastName?: string;
+        email?: string;
         userPhoneNumber?: string;
         shippingAddress?: ShippingAddress;
     }) => {
@@ -625,18 +628,29 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
             const response = await UserApi.UpdateContactInfo(data);
 
             if (response.data) {
-                // Сервер возвращает { message: string, user: { userId, userPhoneNumber/shippingAddress } }
                 const responseData = response.data as UserType & {
                     message?: string;
-                    user?: {
-                        userId?: number;
-                        userPhoneNumber?: string;
-                        shippingAddress?: ShippingAddress;
-                    };
+                    user?: Partial<UserType> & { userId?: number };
                 };
 
-                // Извлекаем обновленные данные из ответа
                 const updatedData: Partial<UserType> = {};
+
+                if (data.personalFirstName !== undefined) {
+                    updatedData.personalFirstName =
+                        responseData.user?.personalFirstName ??
+                        responseData.personalFirstName ??
+                        data.personalFirstName;
+                }
+                if (data.personalLastName !== undefined) {
+                    updatedData.personalLastName =
+                        responseData.user?.personalLastName ??
+                        responseData.personalLastName ??
+                        data.personalLastName;
+                }
+                if (data.email !== undefined) {
+                    updatedData.email =
+                        responseData.user?.email ?? responseData.email ?? data.email;
+                }
 
                 if (data.userPhoneNumber !== undefined) {
                     // Приоритет: responseData.user.userPhoneNumber > responseData.userPhoneNumber > data.userPhoneNumber

@@ -23,6 +23,7 @@ import { ProductApi, type ProductResponse } from '@/api/ProductApi'
 import LazyImage from '@/components/common/LazyImage'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 import { formatProductName } from '@/utils/formatProductName'
+import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 
 type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals'
@@ -329,6 +330,20 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
     const [crmBannerError, setCrmBannerError] = useState<string | null>(null)
     const [confirmDeleteLine, setConfirmDeleteLine] = useState<{ lineId: string; label: string } | null>(null)
     const [cartRefreshing, setCartRefreshing] = useState(false)
+
+    const headerClientName = useMemo(
+        () =>
+            crmUserDisplayName(
+                card
+                    ? {
+                          personalFirstName: form.personalFirstName,
+                          personalLastName: form.personalLastName,
+                          username: form.username,
+                      }
+                    : listRow,
+            ),
+        [card, form.personalFirstName, form.personalLastName, form.username, listRow],
+    )
 
     useEffect(() => {
         setCrmBannerError(null)
@@ -773,9 +788,12 @@ export default function AdminCrmUserDetailModal({ listRow, onClose, onListRefres
             onClick={e => e.stopPropagation()}
         >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#333] bg-[#1a1a1a] p-4">
-                    <div>
-                        <h1 className="text-[var(--mint-bright)] text-lg font-bold font-durik">CRM — клиент</h1>
-                        <p className="text-white/60 text-xs break-all">
+                    <div className="min-w-0">
+                        <p className="text-white text-lg font-bold break-words">{headerClientName}</p>
+                        <h1 className="text-[var(--mint-bright)] text-sm font-semibold font-durik mt-0.5">
+                            CRM — клиент
+                        </h1>
+                        <p className="text-white/60 text-xs break-all mt-1">
                             accountId:{' '}
                             <span className="font-mono text-white/90" title="Mongo _id — ключ CRM и заказов">
                                 {accountId || '—'}
