@@ -250,9 +250,7 @@ export default function UserProfile() {
 
     const profileDisplayName = storefrontProfileDisplayName(user)
     const telegramUsername = user.username?.trim()
-    const canLinkTelegram =
-        Boolean(user._id?.trim()) &&
-        (user.telegramUserId == null || user.telegramUserId === undefined)
+    const isTelegramLinked = user.telegramUserId != null && user.telegramUserId !== undefined
 
     return (
         <div className="relative min-h-screen pt-20 pb-20 px-4 md:px-6 lg:px-8">
@@ -313,19 +311,17 @@ export default function UserProfile() {
                     </button>
                 </div>
 
-                {/* Основной контент в grid layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                    {/* Левая колонка - Профиль и основная информация */}
-                    <div className="lg:col-span-1 space-y-4 md:space-y-6">
-                        {/* Карточка профиля - компактная */}
-                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl hover:shadow-2xl transition-shadow">
+                <div className="flex flex-col gap-3 md:gap-4">
+                    <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-3 lg:items-start">
+                        <div className="flex flex-col gap-3 md:gap-4 lg:col-span-1">
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl transition-shadow hover:shadow-2xl">
                             <div className="flex w-full min-w-0 flex-col items-stretch text-center">
-                                <div className="flex items-center gap-4 w-full mb-4 text-left">
+                                <div className="flex items-center gap-3 w-full mb-3 text-left">
                                     <div className="relative shrink-0">
                                         <LoyaltyAvatarRing
                                             levelId={loyalty?.level.id}
                                             loading={loyaltyLoading}
-                                            className="h-24 w-24 md:h-28 md:w-28"
+                                            className="h-20 w-20 md:h-24 md:w-24"
                                         >
                                             <AvatarLoader className="w-full h-full" />
                                         </LoyaltyAvatarRing>
@@ -349,13 +345,6 @@ export default function UserProfile() {
                                                 {user.userPhoneNumber}
                                             </p>
                                         )}
-                                        {user.telegramUserId != null ? (
-                                            <p className="text-white/50 text-xs mt-1">
-                                                Telegram подключён
-                                            </p>
-                                        ) : (
-                                            <p className="text-white/50 text-xs mt-1">Telegram не привязан</p>
-                                        )}
                                     </div>
                                 </div>
 
@@ -376,29 +365,39 @@ export default function UserProfile() {
                             </div>
                         </div>
 
-                        {canLinkTelegram && (
-                            <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
-                                <h3 className="text-base font-bold text-white mb-2">Telegram</h3>
-                                <p className="text-white/60 text-xs leading-relaxed mb-3">
-                                    Привяжите Telegram к аккаунту с номером {user.userPhoneNumber || 'телефона'}, чтобы
-                                    не создавать второй профиль в магазине.
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsTelegramLinkModalOpen(true)}
-                                    className="w-full px-4 py-2.5 bg-[#2AABEE]/20 hover:bg-[#2AABEE]/30 border border-[#2AABEE]/40 text-white text-sm font-semibold rounded-lg transition-colors"
-                                >
-                                    Привязать Telegram
-                                </button>
-                            </div>
-                        )}
+                        </div>
 
-                    </div>
-
-                    {/* Правая колонка - Контактная информация и адрес */}
-                    <div className="lg:col-span-2 space-y-4 md:space-y-6">
+                        <div className="flex flex-col gap-3 md:gap-4 lg:col-span-2">
+                        <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2">
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
-                            <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-white mb-2">Telegram</h3>
+                            {isTelegramLinked ? (
+                                <div className="space-y-0.5">
+                                    <p className="text-sm font-semibold text-[#2AABEE]">Telegram подключён</p>
+                                    {telegramUsername && (
+                                        <p className="text-white/60 text-xs truncate">
+                                            @{telegramUsername.replace(/^@/, '')}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-white/60 text-xs leading-relaxed mb-2">
+                                        Привяжите Telegram к аккаунту с номером {user.userPhoneNumber || 'телефона'}, чтобы
+                                        не создавать второй профиль в магазине.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsTelegramLinkModalOpen(true)}
+                                        className="w-full px-3 py-2 bg-[#2AABEE]/20 hover:bg-[#2AABEE]/30 border border-[#2AABEE]/40 text-white text-sm font-semibold rounded-lg transition-colors"
+                                    >
+                                        Привязать Telegram
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
+                            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
                                 <CalendarIcon className="h-4 w-4 text-[var(--pink-punk)]" />
                                 Активность
                             </h3>
@@ -409,11 +408,11 @@ export default function UserProfile() {
                                 </p>
                             </div>
                         </div>
+                        </div>
 
-                        {/* Контактная информация */}
-                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-white">
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-bold text-white">
                                     Контактная информация
                                 </h3>
                                 {user.userPhoneNumber && (
@@ -428,7 +427,7 @@ export default function UserProfile() {
                                 )}
                             </div>
                             {user.email?.trim() && (
-                                <div className="mb-4 pb-4 border-b border-white/10">
+                                <div className="mb-3 pb-3 border-b border-white/10">
                                     <span className="text-white/60 text-xs block mb-1">Email</span>
                                     <p className="text-white font-semibold break-all">{user.email.trim()}</p>
                                 </div>
@@ -443,7 +442,7 @@ export default function UserProfile() {
                             ) : (
                                 <button
                                     onClick={() => setIsPhoneModalOpen(true)}
-                                    className="w-full px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white/70 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                    className="w-full px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white/70 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
                                 >
                                     <PhoneIcon className="h-4 w-4" />
                                     Добавить номер телефона
@@ -451,10 +450,9 @@ export default function UserProfile() {
                             )}
                         </div>
 
-                        {/* Адрес доставки */}
-                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-white">
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-bold text-white">
                                     Адрес доставки
                                 </h3>
                                 {user.shippingAddress && (
@@ -492,20 +490,20 @@ export default function UserProfile() {
                             ) : (
                                 <button
                                     onClick={() => setIsAddressModalOpen(true)}
-                                    className="w-full px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white/70 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                    className="w-full px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white/70 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
                                 >
                                     <MapPinIcon className="h-4 w-4" />
                                     Добавить адрес доставки
                                 </button>
                             )}
                         </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Секция заказов - на всю ширину */}
-                <div className="mt-6 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl">
-                    <div className="flex justify-between items-center mb-5">
-                        <div className='flex items-center gap-3'>
+                    {/* Секция заказов — на всю ширину */}
+                    <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
+                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-3">
                             <div className="p-2 bg-[var(--pink-punk)]/10 rounded-lg">
                                 <ShoppingBagIcon className="h-5 w-5 text-[var(--pink-punk)]" />
                             </div>
@@ -580,7 +578,7 @@ export default function UserProfile() {
 
                     {/* Список заказов */}
                     {!ordersLoading && !ordersError && orders.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {orders.map((order) => (
                                 <OrderCard
                                     key={order._id}
@@ -619,8 +617,8 @@ export default function UserProfile() {
                             </div>
                         </div>
                     )}
+                    </div>
                 </div>
-
 
             </div>
 

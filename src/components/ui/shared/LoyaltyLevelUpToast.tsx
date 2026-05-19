@@ -40,9 +40,8 @@ export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Pr
             )}
             <div
                 role="alert"
-                className={`fixed top-24 right-4 z-[10002] w-[min(100vw-2rem,340px)] transform transition-all duration-300 ease-out ${
-                    visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-                }`}
+                className={`fixed top-24 right-4 z-[10002] w-[min(100vw-2rem,340px)] transform transition-all duration-300 ease-out ${visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+                    }`}
             >
                 <div
                     className="rounded-xl border border-white/15 bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl overflow-hidden pl-1"
