@@ -13,7 +13,20 @@ import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import type { LoyaltyStatus } from '@/api/LoyaltyApi'
 import CrmLoyaltyInline, { loyaltyRowNeedsUpdate } from '@/components/ui/admin/CrmLoyaltyInline'
-import { getLoyaltyLevelBorderStyle } from '@/utils/loyaltyLevelTheme'
+import { getLevelTheme, getLoyaltyLevelBorderStyle, LOYALTY_LADDER, getLadderItem } from '@/utils/loyaltyLevelTheme'
+
+const LEVEL_FILTER_NONE = '__none__'
+
+function resolveUserLevelId(u: CrmListUser): string | null {
+    const raw = u.loyalty?.level?.id
+    if (!raw) return null
+    return getLadderItem(raw).id
+}
+
+function userExpPoints(u: CrmListUser): number {
+    const pts = u.loyalty?.expPoints
+    return typeof pts === 'number' && !Number.isNaN(pts) ? pts : 0
+}
 
 function formatCrmLoadError(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
@@ -89,8 +102,10 @@ function displayNameForUser(u: CrmListUser): string {
     return u._id
 }
 
-type OrdersSort =
+type CrmUsersSort =
     | 'none'
+    | 'pts_desc'
+    | 'pts_asc'
     | 'online_sum_desc'
     | 'offline_sum_desc'
     | 'total_orders_desc'
@@ -105,6 +120,12 @@ function statSortTileClass(active: boolean, accent: 'mint' | 'amber'): string {
     return accent === 'mint'
         ? `${base} border-[var(--mint-bright)] ring-1 ring-[var(--mint-bright)]/50`
         : `${base} border-amber-400/90 ring-1 ring-amber-400/40`
+}
+
+function levelStatTileClass(active: boolean): string {
+    const base =
+        'flex h-11 w-[3.4rem] shrink-0 flex-col items-center justify-center gap-0 rounded-md border bg-white/[0.06] px-1 py-0.5 text-center transition-all cursor-pointer hover:brightness-110 focus:outline-none focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent'
+    return active ? `${base} ring-1` : `${base} opacity-90 hover:opacity-100`
 }
 
 function onlineOrdersCount(u: CrmListUser): number {
@@ -249,32 +270,32 @@ function CrmDeleteUserConfirmModal({
                                 При ошибке все изменения каскада откатываются. Действие необратимо.
                             </p>
                         </div>
-                {accountId && (
-                    <p className="text-white/40 text-[10px] sm:text-xs font-mono mb-4 break-all">id: {accountId}</p>
-                )}
-                {error && (
-                    <p className="text-sm text-red-200/90 break-words whitespace-pre-wrap bg-red-950/40 border border-red-500/30 p-3 rounded mb-4">
-                        {error}
-                    </p>
-                )}
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        disabled={isDeleting}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white/10 text-white/90 hover:bg-white/15 text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                        Отмена
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onConfirm}
-                        disabled={isDeleting}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-red-600/90 text-white hover:bg-red-600 text-sm font-semibold transition-colors disabled:opacity-50"
-                    >
-                        {isDeleting ? 'Удаляем…' : 'Удалить'}
-                    </button>
-                </div>
+                        {accountId && (
+                            <p className="text-white/40 text-[10px] sm:text-xs font-mono mb-4 break-all">id: {accountId}</p>
+                        )}
+                        {error && (
+                            <p className="text-sm text-red-200/90 break-words whitespace-pre-wrap bg-red-950/40 border border-red-500/30 p-3 rounded mb-4">
+                                {error}
+                            </p>
+                        )}
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                disabled={isDeleting}
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white/10 text-white/90 hover:bg-white/15 text-sm font-medium transition-colors disabled:opacity-50"
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onConfirm}
+                                disabled={isDeleting}
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-red-600/90 text-white hover:bg-red-600 text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Удаляем…' : 'Удалить'}
+                            </button>
+                        </div>
                     </>
                 )}
             </div>
@@ -324,7 +345,8 @@ const AdminUsers = () => {
     const [onlyWithPhone, setOnlyWithPhone] = useState(false)
     const [onlyWithOrders, setOnlyWithOrders] = useState(false)
     const [onlyWithCartItems, setOnlyWithCartItems] = useState(false)
-    const [ordersSort, setOrdersSort] = useState<OrdersSort>('none')
+    const [usersSort, setUsersSort] = useState<CrmUsersSort>('none')
+    const [levelFilter, setLevelFilter] = useState<string | null>(null)
     const { status, setStatus } = useAppStore()
     const [loadError, setLoadError] = useState<string | null>(null)
     const [portalMounted, setPortalMounted] = useState(false)
@@ -409,12 +431,26 @@ const AdminUsers = () => {
             if (onlyWithPhone && !resolvedUserPhone(u)) return false
             if (onlyWithOrders && totalOrdersCount(u) < 1) return false
             if (onlyWithCartItems && !hasItemsInCart(u)) return false
+            if (levelFilter != null) {
+                const levelId = resolveUserLevelId(u)
+                if (levelFilter === LEVEL_FILTER_NONE) {
+                    if (levelId != null) return false
+                } else if (levelId !== levelFilter) {
+                    return false
+                }
+            }
             return true
         })
 
-        if (ordersSort !== 'none') {
+        if (usersSort !== 'none') {
             const copy = [...list]
-            switch (ordersSort) {
+            switch (usersSort) {
+                case 'pts_desc':
+                    copy.sort((a, b) => userExpPoints(b) - userExpPoints(a))
+                    break
+                case 'pts_asc':
+                    copy.sort((a, b) => userExpPoints(a) - userExpPoints(b))
+                    break
                 case 'online_sum_desc':
                     copy.sort((a, b) => onlineOrdersSum(b) - onlineOrdersSum(a))
                     break
@@ -437,13 +473,37 @@ const AdminUsers = () => {
             list = copy
         }
         return list
-    }, [users, searchTerm, onlyWithPhone, onlyWithOrders, onlyWithCartItems, ordersSort])
+    }, [users, searchTerm, onlyWithPhone, onlyWithOrders, onlyWithCartItems, levelFilter, usersSort])
+
+    const levelStats = useMemo(() => {
+        const counts = Object.fromEntries(LOYALTY_LADDER.map(l => [l.id, 0])) as Record<string, number>
+        let withoutLevel = 0
+        for (const u of users) {
+            const levelId = resolveUserLevelId(u)
+            if (levelId == null) {
+                withoutLevel++
+                continue
+            }
+            if (counts[levelId] !== undefined) {
+                counts[levelId]++
+            }
+        }
+        return { counts, withoutLevel }
+    }, [users])
+
+    const hasActiveFilters =
+        onlyWithPhone ||
+        onlyWithOrders ||
+        onlyWithCartItems ||
+        usersSort !== 'none' ||
+        levelFilter != null
 
     const resetFilters = () => {
         setOnlyWithPhone(false)
         setOnlyWithOrders(false)
         setOnlyWithCartItems(false)
-        setOrdersSort('none')
+        setUsersSort('none')
+        setLevelFilter(null)
     }
 
     const aggOnlineOrders = users.reduce((s, u) => s + onlineOrdersCount(u), 0)
@@ -453,8 +513,12 @@ const AdminUsers = () => {
     const aggTotalOrders = aggOnlineOrders + aggOfflineOrders
     const aggTotalSum = aggOnlineSum + aggOfflineSum
 
-    const toggleOrdersSort = (next: OrdersSort) => {
-        setOrdersSort((prev) => (prev === next ? 'none' : next))
+    const toggleUsersSort = (next: CrmUsersSort) => {
+        setUsersSort(prev => (prev === next ? 'none' : next))
+    }
+
+    const toggleLevelFilter = (levelId: string) => {
+        setLevelFilter(prev => (prev === levelId ? null : levelId))
     }
 
     const closeDeleteModal = () => {
@@ -562,11 +626,13 @@ const AdminUsers = () => {
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="text-white/50">Сортировка:</span>
                             <select
-                                value={ordersSort}
-                                onChange={e => setOrdersSort(e.target.value as OrdersSort)}
+                                value={usersSort}
+                                onChange={e => setUsersSort(e.target.value as CrmUsersSort)}
                                 className="bg-white/10 border border-white/20 text-white text-sm py-1.5 px-2 rounded-none focus:outline-none focus:border-[var(--mint-bright)] max-w-[min(100%,320px)]"
                             >
                                 <option value="none">Как пришло с сервера</option>
+                                <option value="pts_desc">PTS: больше → меньше</option>
+                                <option value="pts_asc">PTS: меньше → больше</option>
                                 <option value="online_sum_desc">Онлайн: сумма больше → меньше</option>
                                 <option value="offline_sum_desc">Офлайн: сумма больше → меньше</option>
                                 <option value="total_orders_desc">
@@ -579,7 +645,7 @@ const AdminUsers = () => {
                                 <option value="total_sum_asc">Сумма онлайн + офлайн: меньше → больше</option>
                             </select>
                         </div>
-                        {(onlyWithPhone || onlyWithOrders || onlyWithCartItems || ordersSort !== 'none') && (
+                        {hasActiveFilters && (
                             <button
                                 type="button"
                                 onClick={resetFilters}
@@ -610,10 +676,10 @@ const AdminUsers = () => {
                     </div>
                     <button
                         type="button"
-                        onClick={() => toggleOrdersSort('online_sum_desc')}
+                        onClick={() => toggleUsersSort('online_sum_desc')}
                         title="Сортировать карточки по сумме онлайн-заказов (больше → меньше). Повторный клик — сброс."
-                        className={statSortTileClass(ordersSort === 'online_sum_desc', 'mint')}
-                        aria-pressed={ordersSort === 'online_sum_desc'}
+                        className={statSortTileClass(usersSort === 'online_sum_desc', 'mint')}
+                        aria-pressed={usersSort === 'online_sum_desc'}
                     >
                         <div className="text-xs text-white/60 leading-snug">Онлайн-заказы</div>
                         <div className="text-lg md:text-xl font-bold text-[var(--mint-bright)] leading-tight">
@@ -623,10 +689,10 @@ const AdminUsers = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => toggleOrdersSort('offline_sum_desc')}
+                        onClick={() => toggleUsersSort('offline_sum_desc')}
                         title="Сортировать карточки по сумме офлайн-заказов (больше → меньше). Повторный клик — сброс."
-                        className={statSortTileClass(ordersSort === 'offline_sum_desc', 'amber')}
-                        aria-pressed={ordersSort === 'offline_sum_desc'}
+                        className={statSortTileClass(usersSort === 'offline_sum_desc', 'amber')}
+                        aria-pressed={usersSort === 'offline_sum_desc'}
                     >
                         <div className="text-xs text-white/60 leading-snug">Офлайн-заказы</div>
                         <div className="text-lg md:text-xl font-bold text-amber-300/95 leading-tight">
@@ -640,6 +706,102 @@ const AdminUsers = () => {
                             {aggTotalOrders} шт
                         </div>
                         <div className="text-xs text-white/80 mt-0.5 font-medium">{aggTotalSum.toFixed(0)} BYN</div>
+                    </div>
+                </div>
+
+                <div className="mb-4">
+                    <p className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Уровни лояльности</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {LOYALTY_LADDER.map(level => {
+                            const theme = getLevelTheme(level.id)
+                            const count = levelStats.counts[level.id] ?? 0
+                            const active = levelFilter === level.id
+                            return (
+                                <button
+                                    key={level.id}
+                                    type="button"
+                                    onClick={() => toggleLevelFilter(level.id)}
+                                    title={`Показать только ${level.label}`}
+                                    className={levelStatTileClass(active)}
+                                    style={{
+                                        borderColor: theme.labelColor,
+                                        boxShadow: active ? theme.glow : undefined,
+                                        ['--tw-ring-color' as string]: theme.labelColor,
+                                    }}
+                                    aria-pressed={active}
+                                >
+                                    <span
+                                        className="text-[7px] font-bold uppercase tracking-wide leading-none truncate max-w-full"
+                                        style={{ color: theme.labelColor }}
+                                    >
+                                        {level.label}
+                                    </span>
+                                    <span
+                                        className="text-sm font-bold tabular-nums leading-none"
+                                        style={{ color: theme.labelColor }}
+                                    >
+                                        {count}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                        {levelStats.withoutLevel > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => toggleLevelFilter(LEVEL_FILTER_NONE)}
+                                title="Показать клиентов без данных уровня"
+                                className={levelStatTileClass(levelFilter === LEVEL_FILTER_NONE)}
+                                style={{
+                                    borderColor:
+                                        levelFilter === LEVEL_FILTER_NONE
+                                            ? 'var(--mint-bright)'
+                                            : 'rgba(255,255,255,0.25)',
+                                    boxShadow:
+                                        levelFilter === LEVEL_FILTER_NONE
+                                            ? '0 0 8px color-mix(in srgb, var(--mint-bright) 45%, transparent)'
+                                            : undefined,
+                                    ['--tw-ring-color' as string]: 'var(--mint-bright)',
+                                }}
+                                aria-pressed={levelFilter === LEVEL_FILTER_NONE}
+                            >
+                                <span className="text-[7px] font-bold uppercase tracking-wide leading-none text-white/50">
+                                    Без ур.
+                                </span>
+                                <span className="text-sm font-bold tabular-nums leading-none text-white/70">
+                                    {levelStats.withoutLevel}
+                                </span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setLevelFilter(null)}
+                            title="Показать всех клиентов"
+                            className={levelStatTileClass(levelFilter == null)}
+                            style={{
+                                borderColor:
+                                    levelFilter == null ? 'var(--mint-bright)' : 'rgba(255,255,255,0.25)',
+                                boxShadow:
+                                    levelFilter == null
+                                        ? '0 0 8px color-mix(in srgb, var(--mint-bright) 45%, transparent)'
+                                        : undefined,
+                                ['--tw-ring-color' as string]: 'var(--mint-bright)',
+                            }}
+                            aria-pressed={levelFilter == null}
+                        >
+                            <span
+                                className="text-[6px] font-bold uppercase leading-[1.15] text-center"
+                                style={{ color: levelFilter == null ? 'var(--mint-bright)' : 'rgba(255,255,255,0.55)' }}
+                            >
+
+                                <span className="block">все</span>
+                            </span>
+                            <span
+                                className="text-sm font-bold tabular-nums leading-none"
+                                style={{ color: levelFilter == null ? 'var(--mint-bright)' : 'rgba(255,255,255,0.75)' }}
+                            >
+                                {users.length}
+                            </span>
+                        </button>
                     </div>
                 </div>
 
@@ -660,7 +822,7 @@ const AdminUsers = () => {
                         </div>
                     ) : filteredUsers.length === 0 ? (
                         <div className="text-center py-10 text-white/60">
-                            {searchTerm || onlyWithPhone || onlyWithOrders || onlyWithCartItems
+                            {searchTerm || hasActiveFilters
                                 ? 'Никто не подошёл под фильтры'
                                 : 'Список пуст'}
                         </div>
@@ -701,11 +863,10 @@ const AdminUsers = () => {
                                                 : 'Нет валидного Mongo ObjectId в _id — проверьте ответ GET /admin/crm/users'
                                         }
                                         style={levelBorderStyle}
-                                        className={`text-left bg-white/10 backdrop-blur-sm border-2 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${
-                                            crmAccountId
-                                                ? 'cursor-pointer hover:brightness-110'
-                                                : 'cursor-not-allowed opacity-60'
-                                        }`}
+                                        className={`text-left bg-white/10 backdrop-blur-sm border-2 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${crmAccountId
+                                            ? 'cursor-pointer hover:brightness-110'
+                                            : 'cursor-not-allowed opacity-60'
+                                            }`}
                                     >
                                         <div className="min-w-0 space-y-1 text-[10px] leading-snug">
                                             <div className="flex items-center justify-between gap-2">
@@ -727,8 +888,8 @@ const AdminUsers = () => {
                                                             protectedOwner
                                                                 ? 'Нельзя удалить аккаунт владельца'
                                                                 : crmAccountId
-                                                                  ? 'Удалить пользователя'
-                                                                  : 'Нет id для удаления'
+                                                                    ? 'Удалить пользователя'
+                                                                    : 'Нет id для удаления'
                                                         }
                                                         className="inline-flex rounded p-0.5 text-white/40 hover:text-red-400 hover:bg-red-500/10 disabled:pointer-events-none disabled:opacity-25 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
                                                         aria-label="Удалить пользователя"

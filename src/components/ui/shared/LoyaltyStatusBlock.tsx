@@ -570,9 +570,13 @@ export function LoyaltyLevelPopout({
                         </span>{' '}
                         скидку навсегда.
                     </p>
-                    <p className="text-white/55 text-xs leading-relaxed">
-                        Как только exp станет больше 0, скидка включится автоматически.
-                    </p>
+                    <div className="space-y-2 text-white/55 text-xs leading-relaxed">
+                        <p>
+                            Покупали в офлайн-магазине? Назовите продавцу телефон или Telegram — администратор
+                            привяжет заказ к вашему аккаунту.
+                        </p>
+                        <p>Как только exp станет больше 0, скидка включится автоматически.</p>
+                    </div>
                 </>
             )}
         </div>
