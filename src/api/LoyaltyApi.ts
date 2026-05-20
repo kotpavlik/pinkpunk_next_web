@@ -13,6 +13,15 @@ export type LoyaltyLevelView = {
     maxPoints: number | null
 }
 
+/** Блок discount из GET /user/loyalty и CRM loyalty. */
+export type LoyaltyDiscountView = {
+    effectivePercent: number
+    levelDiscountPercent: number
+    adminBonusPercent: number
+    adminDiscountIsFixed: boolean
+    adminFixedDiscountPercent: number | null
+}
+
 /** GET /user/loyalty и блок loyalty в CRM (без history). */
 export type LoyaltyStatus = {
     expPoints: number
@@ -20,6 +29,9 @@ export type LoyaltyStatus = {
     nextLevel: LoyaltyLevelView | null
     pointsToNextLevel: number | null
     progressPercent: number | null
+    /** Дублирует discount.effectivePercent, если бэкенд отдаёт. */
+    personalDiscountPercent?: number | null
+    discount?: LoyaltyDiscountView | null
 }
 
 export type LoyaltyLedgerSource = 'order' | 'offline' | 'admin_adjustment' | 'migration'
@@ -46,6 +58,14 @@ export type LoyaltyAdjustResponse = {
     loyalty: LoyaltyStatus
 }
 
+export type CrmDiscountMode = 'level_linked' | 'fixed' | 'clear'
+
+export type CrmSetDiscountBody =
+    | { mode: 'level_linked'; percent: number }
+    | { mode: 'level_linked'; bonusDelta: number }
+    | { mode: 'fixed'; fixedPercent: number }
+    | { mode: 'clear' }
+
 function asNumber(v: unknown): number | null {
     if (typeof v === 'number' && !Number.isNaN(v)) return v
     if (typeof v === 'string' && v.trim() !== '') {
@@ -53,6 +73,29 @@ function asNumber(v: unknown): number | null {
         if (!Number.isNaN(n)) return n
     }
     return null
+}
+
+function normalizeDiscount(raw: unknown): LoyaltyDiscountView | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const effectivePercent = asNumber(o.effectivePercent)
+    const levelDiscountPercent = asNumber(o.levelDiscountPercent)
+    const adminBonusPercent = asNumber(o.adminBonusPercent)
+    if (effectivePercent === null || levelDiscountPercent === null || adminBonusPercent === null) {
+        return null
+    }
+    const adminFixedDiscountPercent =
+        o.adminFixedDiscountPercent === null || o.adminFixedDiscountPercent === undefined
+            ? null
+            : asNumber(o.adminFixedDiscountPercent)
+
+    return {
+        effectivePercent,
+        levelDiscountPercent,
+        adminBonusPercent,
+        adminDiscountIsFixed: o.adminDiscountIsFixed === true,
+        adminFixedDiscountPercent,
+    }
 }
 
 function normalizeLevel(raw: unknown): LoyaltyLevelView | null {
@@ -82,6 +125,11 @@ export function normalizeLoyaltyStatus(raw: unknown): LoyaltyStatus | null {
         o.progressPercent === null || o.progressPercent === undefined
             ? null
             : asNumber(o.progressPercent)
+    const personalDiscountPercent =
+        o.personalDiscountPercent === null || o.personalDiscountPercent === undefined
+            ? null
+            : asNumber(o.personalDiscountPercent)
+    const discount = o.discount === null ? null : normalizeDiscount(o.discount)
 
     return {
         expPoints,
@@ -89,7 +137,18 @@ export function normalizeLoyaltyStatus(raw: unknown): LoyaltyStatus | null {
         nextLevel,
         pointsToNextLevel,
         progressPercent,
+        personalDiscountPercent,
+        discount,
     }
+}
+
+/** Итоговая скидка для UI (0–100). */
+export function resolveEffectiveDiscountPercent(status: LoyaltyStatus): number {
+    const fromDiscount = status.discount?.effectivePercent
+    if (fromDiscount != null && !Number.isNaN(fromDiscount)) return fromDiscount
+    const legacy = status.personalDiscountPercent
+    if (legacy != null && !Number.isNaN(legacy)) return legacy
+    return 0
 }
 
 function normalizeLedgerEntry(raw: unknown): LoyaltyLedgerEntry | null {

@@ -318,3 +318,26 @@ body::before {
   animation: loyalty-marker-glow-pulse 2.8s ease-in-out infinite;
   will-change: box-shadow;
 }
+
+@keyframes loyalty-lock-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-2px) rotate(-10deg);
+  }
+  40% {
+    transform: translateX(2px) rotate(10deg);
+  }
+  60% {
+    transform: translateX(-1px) rotate(-7deg);
+  }
+  80% {
+    transform: translateX(1px) rotate(7deg);
+  }
+}
+
+.animate-loyalty-lock-shake {
+  animation: loyalty-lock-shake 0.45s ease-in-out;
+}

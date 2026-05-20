@@ -540,11 +540,10 @@ export default function TelegramLoginModal({
                             <button
                                 type="submit"
                                 disabled={phoneSending || busyGlobal || cooldown > 0 || !phoneReady}
-                                className={`w-full rounded-xl bg-[#12c998] px-4 py-3 font-semibold text-white transition hover:bg-[#0fa87a] disabled:pointer-events-none disabled:opacity-45 ${
-                                    phoneReady && !phoneSending && !busyGlobal && cooldown === 0
+                                className={`w-full rounded-xl bg-[#12c998] px-4 py-3 font-semibold text-white transition hover:bg-[#0fa87a] disabled:pointer-events-none disabled:opacity-45 ${phoneReady && !phoneSending && !busyGlobal && cooldown === 0
                                         ? 'shadow-[0_0_24px_-3px_rgba(18,201,152,0.5)]'
                                         : ''
-                                }`}
+                                    }`}
                             >
                                 {phoneSending || busyGlobal
                                     ? 'Отправка…'
@@ -604,9 +603,8 @@ export default function TelegramLoginModal({
                                         <div
                                             key={i}
                                             aria-hidden
-                                            className={`pointer-events-none flex h-12 w-11 shrink-0 items-center justify-center rounded-xl border bg-white/[0.06] text-center text-xl font-semibold tabular-nums text-white sm:h-14 sm:w-12 sm:text-2xl ${
-                                                code[i] ? 'border-[#12c998]/50' : 'border-white/15'
-                                            }`}
+                                            className={`pointer-events-none flex h-12 w-11 shrink-0 items-center justify-center rounded-xl border bg-white/[0.06] text-center text-xl font-semibold tabular-nums text-white sm:h-14 sm:w-12 sm:text-2xl ${code[i] ? 'border-[#12c998]/50' : 'border-white/15'
+                                                }`}
                                         >
                                             {code[i] ?? ''}
                                         </div>
@@ -660,11 +658,10 @@ export default function TelegramLoginModal({
                                         value={personalFirstName}
                                         onChange={(e) => void handlePersonalFirstNameChange(e.target.value)}
                                         disabled={nameSaving || busyGlobal}
-                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${
-                                            nameErrors.personalFirstName
+                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${nameErrors.personalFirstName
                                                 ? 'border-[#ff2b9c]/80'
                                                 : 'border-white/15'
-                                        }`}
+                                            }`}
                                         placeholder="Имя"
                                     />
                                     {nameErrors.personalFirstName && (
@@ -681,11 +678,10 @@ export default function TelegramLoginModal({
                                         value={personalLastName}
                                         onChange={(e) => void handlePersonalLastNameChange(e.target.value)}
                                         disabled={nameSaving || busyGlobal}
-                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${
-                                            nameErrors.personalLastName
+                                        className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${nameErrors.personalLastName
                                                 ? 'border-[#ff2b9c]/80'
                                                 : 'border-white/15'
-                                        }`}
+                                            }`}
                                         placeholder="Фамилия"
                                     />
                                     {nameErrors.personalLastName && (

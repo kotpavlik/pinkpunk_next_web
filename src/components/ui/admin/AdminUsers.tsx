@@ -11,8 +11,9 @@ import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailMod
 import { tokenManager } from '@/utils/TokenManager'
 import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
-import { formatExpPoints, type LoyaltyStatus } from '@/api/LoyaltyApi'
-import { getLevelTheme, getLoyaltyLevelBorderStyle } from '@/utils/loyaltyLevelTheme'
+import type { LoyaltyStatus } from '@/api/LoyaltyApi'
+import CrmLoyaltyInline, { loyaltyRowNeedsUpdate } from '@/components/ui/admin/CrmLoyaltyInline'
+import { getLoyaltyLevelBorderStyle } from '@/utils/loyaltyLevelTheme'
 
 function formatCrmLoadError(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
@@ -375,23 +376,13 @@ const AdminUsers = () => {
         setUsers(prev =>
             prev.map(row => {
                 if (accountObjectIdFromCrmListRow(row) !== accountId) return row
-                if (
-                    row.loyalty?.level.id === loyalty.level.id &&
-                    row.loyalty?.expPoints === loyalty.expPoints
-                ) {
-                    return row
-                }
+                if (!loyaltyRowNeedsUpdate(row.loyalty, loyalty)) return row
                 return { ...row, loyalty }
             }),
         )
         setDetailRow(row => {
             if (!row || accountObjectIdFromCrmListRow(row) !== accountId) return row
-            if (
-                row.loyalty?.level.id === loyalty.level.id &&
-                row.loyalty?.expPoints === loyalty.expPoints
-            ) {
-                return row
-            }
+            if (!loyaltyRowNeedsUpdate(row.loyalty, loyalty)) return row
             return { ...row, loyalty }
         })
     }, [])
@@ -687,9 +678,6 @@ const AdminUsers = () => {
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
                                 const protectedOwner = isProtectedOwnerUser(u)
                                 const userLoyalty = u.loyalty
-                                const levelTheme = userLoyalty
-                                    ? getLevelTheme(userLoyalty.level.id)
-                                    : null
                                 const levelBorderStyle = getLoyaltyLevelBorderStyle(
                                     userLoyalty?.level.id,
                                 )
@@ -770,20 +758,7 @@ const AdminUsers = () => {
                                                     </span>
                                                 </span>
                                             </div>
-                                            {userLoyalty && levelTheme && (
-                                                <p className="text-[10px] leading-snug">
-                                                    <span
-                                                        className="font-semibold"
-                                                        style={{ color: levelTheme.labelColor }}
-                                                    >
-                                                        {userLoyalty.level.label}
-                                                    </span>
-                                                    <span className="text-white/45"> · </span>
-                                                    <span className="text-white/80 tabular-nums">
-                                                        {formatExpPoints(userLoyalty.expPoints)} pts
-                                                    </span>
-                                                </p>
-                                            )}
+                                            {userLoyalty && <CrmLoyaltyInline loyalty={userLoyalty} />}
                                             <div className="text-white/55 truncate" title="Имя из профиля">
                                                 Имя:{' '}
                                                 <span className="text-white/85">

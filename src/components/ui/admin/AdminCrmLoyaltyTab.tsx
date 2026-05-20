@@ -6,9 +6,16 @@ import { isAxiosError } from 'axios'
 import { CrmApi } from '@/api/CrmApi'
 import {
     type CrmLoyalty,
+    type CrmSetDiscountBody,
     formatExpPoints,
     loyaltySourceLabel,
+    resolveEffectiveDiscountPercent,
 } from '@/api/LoyaltyApi'
+import {
+    fixedDiscountPercentColor,
+    fixedDiscountPercentForColor,
+    resolveLoyaltyDiscountColor,
+} from '@/utils/fixedDiscountPercentColor'
 import { getLevelTheme } from '@/utils/loyaltyLevelTheme'
 
 function fmtDt(iso?: string) {
@@ -26,6 +33,8 @@ function fmtDt(iso?: string) {
     }
 }
 
+type DiscountFormMode = 'level_linked_total' | 'level_linked_bonus' | 'fixed' | 'clear'
+
 type Props = {
     accountId: string
     loyalty: CrmLoyalty | null
@@ -33,11 +42,20 @@ type Props = {
     onError: (message: string | null) => void
 }
 
+function parsePercentInput(raw: string): number | null {
+    const n = Number(raw.trim().replace(',', '.'))
+    if (Number.isNaN(n) || !Number.isFinite(n)) return null
+    return n
+}
+
 export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdated, onError }: Props) {
     const [refreshing, setRefreshing] = useState(false)
     const [adjustDelta, setAdjustDelta] = useState('')
     const [adjustReason, setAdjustReason] = useState('')
     const [adjustBusy, setAdjustBusy] = useState(false)
+    const [discountMode, setDiscountMode] = useState<DiscountFormMode>('level_linked_bonus')
+    const [discountValue, setDiscountValue] = useState('')
+    const [discountBusy, setDiscountBusy] = useState(false)
 
     const refreshLoyalty = useCallback(async () => {
         if (!accountId) return
@@ -94,6 +112,52 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
         }
     }
 
+    const handleDiscountApply = async () => {
+        onError(null)
+        let body: CrmSetDiscountBody
+
+        if (discountMode === 'clear') {
+            body = { mode: 'clear' }
+        } else if (discountMode === 'fixed') {
+            const fixedPercent = parsePercentInput(discountValue)
+            if (fixedPercent === null || fixedPercent < 0 || fixedPercent > 100) {
+                onError('Фиксированная скидка: укажите число от 0 до 100.')
+                return
+            }
+            body = { mode: 'fixed', fixedPercent }
+        } else if (discountMode === 'level_linked_total') {
+            const percent = parsePercentInput(discountValue)
+            if (percent === null || percent < 0 || percent > 100) {
+                onError('Итоговая скидка: укажите число от 0 до 100.')
+                return
+            }
+            body = { mode: 'level_linked', percent }
+        } else {
+            const bonusDelta = parseInt(discountValue.trim(), 10)
+            if (Number.isNaN(bonusDelta)) {
+                onError('Бонус: укажите целое число процентных пунктов (например 2 или -1).')
+                return
+            }
+            body = { mode: 'level_linked', bonusDelta }
+        }
+
+        setDiscountBusy(true)
+        try {
+            const updated = await CrmApi.setUserDiscount(accountId, body)
+            onLoyaltyUpdated(updated)
+            if (discountMode !== 'clear') {
+                setDiscountValue('')
+            }
+        } catch (e) {
+            const msg = isAxiosError(e)
+                ? String(e.response?.data?.message ?? e.message)
+                : 'Не удалось изменить скидку'
+            onError(msg)
+        } finally {
+            setDiscountBusy(false)
+        }
+    }
+
     if (!loyalty) {
         return (
             <div className="space-y-4">
@@ -102,7 +166,7 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                     type="button"
                     disabled={refreshing || !accountId}
                     onClick={() => void refreshLoyalty()}
-                    className="rounded border border-[var(--mint-bright)] bg-[var(--mint-bright)]/15 px-3 py-1.5 text-sm font-semibold text-[var(--mint-bright)] disabled:opacity-40"
+                    className="rounded border border-[var(--mint-bright)] bg-[var(--mint-bright)]/15 px-5 py-3 text-base font-semibold text-[var(--mint-bright)] disabled:opacity-40"
                 >
                     {refreshing ? 'Загрузка…' : 'Загрузить loyalty'}
                 </button>
@@ -114,10 +178,14 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
     const progress = loyalty.progressPercent ?? 0
     const levelTheme = getLevelTheme(loyalty.level.id)
     const progressClamped = Math.min(100, Math.max(0, progress))
+    const effectiveDiscount = resolveEffectiveDiscountPercent(loyalty)
+    const discount = loyalty.discount
+    const discountColor = resolveLoyaltyDiscountColor(loyalty)
+    const fixedPercent = fixedDiscountPercentForColor(loyalty)
 
     return (
         <div className="space-y-6">
-            <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-stretch gap-1.5">
+            <div className="grid w-full grid-cols-[repeat(4,minmax(0,1fr))_auto] items-stretch gap-1.5">
                 <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
                     <p className="text-white/45 text-[10px] uppercase tracking-wide leading-none mb-0.5">
                         Уровень
@@ -180,6 +248,17 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                         </>
                     )}
                 </div>
+                <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
+                    <p className="text-white/45 text-[10px] uppercase tracking-wide leading-none mb-0.5">
+                        Скидка
+                    </p>
+                    <p className="text-sm font-bold tabular-nums leading-tight" style={{ color: discountColor }}>
+                        {effectiveDiscount}%
+                        {discount?.adminDiscountIsFixed && (
+                            <span className="ml-1 text-[9px] font-normal text-white/50">фикс</span>
+                        )}
+                    </p>
+                </div>
                 <div className="flex min-h-0 items-stretch justify-self-stretch">
                     <button
                         type="button"
@@ -188,13 +267,124 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                         aria-busy={refreshing}
                         aria-label="Обновить данные лояльности"
                         title="Обновить"
-                        className="flex aspect-square h-full w-auto items-center justify-center rounded border border-white/20 hover:border-white/35 disabled:cursor-wait disabled:opacity-70"
+                        className="flex aspect-square h-full min-w-[2.75rem] w-auto items-center justify-center rounded border border-white/20 hover:border-white/35 disabled:cursor-wait disabled:opacity-70"
                         style={{ color: levelTheme.labelColor }}
                     >
                         <ArrowPathIcon
-                            className={`h-3.5 w-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`}
+                            className={`h-5 w-5 shrink-0 ${refreshing ? 'animate-spin' : ''}`}
                             aria-hidden
                         />
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-[#252525] border border-[#333] p-4 space-y-3">
+                <h3 className="text-white font-semibold text-sm">Персональная скидка</h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-xs">
+                    <div className="rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5">
+                        <p className="text-white/45 text-[10px] uppercase">Итого</p>
+                        <p className="font-bold tabular-nums" style={{ color: discountColor }}>
+                            {effectiveDiscount}%
+                        </p>
+                    </div>
+                    <div className="rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5">
+                        <p className="text-white/45 text-[10px] uppercase">От уровня</p>
+                        <p
+                            className="font-semibold tabular-nums"
+                            style={{ color: levelTheme.labelColor }}
+                        >
+                            {discount?.levelDiscountPercent ?? '—'}%
+                        </p>
+                    </div>
+                    <div className="rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5">
+                        <p className="text-white/45 text-[10px] uppercase">Бонус админа</p>
+                        <p className="font-semibold tabular-nums text-white">
+                            {discount?.adminBonusPercent ?? 0}%
+                        </p>
+                    </div>
+                    <div className="rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5">
+                        <p className="text-white/45 text-[10px] uppercase">Режим</p>
+                        <p className="font-semibold text-white leading-tight">
+                            {discount?.adminDiscountIsFixed ? (
+                                <>
+                                    Фикс{' '}
+                                    <span
+                                        className="tabular-nums"
+                                        style={{ color: fixedDiscountPercentColor(fixedPercent) }}
+                                    >
+                                        {discount.adminFixedDiscountPercent ?? effectiveDiscount}%
+                                    </span>
+                                </>
+                            ) : (
+                                'Уровень + бонус'
+                            )}
+                        </p>
+                    </div>
+                </div>
+                {discount?.adminDiscountIsFixed && (
+                    <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                        Фиксированная скидка активна — скидка уровня и бонус поверх уровня не применяются.
+                    </p>
+                )}
+
+                <div className="space-y-2">
+                    <p className="text-white/50 text-xs">Изменить скидку</p>
+                    <div className="flex flex-wrap gap-2.5">
+                        {(
+                            [
+                                ['level_linked_total', 'Итог % (уровень + бонус)'],
+                                ['level_linked_bonus', '+ п.п. к бонусу'],
+                                ['fixed', 'Фиксированная %'],
+                                ['clear', 'Сбросить админскую'],
+                            ] as const
+                        ).map(([mode, label]) => (
+                            <button
+                                key={mode}
+                                type="button"
+                                onClick={() => setDiscountMode(mode)}
+                                className={`rounded border px-4 py-2.5 text-sm font-medium transition-colors ${
+                                    discountMode === mode
+                                        ? 'border-[var(--mint-bright)] bg-[var(--mint-bright)]/15 text-[var(--mint-bright)]'
+                                        : 'border-[#444] text-white/60 hover:border-white/30'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    {discountMode !== 'clear' && (
+                        <label className="block w-full max-w-xs text-xs text-white/50">
+                            {discountMode === 'level_linked_total' && 'Итоговая скидка, %'}
+                            {discountMode === 'level_linked_bonus' && 'Изменение бонуса, п.п. (например 2)'}
+                            {discountMode === 'fixed' && 'Фиксированная скидка, %'}
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                value={discountValue}
+                                onChange={e => setDiscountValue(e.target.value)}
+                                onWheel={e => e.currentTarget.blur()}
+                                placeholder={
+                                    discountMode === 'level_linked_bonus' ? '2' : '15'
+                                }
+                                className="mt-1 w-full rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5 text-white text-sm"
+                                disabled={discountBusy}
+                            />
+                        </label>
+                    )}
+                    {discountMode === 'clear' && (
+                        <p className="text-[11px] text-white/45">
+                            Останется только скидка от уровня (если есть).
+                        </p>
+                    )}
+                </div>
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        disabled={discountBusy}
+                        onClick={() => void handleDiscountApply()}
+                        className="rounded border border-[var(--mint-bright)] bg-transparent px-6 py-3 text-base font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:opacity-40"
+                    >
+                        {discountBusy ? 'Сохранение…' : 'Применить скидку'}
                     </button>
                 </div>
             </div>
@@ -233,7 +423,7 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                         type="button"
                         disabled={adjustBusy}
                         onClick={() => void handleAdjust()}
-                        className="rounded border border-[var(--mint-bright)] bg-transparent px-4 py-2 text-sm font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:opacity-40"
+                        className="rounded border border-[var(--mint-bright)] bg-transparent px-6 py-3 text-base font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:opacity-40"
                     >
                         {adjustBusy ? 'Сохранение…' : 'Применить'}
                     </button>

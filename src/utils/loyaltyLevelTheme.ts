@@ -4,6 +4,9 @@ import type { LoyaltyLevelId } from '@/api/LoyaltyApi'
 /** Максимум шкалы для позиции маркеров на прогресс-баре (Legend от 15k). */
 export const LOYALTY_LADDER_SCALE_MAX = 15_000
 
+/** Скидка уровня Explorer при expPoints > 0 (для подсказок в профиле). */
+export const EXPLORER_LEVEL_DISCOUNT_PERCENT = 5
+
 export const LOYALTY_LADDER = [
     {
         id: 'explorer' as const,

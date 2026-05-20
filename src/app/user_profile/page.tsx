@@ -15,10 +15,13 @@ import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
 import { storefrontProfileDisplayName } from '@/utils/crmUserDisplayName'
 import { UserApi } from '@/api/UserApi'
-import type { LoyaltyStatus } from '@/api/LoyaltyApi'
+import { resolveEffectiveDiscountPercent, type LoyaltyStatus } from '@/api/LoyaltyApi'
 import LoyaltyStatusBlock, {
     LoyaltyAvatarRing,
+    LoyaltyLevelPopout,
     LoyaltyLevelsSection,
+    LoyaltyProfileIdentityBlock,
+    LoyaltyUserDiscountBadge,
 } from '@/components/ui/shared/LoyaltyStatusBlock'
 import LoyaltyLevelUpToast from '@/components/ui/shared/LoyaltyLevelUpToast'
 import {
@@ -46,6 +49,7 @@ export default function UserProfile() {
     const [loyaltyLoading, setLoyaltyLoading] = useState(false)
     const [loyaltyError, setLoyaltyError] = useState<string | null>(null)
     const [levelUpToast, setLevelUpToast] = useState<{ levelId: string; apiLabel: string } | null>(null)
+    const [loyaltyLevelPopout, setLoyaltyLevelPopout] = useState<string | null>(null)
 
     const loadLoyalty = useCallback(async () => {
         if (!user._id || !tokenManager.isAuthenticated()) return
@@ -251,6 +255,16 @@ export default function UserProfile() {
     const profileDisplayName = storefrontProfileDisplayName(user)
     const telegramUsername = user.username?.trim()
     const isTelegramLinked = user.telegramUserId != null && user.telegramUserId !== undefined
+    const showZeroDiscountHint =
+        !loyaltyLoading &&
+        loyalty != null &&
+        resolveEffectiveDiscountPercent(loyalty) === 0
+    const highlightExplorerCard =
+        showZeroDiscountHint && loyalty != null && loyalty.expPoints === 0
+    const highlightNextLevelId =
+        showZeroDiscountHint && loyalty != null && loyalty.expPoints > 0
+            ? loyalty.nextLevel?.id ?? null
+            : null
 
     return (
         <div className="relative min-h-screen pt-20 pb-20 px-4 md:px-6 lg:px-8">
@@ -316,7 +330,18 @@ export default function UserProfile() {
                         <div className="flex flex-col gap-3 md:gap-4 lg:col-span-1">
                         <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl transition-shadow hover:shadow-2xl">
                             <div className="flex w-full min-w-0 flex-col items-stretch text-center">
-                                <div className="flex items-center gap-3 w-full mb-3 text-left">
+                                <LoyaltyProfileIdentityBlock
+                                    status={loyalty}
+                                    loading={loyaltyLoading}
+                                    onExplorerHintClick={() => {
+                                        if (!loyalty) return
+                                        if (loyalty.expPoints > 0 && loyalty.nextLevel) {
+                                            setLoyaltyLevelPopout(loyalty.nextLevel.id)
+                                        } else {
+                                            setLoyaltyLevelPopout('explorer')
+                                        }
+                                    }}
+                                >
                                     <div className="relative shrink-0">
                                         <LoyaltyAvatarRing
                                             levelId={loyalty?.level.id}
@@ -331,28 +356,47 @@ export default function UserProfile() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-left min-w-0 flex-1">
-                                        <h2 className="text-lg md:text-xl font-bold text-white leading-tight truncate">
-                                            {profileDisplayName}
-                                        </h2>
-                                        {telegramUsername && (
-                                            <p className="text-white/70 text-sm mt-0.5 truncate">
-                                                @{telegramUsername.replace(/^@/, '')}
-                                            </p>
-                                        )}
-                                        {user.userPhoneNumber && (
-                                            <p className="text-white/60 text-xs mt-1 truncate">
-                                                {user.userPhoneNumber}
-                                            </p>
-                                        )}
+                                    <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+                                        <div className="text-left min-w-0 flex-1">
+                                            <h2 className="text-lg md:text-xl font-bold text-white leading-tight truncate">
+                                                {profileDisplayName}
+                                            </h2>
+                                            {telegramUsername && (
+                                                <p className="text-white/70 text-sm mt-0.5 truncate">
+                                                    @{telegramUsername.replace(/^@/, '')}
+                                                </p>
+                                            )}
+                                            {user.userPhoneNumber && (
+                                                <p className="text-white/60 text-xs mt-1 truncate">
+                                                    {user.userPhoneNumber}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <LoyaltyUserDiscountBadge
+                                            status={loyalty}
+                                            loading={loyaltyLoading}
+                                            className="self-start"
+                                        />
                                     </div>
-                                </div>
+                                </LoyaltyProfileIdentityBlock>
 
                                 <LoyaltyLevelsSection
                                     embedded
+                                    embeddedCompactTop={showZeroDiscountHint}
                                     status={loyalty}
                                     loading={loyaltyLoading}
+                                    onLevelClick={setLoyaltyLevelPopout}
+                                    highlightExplorerCard={highlightExplorerCard}
+                                    highlightLevelId={highlightNextLevelId}
                                 />
+
+                                {loyaltyLevelPopout && loyalty && (
+                                    <LoyaltyLevelPopout
+                                        levelId={loyaltyLevelPopout}
+                                        status={loyalty}
+                                        onClose={() => setLoyaltyLevelPopout(null)}
+                                    />
+                                )}
 
                                 <LoyaltyStatusBlock
                                     embedded

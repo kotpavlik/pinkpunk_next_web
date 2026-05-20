@@ -1,8 +1,7 @@
 'use client'
 
 import type { LoyaltyStatus } from '@/api/LoyaltyApi'
-import { formatExpPoints } from '@/api/LoyaltyApi'
-import { getLevelTheme } from '@/utils/loyaltyLevelTheme'
+import CrmLoyaltyInline from '@/components/ui/admin/CrmLoyaltyInline'
 
 const metaLabelClass = 'text-white/55 shrink-0'
 const metaValueClass = 'text-white/90'
@@ -22,8 +21,6 @@ export default function CrmUserHeaderMeta({
     loyalty,
     className = '',
 }: Props) {
-    const levelTheme = loyalty ? getLevelTheme(loyalty.level.id) : null
-
     return (
         <dl className={`space-y-1 text-xs leading-snug ${className}`.trim()}>
             <div className="flex flex-wrap gap-x-1.5 min-w-0">
@@ -38,17 +35,11 @@ export default function CrmUserHeaderMeta({
                     <dd className={`${metaMonoClass} tabular-nums`}>{telegramId}</dd>
                 </div>
             )}
-            {loyalty && levelTheme && (
-                <div className="flex flex-wrap gap-x-1.5 items-baseline">
+            {loyalty && (
+                <div className="flex flex-wrap gap-x-1.5 items-baseline min-w-0">
                     <dt className={metaLabelClass}>Loyalty:</dt>
-                    <dd className={metaValueClass}>
-                        <span className="font-semibold" style={{ color: levelTheme.labelColor }}>
-                            {loyalty.level.label}
-                        </span>
-                        <span className="text-white/45"> · </span>
-                        <span className="tabular-nums font-medium">
-                            {formatExpPoints(loyalty.expPoints)} pts
-                        </span>
+                    <dd className={`${metaValueClass} min-w-0`}>
+                        <CrmLoyaltyInline loyalty={loyalty} className="text-xs" />
                     </dd>
                 </div>
             )}

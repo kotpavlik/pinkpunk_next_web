@@ -3,6 +3,7 @@ import type { PinkPunkOrder, ShippingAddress } from './OrderApi'
 import { accountObjectIdFromCrmListRow, requireMongoObjectIdString } from '@/utils/mongoObjectId'
 import {
     type CrmLoyalty,
+    type CrmSetDiscountBody,
     type LoyaltyStatus,
     isUsableLoyaltyStatus,
     normalizeCrmLoyalty,
@@ -462,10 +463,27 @@ export const CrmApi = {
             crmPath(`/admin/crm/users/${encodeURIComponent(id)}/loyalty/adjust`),
             body,
         )
-        const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : null
         const status = parseLoyaltyApiResponse(data)
         if (!status) {
             throw new Error('Неожиданный формат ответа adjust loyalty')
+        }
+        try {
+            return await CrmApi.getUserLoyalty(accountId)
+        } catch {
+            return { ...status, history: [] }
+        }
+    },
+
+    /** POST /admin/crm/users/:accountId/discount — персональная скидка (бонус, фикс, сброс). */
+    async setUserDiscount(accountId: string, body: CrmSetDiscountBody): Promise<CrmLoyalty> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.post<unknown>(
+            crmPath(`/admin/crm/users/${encodeURIComponent(id)}/discount`),
+            body,
+        )
+        const status = parseLoyaltyApiResponse(data)
+        if (!status) {
+            throw new Error('Неожиданный формат ответа discount')
         }
         try {
             return await CrmApi.getUserLoyalty(accountId)
