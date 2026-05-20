@@ -278,6 +278,67 @@ export type DeleteUserResponse = {
     cascade?: DeleteUserCascadeStats
 }
 
+/** Сторона в merge-preview / profilePick */
+export type CrmMergeFieldSource = 'keep' | 'merge'
+
+export type CrmMergePreviewAccount = {
+    accountId: string
+    firstName?: string
+    lastName?: string
+    username?: string
+    personalFirstName?: string
+    personalLastName?: string
+    userPhoneNumber?: string
+    telegramUserId?: number | null
+    expPoints?: number
+    ordersCount?: number
+    offlinePurchasesCount?: number
+    hasPhoneRegistration?: boolean
+    hasTelegram?: boolean
+}
+
+export type CrmMergePreviewResponse = {
+    keep: CrmMergePreviewAccount
+    merge: CrmMergePreviewAccount
+    suggestedDefaults?: {
+        firstNameFrom?: CrmMergeFieldSource
+        lastNameFrom?: CrmMergeFieldSource
+        usernameFrom?: CrmMergeFieldSource
+        personalFirstNameFrom?: CrmMergeFieldSource
+        personalLastNameFrom?: CrmMergeFieldSource
+    }
+}
+
+export type CrmMergeProfilePick = {
+    firstNameFrom?: CrmMergeFieldSource
+    lastNameFrom?: CrmMergeFieldSource
+    usernameFrom?: CrmMergeFieldSource
+    personalFirstNameFrom?: CrmMergeFieldSource
+    personalLastNameFrom?: CrmMergeFieldSource
+}
+
+export type CrmMergeAccountsBody = {
+    mergeAccountId: string
+    confirm: true
+    profilePick?: CrmMergeProfilePick
+}
+
+export type CrmMergeAccountsSummary = {
+    ordersReassigned?: number
+    ledgerEntriesReassigned?: number
+    cartsMerged?: number
+    expPointsTotal?: number
+    offlinePurchasesTotal?: number
+}
+
+export type CrmMergeAccountsResponse = {
+    success: boolean
+    keepAccountId: string
+    mergeAccountId: string
+    summary?: CrmMergeAccountsSummary
+    loyalty?: CrmLoyalty | null
+}
+
 const LOYALTY_FETCH_CONCURRENCY = 10
 
 /**
@@ -496,6 +557,31 @@ export const CrmApi = {
      * DELETE /admin/users/:id
      * @param cascade — `orders,cart`: заказы по политике статусов + удаление корзин; `none` — только pp_users
      */
+    /** GET /admin/crm/users/merge-preview */
+    async getMergePreview(keepAccountId: string, mergeAccountId: string): Promise<CrmMergePreviewResponse> {
+        const keepId = requireMongoObjectIdString(keepAccountId, 'keepAccountId')
+        const mergeId = requireMongoObjectIdString(mergeAccountId, 'mergeAccountId')
+        const { data } = await instance.get<CrmMergePreviewResponse>(
+            crmPath('/admin/crm/users/merge-preview'),
+            { params: { keepAccountId: keepId, mergeAccountId: mergeId } },
+        )
+        return data
+    },
+
+    /** POST /admin/crm/users/:keepAccountId/merge */
+    async mergeAccounts(
+        keepAccountId: string,
+        body: CrmMergeAccountsBody,
+    ): Promise<CrmMergeAccountsResponse> {
+        const keepId = requireMongoObjectIdString(keepAccountId, 'keepAccountId')
+        requireMongoObjectIdString(body.mergeAccountId, 'mergeAccountId')
+        const { data } = await instance.post<CrmMergeAccountsResponse>(
+            crmPath(`/admin/crm/users/${encodeURIComponent(keepId)}/merge`),
+            body,
+        )
+        return data
+    },
+
     async deleteUser(
         accountId: string,
         cascade: 'full' | 'none' = 'full',

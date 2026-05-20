@@ -1,13 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { AxiosError } from 'axios'
 import { ShieldCheckIcon, ShoppingBagIcon, SparklesIcon } from '@heroicons/react/24/solid'
-import { CheckIcon, ClipboardDocumentIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { CrmApi, type CrmListUser, type DeleteUserCascadeStats } from '@/api/CrmApi'
+import { ArrowsRightLeftIcon, CheckIcon, ClipboardDocumentIcon, TrashIcon } from '@heroicons/react/24/outline'
+import {
+    CrmApi,
+    type CrmListUser,
+    type CrmMergeAccountsResponse,
+    type DeleteUserCascadeStats,
+} from '@/api/CrmApi'
 import { useAppStore } from '@/zustand/app_store/AppStore'
 import AdminCrmUserDetailModal from '@/components/ui/admin/AdminCrmUserDetailModal'
+import AdminCrmMergeModal from '@/components/ui/admin/AdminCrmMergeModal'
 import { tokenManager } from '@/utils/TokenManager'
 import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
@@ -93,6 +99,21 @@ function isProtectedOwnerUser(u: CrmListUser): boolean {
     const tg = u.telegramUserId ?? u.userId
     return tg != null && PROTECTED_OWNER_TELEGRAM_IDS.has(tg)
 }
+
+/** Участие в слиянии: валидный Mongo id и не owner */
+function canParticipateInMerge(u: CrmListUser): boolean {
+    return !!accountObjectIdFromCrmListRow(u) && !isProtectedOwnerUser(u)
+}
+
+const MERGE_KEEP_CARD_STYLE = {
+    borderColor: 'rgb(52, 211, 153)',
+    boxShadow: '0 0 18px rgba(52, 211, 153, 0.45), inset 0 0 0 1px rgba(52, 211, 153, 0.25)',
+} as const
+
+const MERGE_SECONDARY_CARD_STYLE = {
+    borderColor: 'var(--pink-punk)',
+    boxShadow: '0 0 18px rgba(255, 43, 156, 0.45), inset 0 0 0 1px rgba(255, 43, 156, 0.25)',
+} as const
 
 function displayNameForUser(u: CrmListUser): string {
     const title = crmUserDisplayName(u)
@@ -355,10 +376,39 @@ const AdminUsers = () => {
     const [deleteUserError, setDeleteUserError] = useState<string | null>(null)
     const [deleteCascadeResult, setDeleteCascadeResult] = useState<DeleteUserCascadeStats | null>(null)
     const [loyaltyEnriching, setLoyaltyEnriching] = useState(false)
+    /** Второстепенный при перетаскивании (розовая рамка) */
+    const [mergeDragAccountId, setMergeDragAccountId] = useState<string | null>(null)
+    /** Основной — цель drop при drag (зелёная рамка) */
+    const [mergeDropAccountId, setMergeDropAccountId] = useState<string | null>(null)
+    /** Второстепенный после кнопки «Слить» — ждём выбор основного */
+    const [mergePickSecondary, setMergePickSecondary] = useState<CrmListUser | null>(null)
+    const [mergePair, setMergePair] = useState<{ keep: CrmListUser; merge: CrmListUser } | null>(null)
+    const dragDidOccurRef = useRef(false)
+
+    const clearMergeUiState = useCallback(() => {
+        setMergeDragAccountId(null)
+        setMergeDropAccountId(null)
+        setMergePickSecondary(null)
+    }, [])
 
     useEffect(() => {
         setPortalMounted(true)
     }, [])
+
+    useEffect(() => {
+        const onKey = (e: globalThis.KeyboardEvent) => {
+            if (e.key !== 'Escape') return
+            if (mergePair) {
+                setMergePair(null)
+                return
+            }
+            if (mergePickSecondary || mergeDragAccountId) {
+                clearMergeUiState()
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [mergePickSecondary, mergePair, mergeDragAccountId, clearMergeUiState])
 
     const loadUsers = useCallback(async () => {
         try {
@@ -527,6 +577,45 @@ const AdminUsers = () => {
         setDeleteUserError(null)
         setDeleteCascadeResult(null)
     }
+
+    const openMergeModal = useCallback((keep: CrmListUser, merge: CrmListUser) => {
+        const keepId = accountObjectIdFromCrmListRow(keep)
+        const mergeId = accountObjectIdFromCrmListRow(merge)
+        if (!keepId || !mergeId) return
+        if (keepId === mergeId) return
+        if (!canParticipateInMerge(keep) || !canParticipateInMerge(merge)) return
+        clearMergeUiState()
+        setMergePair({ keep, merge })
+    }, [clearMergeUiState])
+
+    const handleMergeSuccess = useCallback(
+        (result: CrmMergeAccountsResponse) => {
+            const mergedId = result.mergeAccountId
+            setUsers(prev => prev.filter(row => accountObjectIdFromCrmListRow(row) !== mergedId))
+            if (detailRow && accountObjectIdFromCrmListRow(detailRow) === mergedId) {
+                setDetailRow(null)
+            }
+            void loadUsers()
+        },
+        [detailRow, loadUsers],
+    )
+
+    const trySetMergeDropTarget = useCallback((target: CrmListUser | null) => {
+        if (!target || !canParticipateInMerge(target)) {
+            setMergeDropAccountId(null)
+            return
+        }
+        const dragId = mergeDragAccountId
+        const pickId = mergePickSecondary ? accountObjectIdFromCrmListRow(mergePickSecondary) : null
+        const targetId = accountObjectIdFromCrmListRow(target)
+        if (!targetId) return
+        const secondaryId = dragId ?? pickId
+        if (!secondaryId || secondaryId === targetId) {
+            setMergeDropAccountId(null)
+            return
+        }
+        setMergeDropAccountId(targetId)
+    }, [mergeDragAccountId, mergePickSecondary])
 
     const confirmDeleteUser = async () => {
         if (!userToDelete) return
@@ -839,41 +928,169 @@ const AdminUsers = () => {
                                 const phoneDisplay = phoneFromRow(u)
                                 const telegramCopy = u.username?.trim() ? `@${u.username.trim()}` : ''
                                 const protectedOwner = isProtectedOwnerUser(u)
+                                const canMerge = canParticipateInMerge(u)
                                 const userLoyalty = u.loyalty
                                 const levelBorderStyle = getLoyaltyLevelBorderStyle(
                                     userLoyalty?.level.id,
                                 )
+                                const secondaryId =
+                                    mergeDragAccountId ??
+                                    (mergePickSecondary
+                                        ? accountObjectIdFromCrmListRow(mergePickSecondary)
+                                        : null)
+                                const isMergeSecondary =
+                                    !!crmAccountId && secondaryId === crmAccountId
+                                const isMergeKeepTarget =
+                                    !!crmAccountId && mergeDropAccountId === crmAccountId
+                                const mergeCardStyle = isMergeKeepTarget
+                                    ? MERGE_KEEP_CARD_STYLE
+                                    : isMergeSecondary
+                                      ? MERGE_SECONDARY_CARD_STYLE
+                                      : levelBorderStyle
+                                const mergeModeActive = !!mergePickSecondary || !!mergeDragAccountId
+
                                 return (
                                     <div
                                         key={u._id}
                                         role="button"
                                         tabIndex={0}
+                                        draggable={canMerge && !mergePair}
+                                        onDragStart={(e) => {
+                                            if (!canMerge) {
+                                                e.preventDefault()
+                                                return
+                                            }
+                                            dragDidOccurRef.current = true
+                                            const id = accountObjectIdFromCrmListRow(u)
+                                            if (!id) return
+                                            setMergeDragAccountId(id)
+                                            setMergePickSecondary(null)
+                                            e.dataTransfer.effectAllowed = 'move'
+                                            e.dataTransfer.setData('text/plain', id)
+                                        }}
+                                        onDragEnd={() => {
+                                            setMergeDragAccountId(null)
+                                            setMergeDropAccountId(null)
+                                            window.setTimeout(() => {
+                                                dragDidOccurRef.current = false
+                                            }, 0)
+                                        }}
+                                        onDragOver={(e) => {
+                                            if (!canMerge || !secondaryId) return
+                                            e.preventDefault()
+                                            e.dataTransfer.dropEffect = 'move'
+                                            trySetMergeDropTarget(u)
+                                        }}
+                                        onDragLeave={() => {
+                                            if (crmAccountId && mergeDropAccountId === crmAccountId) {
+                                                setMergeDropAccountId(null)
+                                            }
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            if (!crmAccountId || !secondaryId || secondaryId === crmAccountId) return
+                                            const secondaryUser =
+                                                users.find(
+                                                    row => accountObjectIdFromCrmListRow(row) === secondaryId,
+                                                ) ?? mergePickSecondary
+                                            if (!secondaryUser || !canParticipateInMerge(u)) return
+                                            openMergeModal(u, secondaryUser)
+                                        }}
                                         onClick={() => {
+                                            if (dragDidOccurRef.current) return
+                                            if (mergePair) return
+                                            if (mergePickSecondary && crmAccountId) {
+                                                const pickId = accountObjectIdFromCrmListRow(mergePickSecondary)
+                                                if (pickId && pickId !== crmAccountId && canMerge) {
+                                                    openMergeModal(u, mergePickSecondary)
+                                                    return
+                                                }
+                                            }
+                                            if (mergeModeActive) return
                                             if (crmAccountId) setDetailRow(u)
                                         }}
                                         onKeyDown={(e: KeyboardEvent) => {
                                             if (e.key === 'Enter' || e.key === ' ') {
                                                 e.preventDefault()
-                                                if (crmAccountId) setDetailRow(u)
+                                                if (dragDidOccurRef.current) return
+                                                if (mergePickSecondary && crmAccountId && canMerge) {
+                                                    const pickId = accountObjectIdFromCrmListRow(mergePickSecondary)
+                                                    if (pickId && pickId !== crmAccountId) {
+                                                        openMergeModal(u, mergePickSecondary)
+                                                        return
+                                                    }
+                                                }
+                                                if (!mergeModeActive && crmAccountId) setDetailRow(u)
                                             }
                                         }}
                                         title={
-                                            crmAccountId
-                                                ? 'Открыть карточку CRM'
-                                                : 'Нет валидного Mongo ObjectId в _id — проверьте ответ GET /admin/crm/users'
+                                            isMergeKeepTarget
+                                                ? 'Основной аккаунт — отпустите карточку для слияния'
+                                                : isMergeSecondary
+                                                  ? 'Второстепенный аккаунт'
+                                                  : canMerge
+                                                    ? 'Открыть карточку · перетащите на другую для слияния'
+                                                    : crmAccountId
+                                                      ? protectedOwner
+                                                          ? 'Аккаунт владельца — слияние недоступно'
+                                                          : 'Открыть карточку CRM'
+                                                      : 'Нет валидного Mongo ObjectId в _id'
                                         }
-                                        style={levelBorderStyle}
-                                        className={`text-left bg-white/10 backdrop-blur-sm border-2 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${crmAccountId
+                                        style={mergeCardStyle}
+                                        className={`relative overflow-visible text-left bg-white/10 backdrop-blur-sm border-2 p-2.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint-bright)] ${
+                                            isMergeKeepTarget
+                                                ? 'ring-2 ring-emerald-400/60'
+                                                : isMergeSecondary
+                                                  ? 'ring-2 ring-[var(--pink-punk)]/60'
+                                                  : ''
+                                        } ${crmAccountId && !mergeModeActive
                                             ? 'cursor-pointer hover:brightness-110'
-                                            : 'cursor-not-allowed opacity-60'
+                                            : mergeModeActive && canMerge
+                                              ? 'cursor-pointer hover:brightness-110'
+                                              : crmAccountId
+                                                ? 'cursor-grab active:cursor-grabbing hover:brightness-110'
+                                                : 'cursor-not-allowed opacity-60'
                                             }`}
                                     >
+                                        {isMergeSecondary && (
+                                            <span className="absolute top-0 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide rounded border border-[var(--pink-punk)]/70 bg-[#1a0a12] text-[var(--pink-punk)] shadow-[0_0_10px_rgba(255,43,156,0.35)]">
+                                                Второстепенный
+                                            </span>
+                                        )}
+                                        {isMergeKeepTarget && (
+                                            <span className="absolute top-0 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide rounded border border-emerald-400/70 bg-[#0a1410] text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.35)]">
+                                                Основной
+                                            </span>
+                                        )}
                                         <div className="min-w-0 space-y-1 text-[10px] leading-snug">
                                             <div className="flex items-center justify-between gap-2">
                                                 <span className="text-xs font-semibold text-white break-words min-w-0">
                                                     {cardTitle}
                                                 </span>
                                                 <span className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!canMerge || !!mergePair}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            if (!canMerge) return
+                                                            setMergeDragAccountId(null)
+                                                            setMergeDropAccountId(null)
+                                                            setMergePickSecondary(u)
+                                                        }}
+                                                        title={
+                                                            protectedOwner
+                                                                ? 'Аккаунт владельца — слияние недоступно'
+                                                                : canMerge
+                                                                  ? 'Слить: этот аккаунт станет второстепенным (розовая рамка)'
+                                                                  : 'Слияние недоступно'
+                                                        }
+                                                        className="inline-flex rounded p-0.5 text-white/40 hover:text-[var(--pink-punk)] hover:bg-[var(--pink-punk)]/10 disabled:pointer-events-none disabled:opacity-25 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--pink-punk)]"
+                                                        aria-label="Слить с другим аккаунтом"
+                                                    >
+                                                        <ArrowsRightLeftIcon className="h-3.5 w-3.5" aria-hidden />
+                                                    </button>
                                                     <button
                                                         type="button"
                                                         disabled={!crmAccountId || protectedOwner}
@@ -994,6 +1211,20 @@ const AdminUsers = () => {
                         onCancel={closeDeleteModal}
                         onConfirm={() => void confirmDeleteUser()}
                         onCloseAfterSuccess={closeDeleteModal}
+                    />,
+                    document.body,
+                )}
+
+            {portalMounted &&
+                mergePair &&
+                typeof document !== 'undefined' &&
+                document.body &&
+                createPortal(
+                    <AdminCrmMergeModal
+                        keepUser={mergePair.keep}
+                        mergeUser={mergePair.merge}
+                        onCancel={() => setMergePair(null)}
+                        onSuccess={handleMergeSuccess}
                     />,
                     document.body,
                 )}
