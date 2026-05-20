@@ -566,7 +566,7 @@ export function LoyaltyLevelPopout({
                         Раз ты уже здесь — значит, ты не просто зевака. Поздравляем! Разблокируй свою первую
                         награду! Сделай свою первую покупку и получи{' '}
                         <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
-                            {levelDiscount}%
+                            5%
                         </span>{' '}
                         скидку навсегда.
                     </p>

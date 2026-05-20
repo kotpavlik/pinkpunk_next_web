@@ -55,7 +55,11 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
     const [adjustBusy, setAdjustBusy] = useState(false)
     const [discountMode, setDiscountMode] = useState<DiscountFormMode>('level_linked_bonus')
     const [discountValue, setDiscountValue] = useState('')
+    const [discountValueError, setDiscountValueError] = useState<string | null>(null)
     const [discountBusy, setDiscountBusy] = useState(false)
+
+    const discountNeedsValue = discountMode !== 'clear'
+    const discountValueEmpty = discountValue.trim().length === 0
 
     const refreshLoyalty = useCallback(async () => {
         if (!accountId) return
@@ -110,6 +114,15 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
         } finally {
             setAdjustBusy(false)
         }
+    }
+
+    const handleDiscountApplyClick = () => {
+        if (discountNeedsValue && discountValueEmpty) {
+            setDiscountValueError('Ты не ввел скидку')
+            return
+        }
+        setDiscountValueError(null)
+        void handleDiscountApply()
     }
 
     const handleDiscountApply = async () => {
@@ -341,7 +354,10 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                             <button
                                 key={mode}
                                 type="button"
-                                onClick={() => setDiscountMode(mode)}
+                                onClick={() => {
+                                    setDiscountMode(mode)
+                                    setDiscountValueError(null)
+                                }}
                                 className={`rounded border px-4 py-2.5 text-sm font-medium transition-colors ${
                                     discountMode === mode
                                         ? 'border-[var(--mint-bright)] bg-[var(--mint-bright)]/15 text-[var(--mint-bright)]'
@@ -357,18 +373,38 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                             {discountMode === 'level_linked_total' && 'Итоговая скидка, %'}
                             {discountMode === 'level_linked_bonus' && 'Изменение бонуса, п.п. (например 2)'}
                             {discountMode === 'fixed' && 'Фиксированная скидка, %'}
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                value={discountValue}
-                                onChange={e => setDiscountValue(e.target.value)}
-                                onWheel={e => e.currentTarget.blur()}
-                                placeholder={
-                                    discountMode === 'level_linked_bonus' ? '2' : '15'
-                                }
-                                className="mt-1 w-full rounded border border-[#444] bg-[#1a1a1a] px-2 py-1.5 text-white text-sm"
-                                disabled={discountBusy}
-                            />
+                            <div className="relative mt-1 pb-5">
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={discountValue}
+                                    onChange={e => {
+                                        setDiscountValue(e.target.value)
+                                        if (discountValueError) setDiscountValueError(null)
+                                    }}
+                                    onWheel={e => e.currentTarget.blur()}
+                                    placeholder={
+                                        discountMode === 'level_linked_bonus' ? '2' : '15'
+                                    }
+                                    className={`w-full rounded border bg-[#1a1a1a] px-2 py-1.5 text-white text-sm ${
+                                        discountValueError
+                                            ? 'border-red-400/80 focus:border-red-400'
+                                            : 'border-[#444]'
+                                    }`}
+                                    disabled={discountBusy}
+                                    aria-invalid={discountValueError != null}
+                                    aria-describedby="discount-value-error"
+                                />
+                                <p
+                                    id="discount-value-error"
+                                    role="alert"
+                                    className={`absolute left-0 top-full mt-1 text-xs leading-snug text-red-300/95 ${
+                                        discountValueError ? 'visible' : 'invisible'
+                                    }`}
+                                >
+                                    {discountValueError ?? ''}
+                                </p>
+                            </div>
                         </label>
                     )}
                     {discountMode === 'clear' && (
@@ -381,8 +417,12 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                     <button
                         type="button"
                         disabled={discountBusy}
-                        onClick={() => void handleDiscountApply()}
-                        className="rounded border border-[var(--mint-bright)] bg-transparent px-6 py-3 text-base font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:opacity-40"
+                        onClick={handleDiscountApplyClick}
+                        className={`rounded border border-[var(--mint-bright)] bg-transparent px-6 py-3 text-base font-semibold text-[var(--mint-bright)] transition-colors hover:bg-[var(--mint-bright)]/10 disabled:pointer-events-none disabled:opacity-40 ${
+                            discountNeedsValue && discountValueEmpty && !discountBusy
+                                ? 'opacity-40 cursor-not-allowed hover:bg-transparent'
+                                : ''
+                        }`}
                     >
                         {discountBusy ? 'Сохранение…' : 'Применить скидку'}
                     </button>
