@@ -1,9 +1,12 @@
 'use client'
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import CarouselSection from "@/components/ui/shared/CarouselSection"
 import CarouselSectionSkeleton from "@/components/ui/shared/CarouselSectionSkeleton"
 import { useProductsStore } from "@/zustand/products_store/ProductsStore"
+
+const HERO_VIDEO_SRC = '/videos/pp_video.mp4'
+const HERO_VIDEO_POSTER = '/images/for_start_video/first_webp_for_video.webp'
 
 const CountdownWidgetVIP = dynamic(() => import("@/components/ui/shared/CountdownWidgetVIP"), {
   ssr: false,
@@ -20,7 +23,12 @@ export default function Home() {
   const [isVisible, setVisible] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
   const [shouldShowSeasonalWidgets, setShouldShowSeasonalWidgets] = useState(false)
+  const [videoReady, setVideoReady] = useState(false)
   const { products, getProducts } = useProductsStore()
+
+  const markVideoReady = useCallback(() => {
+    setVideoReady(true)
+  }, [])
 
   useEffect(() => {
     const timerId = setTimeout(() => setVisible(true), 300)
@@ -61,16 +69,32 @@ export default function Home() {
     <div className="relative cursor-default">
       {/* Main Section */}
       <section className="relative h-screen w-full">
-        <video
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          src="/videos/pp_video.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          aria-hidden="true"
-        />
+        <div className="absolute inset-0 w-full h-full overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={HERO_VIDEO_POSTER}
+            alt=""
+            aria-hidden
+            fetchPriority="high"
+            decoding="async"
+            className={`absolute inset-0 h-full w-full object-cover blur-sm scale-105 transition-opacity duration-700 ease-out pointer-events-none ${videoReady ? 'opacity-0' : 'opacity-100'
+              }`}
+          />
+          <video
+            className={`absolute inset-0 h-full w-full object-cover pointer-events-none transition-opacity duration-700 ease-out ${videoReady ? 'opacity-100' : 'opacity-0'
+              }`}
+            src={HERO_VIDEO_SRC}
+            poster={HERO_VIDEO_POSTER}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden
+            onCanPlayThrough={markVideoReady}
+            onPlaying={markVideoReady}
+          />
+        </div>
         <div className="absolute inset-0 w-full h-full bg-black/50 z-10">
         </div>
 
