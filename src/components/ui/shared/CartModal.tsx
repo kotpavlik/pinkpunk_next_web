@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/zustand/cart_store/CartStore'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import Image from 'next/image'
 import Loader from './Loader'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import TelegramLoginModal from './LazyTelegramLoginModal'
+import CartOrderTotal from './CartOrderTotal'
 
 interface CartModalProps {
     isOpen: boolean
@@ -21,8 +22,8 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     const {
         items: cartItems,
         stats,
+        pricing,
         error,
-        getCart,
         updateCartItem,
         removeFromCart,
         clearCart,
@@ -35,42 +36,49 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     const [isClosing, setIsClosing] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [pendingOrder, setPendingOrder] = useState(false)
+    const onCloseRef = useRef(onClose)
+    onCloseRef.current = onClose
 
     useEffect(() => {
         setMounted(true)
     }, [])
 
     useEffect(() => {
-        if (isOpen && user?._id) {
-            setIsInitialLoad(true)
-            getCart(user._id).finally(() => {
-                setIsInitialLoad(false)
-            })
-        }
-    }, [isOpen, user?._id, getCart])
+        if (!isOpen || !user?._id) return
+        setIsInitialLoad(true)
+        void useCartStore.getState().getCart(user._id).finally(() => {
+            setIsInitialLoad(false)
+        })
+    }, [isOpen, user?._id])
 
-    // Функция для закрытия с анимацией
     const handleClose = useCallback(() => {
         setIsClosing(true)
         setTimeout(() => {
             setIsClosing(false)
-            onClose()
-        }, 300) // Длительность анимации
-    }, [onClose])
+            onCloseRef.current()
+        }, 300)
+    }, [])
 
     // Перенаправление после успешного логина только когда модалка логина закрыта (иначе OTP обрывается при refresh токена)
     useEffect(() => {
-        if (pendingOrder && user._id && isAuthenticated() && !isLoginModalOpen) {
-            const handleRedirect = async () => {
-                setIsLoginModalOpen(false)
-                await new Promise(resolve => setTimeout(resolve, 300))
-                handleClose()
-                setTimeout(() => router.push('/order'), 300)
-                setPendingOrder(false)
-            }
-            handleRedirect()
+        if (!pendingOrder || !user._id || !useUserStore.getState().isAuthenticated() || isLoginModalOpen) {
+            return
         }
-    }, [pendingOrder, user._id, isAuthenticated, isLoginModalOpen, router, handleClose])
+
+        let cancelled = false
+        void (async () => {
+            setIsLoginModalOpen(false)
+            await new Promise(resolve => setTimeout(resolve, 300))
+            if (cancelled) return
+            handleClose()
+            setTimeout(() => router.push('/order'), 300)
+            setPendingOrder(false)
+        })()
+
+        return () => {
+            cancelled = true
+        }
+    }, [pendingOrder, user._id, isLoginModalOpen, router, handleClose])
 
     // Закрытие по Escape
     useEffect(() => {
@@ -100,7 +108,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
         }
     }, [error, setError])
 
-    const totalPrice = useMemo(() => {
+    const subtotalFallback = useMemo(() => {
         return stats?.totalPrice || cartItems.reduce((t, it) => t + it.product.price * it.quantity, 0)
     }, [stats?.totalPrice, cartItems])
 
@@ -196,32 +204,35 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                                             </div>
 
                                             <div className="flex flex-col gap-2">
-                                                {/* Кнопки больше/меньше */}
-                                                <div className="bg-white/5 border border-white/10 flex items-center gap-2 w-fit ">
+                                                <div className="bg-white/5 border border-white/10 flex items-center w-fit">
                                                     <button
+                                                        type="button"
                                                         className="w-7 h-7 text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm"
                                                         disabled={quantity === 1}
                                                         onClick={() => user?._id && updateCartItem(user._id, _id, quantity - 1)}
+                                                        aria-label="Уменьшить количество"
                                                     >
                                                         −
                                                     </button>
                                                     <span className="px-2 text-white text-xs min-w-[1.5rem] text-center font-medium">{quantity}</span>
                                                     <button
+                                                        type="button"
                                                         className="w-7 h-7 text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm"
                                                         onClick={() => user?._id && updateCartItem(user._id, _id, quantity + 1)}
+                                                        aria-label="Увеличить количество"
                                                     >
                                                         +
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => user?._id && removeFromCart(user._id, _id)}
+                                                        className="w-7 h-7 text-white/70 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center justify-center border-l border-white/10"
+                                                        title="Удалить"
+                                                        aria-label="Удалить"
+                                                    >
+                                                        <TrashIcon className="h-3.5 w-3.5" aria-hidden />
+                                                    </button>
                                                 </div>
-
-                                                {/* Кнопка удаления */}
-                                                <button
-                                                    onClick={() => user?._id && removeFromCart(user._id, _id)}
-                                                    className="bg-white/5 border border-white/10 w-fit py-1 px-3 text-xs text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-                                                    title="Удалить"
-                                                >
-                                                    Удалить
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -234,10 +245,10 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                 {/* Footer - Fixed */}
                 {cartItems.length > 0 && (
                     <div className="flex-shrink-0 border-t border-white/10 p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="text-white/90 text-lg font-blauer-nue">Итого</span>
-                            <span className="text-2xl font-bold text-[var(--mint-bright)]">{totalPrice.toFixed(2)} BYN</span>
-                        </div>
+                        <CartOrderTotal
+                            pricing={pricing ?? stats?.pricing}
+                            subtotalFallback={subtotalFallback}
+                        />
                         <div className="flex gap-3">
                             <button
                                 onClick={() => {

@@ -443,6 +443,15 @@ export default function AdminCrmUserDetailModal({
         }
     }, [accountId, syncListLoyalty])
 
+    const handleLoyaltyUpdated = useCallback(
+        (updated: CrmLoyalty) => {
+            setLoyalty(updated)
+            setCard(c => (c ? { ...c, loyalty: updated } : c))
+            syncListLoyalty(updated)
+        },
+        [syncListLoyalty],
+    )
+
     const handleRefreshCart = useCallback(async () => {
         if (!accountId) return
         setCartRefreshing(true)
@@ -1591,11 +1600,7 @@ export default function AdminCrmUserDetailModal({
                         <AdminCrmLoyaltyTab
                             accountId={accountId}
                             loyalty={loyalty}
-                            onLoyaltyUpdated={updated => {
-                                setLoyalty(updated)
-                                setCard(c => (c ? { ...c, loyalty: updated } : c))
-                                syncListLoyalty(updated)
-                            }}
+                            onLoyaltyUpdated={handleLoyaltyUpdated}
                             onError={setCrmBannerError}
                         />
                     )}

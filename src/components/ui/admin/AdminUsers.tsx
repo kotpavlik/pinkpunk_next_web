@@ -445,19 +445,26 @@ const AdminUsers = () => {
     }, [loadUsers])
 
     const handleUserLoyaltyChange = useCallback((accountId: string, loyalty: LoyaltyStatus) => {
-        setUsers(prev =>
-            prev.map(row => {
+        setUsers(prev => {
+            let changed = false
+            const next = prev.map(row => {
                 if (accountObjectIdFromCrmListRow(row) !== accountId) return row
                 if (!loyaltyRowNeedsUpdate(row.loyalty, loyalty)) return row
+                changed = true
                 return { ...row, loyalty }
-            }),
-        )
+            })
+            return changed ? next : prev
+        })
         setDetailRow(row => {
             if (!row || accountObjectIdFromCrmListRow(row) !== accountId) return row
             if (!loyaltyRowNeedsUpdate(row.loyalty, loyalty)) return row
             return { ...row, loyalty }
         })
     }, [])
+
+    const handleListRefresh = useCallback(() => {
+        void loadUsers()
+    }, [loadUsers])
 
     const resolvedUserPhone = (u: CrmListUser) => phoneFromRow(u)
 
@@ -1246,7 +1253,7 @@ const AdminUsers = () => {
                                 embedded
                                 listRow={detailRow}
                                 onClose={() => setDetailRow(null)}
-                                onListRefresh={() => void loadUsers()}
+                                onListRefresh={handleListRefresh}
                                 onUserLoyaltyChange={handleUserLoyaltyChange}
                             />
                         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { getLevelTheme, getLadderItem } from '@/utils/loyaltyLevelTheme'
 
 type Props = {
@@ -15,19 +15,22 @@ export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Pr
     const theme = getLevelTheme(levelId)
     const item = getLadderItem(levelId)
 
+    const onDismissRef = useRef(onDismiss)
+    onDismissRef.current = onDismiss
+
     useEffect(() => {
         const enter = requestAnimationFrame(() => setVisible(true))
         const flashOff = window.setTimeout(() => setFlash(false), 300)
         const autoClose = window.setTimeout(() => {
             setVisible(false)
-            window.setTimeout(onDismiss, 320)
+            window.setTimeout(() => onDismissRef.current(), 320)
         }, 6000)
         return () => {
             cancelAnimationFrame(enter)
             window.clearTimeout(flashOff)
             window.clearTimeout(autoClose)
         }
-    }, [onDismiss])
+    }, [])
 
     return (
         <>

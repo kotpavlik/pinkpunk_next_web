@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { AxiosError } from 'axios';
-import { CartApi, CartItemUI, CartStats, ICartItem, SyncCartResponse, ValidateCartResponse } from '@/api/CartApi';
+import { CartApi, CartItemUI, CartResponse, CartStats, ICartItem, SyncCartResponse, ValidateCartResponse } from '@/api/CartApi';
+import type { CartPricing } from '@/utils/cartPricing';
 import { HandleError } from '@/features/HandleError';
 import { formatProductName } from '@/utils/formatProductName';
 
@@ -29,10 +30,34 @@ function mapCartItem(item: ICartItem): CartItemUI {
 export type CartItem = CartItemUI;
 export type { CartStats };
 
+function applyCartResponse(
+    state: {
+        cartId: string | null
+        items: CartItem[]
+        stats: CartStats | null
+        pricing: CartPricing | null
+        isActive: boolean
+        lastUpdated: string | null
+    },
+    response: CartResponse,
+) {
+    state.cartId = response._id
+    state.items = response.items.map(mapCartItem)
+    state.stats = {
+        totalItems: response.totalItems,
+        totalPrice: response.totalPrice,
+        pricing: response.pricing,
+    }
+    state.pricing = response.pricing ?? null
+    state.isActive = response.isActive
+    state.lastUpdated = response.lastUpdated
+}
+
 export type CartStateType = {
     cartId: string | null;
     items: CartItem[];
     stats: CartStats | null;
+    pricing: CartPricing | null;
     isActive: boolean;
     lastUpdated: string | null;
     isLoading: boolean;
@@ -60,6 +85,7 @@ export const useCartStore = create<CartStateType>()(
         cartId: null,
         items: [],
         stats: null,
+        pricing: null,
         isActive: true,
         lastUpdated: null,
         isLoading: false,
@@ -79,15 +105,7 @@ export const useCartStore = create<CartStateType>()(
                 const response = await CartApi.getCart(userId);
 
                 set((state) => {
-                    // Используем ВСЕ данные из API - они уже полные!
-                    state.cartId = response._id;
-                    state.items = response.items.map(mapCartItem);
-                    state.stats = {
-                        totalItems: response.totalItems,
-                        totalPrice: response.totalPrice
-                    };
-                    state.isActive = response.isActive;
-                    state.lastUpdated = response.lastUpdated;
+                    applyCartResponse(state, response);
                     state.isLoading = false;
                 });
 
@@ -123,15 +141,7 @@ export const useCartStore = create<CartStateType>()(
                 // API возвращает полную корзину, обновляем состояние
                 if ('items' in response) {
                     set((state) => {
-                        // Используем ВСЕ данные из API - они уже полные!
-                        state.cartId = response._id;
-                        state.items = response.items.map(mapCartItem);
-                        state.stats = {
-                            totalItems: response.totalItems,
-                            totalPrice: response.totalPrice
-                        };
-                        state.isActive = response.isActive;
-                        state.lastUpdated = response.lastUpdated;
+                        applyCartResponse(state, response);
                         state.isLoading = false;
                     });
                 }
@@ -172,14 +182,7 @@ export const useCartStore = create<CartStateType>()(
                 // API возвращает полную корзину, обновляем состояние
                 if ('items' in response) {
                     set((state) => {
-                        state.cartId = response._id;
-                        state.items = response.items.map(mapCartItem);
-                        state.stats = {
-                            totalItems: response.totalItems,
-                            totalPrice: response.totalPrice
-                        };
-                        state.isActive = response.isActive;
-                        state.lastUpdated = response.lastUpdated;
+                        applyCartResponse(state, response);
                         state.isLoading = false;
                     });
 
@@ -211,14 +214,7 @@ export const useCartStore = create<CartStateType>()(
 
                 // API возвращает полную корзину, обновляем состояние
                 set((state) => {
-                    state.cartId = response._id;
-                    state.items = response.items.map(mapCartItem);
-                    state.stats = {
-                        totalItems: response.totalItems,
-                        totalPrice: response.totalPrice
-                    };
-                    state.isActive = response.isActive;
-                    state.lastUpdated = response.lastUpdated;
+                    applyCartResponse(state, response);
                     state.isLoading = false;
                 });
 
@@ -247,10 +243,8 @@ export const useCartStore = create<CartStateType>()(
                 // Даже если backend уже отвязал/закрыл корзину при создании заказа, UI должен сразу стать пустым.
                 set((state) => {
                     state.items = [];
-                    state.stats = {
-                        totalItems: 0,
-                        totalPrice: 0
-                    };
+                    state.stats = { totalItems: 0, totalPrice: 0 };
+                    state.pricing = null;
                     state.isActive = true;
                     state.lastUpdated = new Date().toISOString();
                     state.isLoading = false;
@@ -261,10 +255,8 @@ export const useCartStore = create<CartStateType>()(
                 HandleError(err);
                 set((state) => {
                     state.items = [];
-                    state.stats = {
-                        totalItems: 0,
-                        totalPrice: 0
-                    };
+                    state.stats = { totalItems: 0, totalPrice: 0 };
+                    state.pricing = null;
                     state.error = err.message;
                     state.isLoading = false;
                 });
@@ -283,6 +275,7 @@ export const useCartStore = create<CartStateType>()(
 
                 set((state) => {
                     state.stats = response;
+                    state.pricing = response.pricing ?? null;
                     state.isLoading = false;
                 });
 
@@ -325,12 +318,7 @@ export const useCartStore = create<CartStateType>()(
 
                 // Обновляем корзину с актуальными данными
                 set((state) => {
-                    state.items = syncResponse.updatedCart.items.map(mapCartItem);
-                    state.stats = {
-                        totalItems: syncResponse.updatedCart.totalItems,
-                        totalPrice: syncResponse.updatedCart.totalPrice
-                    };
-                    state.lastUpdated = syncResponse.updatedCart.lastUpdated;
+                    applyCartResponse(state, syncResponse.updatedCart);
                     state.isSyncing = false;
                     state.lastSyncResult = syncResponse;
                 });

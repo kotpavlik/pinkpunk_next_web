@@ -1,5 +1,8 @@
 import { instance } from './Api';
 import { AxiosError } from 'axios';
+import { type CartPricing, normalizeCartPricing } from '@/utils/cartPricing';
+
+export type { CartPricing };
 
 // Типы для корзины (соответствуют реальному API)
 export interface ICartItem {
@@ -29,6 +32,7 @@ export interface IPinkPunkCart {
     items: ICartItem[];
     totalItems: number;
     totalPrice: number;
+    pricing?: CartPricing;
     isActive: boolean;
     lastUpdated: string;
     createdAt: string;
@@ -60,6 +64,13 @@ export interface CartItemUI {
 export interface CartStats {
     totalItems: number;
     totalPrice: number;
+    pricing?: CartPricing;
+}
+
+function parseCartResponse(data: unknown): CartResponse {
+    const cart = data as IPinkPunkCart;
+    const pricing = normalizeCartPricing((data as Record<string, unknown>)?.pricing);
+    return pricing ? { ...cart, pricing } : cart;
 }
 
 // Типы для ошибок API
@@ -115,7 +126,7 @@ export const CartApi = {
     // Получить корзину пользователя
     async getCart(accountId: string): Promise<CartResponse> {
             const response = await instance.get(`cart/${accountId}`);
-            return response.data;
+            return parseCartResponse(response.data);
     },
 
     // Добавить товар в корзину
@@ -126,7 +137,7 @@ export const CartApi = {
                 productId,
                 quantity
             });
-            return response.data;
+            return parseCartResponse(response.data);
         } catch (error) {
                  // Если это ошибка недостатка товара, возвращаем её
             if (error instanceof Error && 'response' in error) {
@@ -160,7 +171,7 @@ export const CartApi = {
                 cartItemId,
                 quantity
             });
-            return response.data;
+            return parseCartResponse(response.data);
         } catch (error) {
             // Если это ошибка недостатка товара, возвращаем её
             if (error instanceof Error && 'response' in error) {
@@ -194,7 +205,7 @@ export const CartApi = {
                     cartItemId
                 }
             });
-            return response.data;
+            return parseCartResponse(response.data);
         } catch {
             return {
                 _id: '',
@@ -226,14 +237,23 @@ export const CartApi = {
     // Получить статистику корзины
     async getCartStats(accountId: string): Promise<CartStats> {
             const response = await instance.get(`cart/stats/${accountId}`);
-            return response.data;
+            const raw = response.data as CartStats & { pricing?: unknown };
+            const pricing = normalizeCartPricing(raw?.pricing);
+            return pricing ? { ...raw, pricing } : raw;
     },
 
     // Синхронизировать корзину с актуальными данными товаров
     async syncCart(cartId: string): Promise<SyncCartResponse> {
         try {
             const response = await instance.post(`cart/sync/${cartId}`);
-            return response.data;
+            const data = response.data as SyncCartResponse;
+            const pricing = normalizeCartPricing(
+                (data.updatedCart as unknown as Record<string, unknown>)?.pricing,
+            );
+            if (pricing) {
+                return { ...data, updatedCart: { ...data.updatedCart, pricing } };
+            }
+            return data;
         } catch (error) {
             throw error;
         }
