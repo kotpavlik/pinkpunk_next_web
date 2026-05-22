@@ -94,6 +94,20 @@ export function getLoyaltyLevelBorderStyle(levelId: string | null | undefined): 
     }
 }
 
+const LEVEL_COLOR_HEX: Record<(typeof LOYALTY_LADDER)[number]['id'], string> = {
+    explorer: '#cd7f32',
+    regular: '#c0c0c0',
+    vibe_keeper: '#ffd700',
+    insider: '#0f52ba',
+    legend: '#e0115f',
+}
+
+/** Разрешённый hex цвета уровня (для CSS-анимаций, где nested var() может не сработать). */
+export function resolveLevelColorHex(levelId: string): string {
+    const item = getLadderItem(levelId)
+    return LEVEL_COLOR_HEX[item.id as keyof typeof LEVEL_COLOR_HEX] ?? LEVEL_COLOR_HEX.explorer
+}
+
 export function getLevelTheme(levelId: string): LevelTheme {
     const item = getLadderItem(levelId)
     const color = `var(${item.colorVar})`
