@@ -12,8 +12,8 @@ import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
+import ProfileIdentityFields from '@/components/ui/shared/ProfileIdentityFields'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
-import { storefrontProfileDisplayName } from '@/utils/crmUserDisplayName'
 import { UserApi } from '@/api/UserApi'
 import { resolveEffectiveDiscountPercent, type LoyaltyStatus } from '@/api/LoyaltyApi'
 import LoyaltyStatusBlock, {
@@ -258,7 +258,6 @@ export default function UserProfile() {
         }
     }
 
-    const profileDisplayName = storefrontProfileDisplayName(user)
     const telegramUsername = user.username?.trim()
     const isTelegramLinked = user.telegramUserId != null && user.telegramUserId !== undefined
     const showZeroDiscountHint =
@@ -364,21 +363,7 @@ export default function UserProfile() {
                                             )}
                                         </div>
                                         <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
-                                            <div className="text-left min-w-0 flex-1">
-                                                <h2 className="text-lg md:text-xl font-bold text-white leading-tight truncate">
-                                                    {profileDisplayName}
-                                                </h2>
-                                                {telegramUsername && (
-                                                    <p className="text-white/70 text-sm mt-0.5 truncate">
-                                                        @{telegramUsername.replace(/^@/, '')}
-                                                    </p>
-                                                )}
-                                                {user.userPhoneNumber && (
-                                                    <p className="text-white/60 text-xs mt-1 truncate">
-                                                        {user.userPhoneNumber}
-                                                    </p>
-                                                )}
-                                            </div>
+                                            <ProfileIdentityFields user={user} />
                                             <LoyaltyUserDiscountBadge
                                                 status={loyalty}
                                                 loading={loyaltyLoading}

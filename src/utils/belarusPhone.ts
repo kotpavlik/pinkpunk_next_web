@@ -34,3 +34,50 @@ export function belarusPhoneE164(nationalDigits: string): string | null {
 export function isBelarusMobileComplete(nationalDigits: string): boolean {
     return nationalDigits.length === 9
 }
+
+export const BELARUS_PHONE_REQUIRED_MESSAGE = 'Введите номер полностью: +375 XX XXX XX XX'
+
+/** Номер из профиля / E.164 → 9 национальных цифр для маски +375. */
+export function phoneNationalFromStored(stored: string | undefined | null): string {
+    return parseBelarusNationalInput(stored?.trim() ?? '')
+}
+
+export function validateBelarusPhoneNational(nationalDigits: string): string | undefined {
+    if (nationalDigits.length === 0) {
+        return 'Номер телефона обязателен'
+    }
+    if (!isBelarusMobileComplete(nationalDigits)) {
+        return BELARUS_PHONE_REQUIRED_MESSAGE
+    }
+    return undefined
+}
+
+export function shouldPreventBelarusPhoneKeyDown(key: string, modifiers: {
+    ctrlKey: boolean
+    metaKey: boolean
+    altKey: boolean
+}): boolean {
+    if (modifiers.ctrlKey || modifiers.metaKey || modifiers.altKey) {
+        return false
+    }
+
+    const allowNav = [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+    ]
+    if (allowNav.includes(key)) {
+        return false
+    }
+    if (/^\d$/.test(key)) {
+        return false
+    }
+
+    return true
+}
