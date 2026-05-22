@@ -11,7 +11,6 @@ type Props = {
 
 export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Props) {
     const [visible, setVisible] = useState(false)
-    const [flash, setFlash] = useState(true)
     const theme = getLevelTheme(levelId)
     const item = getLadderItem(levelId)
 
@@ -20,27 +19,18 @@ export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Pr
 
     useEffect(() => {
         const enter = requestAnimationFrame(() => setVisible(true))
-        const flashOff = window.setTimeout(() => setFlash(false), 300)
         const autoClose = window.setTimeout(() => {
             setVisible(false)
             window.setTimeout(() => onDismissRef.current(), 320)
         }, 6000)
         return () => {
             cancelAnimationFrame(enter)
-            window.clearTimeout(flashOff)
             window.clearTimeout(autoClose)
         }
     }, [])
 
     return (
         <>
-            {flash && (
-                <div
-                    className="pointer-events-none fixed inset-0 z-[10001] transition-opacity duration-300"
-                    style={{ backgroundColor: theme.labelColor, opacity: 0.2 }}
-                    aria-hidden
-                />
-            )}
             <div
                 role="alert"
                 className={`fixed top-24 right-4 z-[10002] w-[min(100vw-2rem,340px)] transform transition-all duration-300 ease-out ${visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'

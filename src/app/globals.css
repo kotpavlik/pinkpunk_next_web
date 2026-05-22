@@ -341,3 +341,30 @@ body::before {
 .animate-loyalty-lock-shake {
   animation: loyalty-lock-shake 0.45s ease-in-out;
 }
+
+@keyframes loyalty-level-up-shadow-pulse {
+  0%,
+  25%,
+  50%,
+  75%,
+  100% {
+    box-shadow:
+      0 20px 25px -5px rgb(0 0 0 / 0.25),
+      0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+  12.5%,
+  37.5%,
+  62.5%,
+  87.5% {
+    box-shadow:
+      0 20px 25px -5px rgb(0 0 0 / 0.25),
+      0 8px 10px -6px rgb(0 0 0 / 0.1),
+      0 0 18px var(--level-up-glow-color),
+      0 0 36px color-mix(in srgb, var(--level-up-glow-color) 45%, transparent);
+  }
+}
+
+.animate-loyalty-level-up-glow {
+  animation: loyalty-level-up-shadow-pulse 2.4s ease-in-out 1;
+  will-change: box-shadow;
+}

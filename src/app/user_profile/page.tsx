@@ -26,6 +26,7 @@ import LoyaltyStatusBlock, {
 import LoyaltyLevelUpToast from '@/components/ui/shared/LoyaltyLevelUpToast'
 import {
     detectLevelUp,
+    getLevelTheme,
     readStoredLoyaltyLevelId,
     storeLoyaltyLevelId,
 } from '@/utils/loyaltyLevelTheme'
@@ -49,7 +50,9 @@ export default function UserProfile() {
     const [loyaltyLoading, setLoyaltyLoading] = useState(false)
     const [loyaltyError, setLoyaltyError] = useState<string | null>(null)
     const [levelUpToast, setLevelUpToast] = useState<{ levelId: string; apiLabel: string } | null>(null)
+    const [levelUpGlow, setLevelUpGlow] = useState<{ levelId: string; seq: number } | null>(null)
     const [loyaltyLevelPopout, setLoyaltyLevelPopout] = useState<string | null>(null)
+    const loyaltyCardRef = useRef<HTMLDivElement>(null)
 
     const loadLoyalty = useCallback(async () => {
         if (!user._id || !tokenManager.isAuthenticated()) return
@@ -61,6 +64,7 @@ export default function UserProfile() {
             const { isNew } = detectLevelUp(prevId, data.level.id)
             if (isNew) {
                 setLevelUpToast({ levelId: data.level.id, apiLabel: data.level.label })
+                setLevelUpGlow(prev => ({ levelId: data.level.id, seq: (prev?.seq ?? 0) + 1 }))
             }
             storeLoyaltyLevelId(data.level.id)
             setLoyalty(data)
@@ -80,6 +84,26 @@ export default function UserProfile() {
 
         return () => window.clearTimeout(timeout)
     }, [paymentMessage])
+
+    useEffect(() => {
+        if (!levelUpGlow) return
+        const el = loyaltyCardRef.current
+        if (!el) return
+
+        el.style.setProperty('--level-up-glow-color', getLevelTheme(levelUpGlow.levelId).labelColor)
+        el.classList.remove('animate-loyalty-level-up-glow')
+        void el.offsetWidth
+        el.classList.add('animate-loyalty-level-up-glow')
+
+        const onAnimationEnd = (event: AnimationEvent) => {
+            if (event.animationName !== 'loyalty-level-up-shadow-pulse') return
+            el.classList.remove('animate-loyalty-level-up-glow')
+            setLevelUpGlow(null)
+        }
+
+        el.addEventListener('animationend', onAnimationEnd)
+        return () => el.removeEventListener('animationend', onAnimationEnd)
+    }, [levelUpGlow])
 
     // Эффект для проверки и обновления токенов при загрузке страницы
     useEffect(() => {
@@ -328,7 +352,10 @@ export default function UserProfile() {
                 <div className="flex flex-col gap-3 md:gap-4">
                     <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-3 lg:items-start">
                         <div className="flex flex-col gap-3 md:gap-4 lg:col-span-1">
-                            <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl transition-shadow hover:shadow-2xl">
+                            <div
+                                ref={loyaltyCardRef}
+                                className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl transition-shadow hover:shadow-2xl"
+                            >
                                 <div className="flex w-full min-w-0 flex-col items-stretch text-center">
                                     <LoyaltyProfileIdentityBlock
                                         status={loyalty}
