@@ -354,17 +354,16 @@ body::before {
   37.5%,
   62.5%,
   87.5% {
-    opacity: 1;
+    opacity: 0.55;
   }
 }
 
 .loyalty-level-up-glow-ring {
   z-index: 20;
-  border: 2px solid var(--level-up-glow-color);
+  border: 1px solid color-mix(in srgb, var(--level-up-glow-color) 75%, transparent);
   box-shadow:
-    0 0 24px 4px var(--level-up-glow-color),
-    0 0 48px 14px color-mix(in srgb, var(--level-up-glow-color) 70%, transparent),
-    inset 0 0 20px 2px color-mix(in srgb, var(--level-up-glow-color) 35%, transparent);
+    0 0 14px 2px color-mix(in srgb, var(--level-up-glow-color) 45%, transparent),
+    0 0 28px 6px color-mix(in srgb, var(--level-up-glow-color) 25%, transparent);
   animation: loyalty-level-up-glow-pulse 2.4s ease-in-out 1 forwards;
   will-change: opacity;
 }
