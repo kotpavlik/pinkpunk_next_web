@@ -342,18 +342,6 @@ body::before {
   animation: loyalty-lock-shake 0.45s ease-in-out;
 }
 
-.loyalty-profile-card {
-  box-shadow:
-    0 20px 25px -5px rgb(0 0 0 / 0.25),
-    0 8px 10px -6px rgb(0 0 0 / 0.1);
-}
-
-.loyalty-profile-card:hover {
-  box-shadow:
-    0 25px 50px -12px rgb(0 0 0 / 0.25),
-    0 8px 10px -6px rgb(0 0 0 / 0.1);
-}
-
 @keyframes loyalty-level-up-shadow-pulse {
   0%,
   25%,
@@ -372,15 +360,15 @@ body::before {
     box-shadow:
       0 20px 25px -5px rgb(0 0 0 / 0.25),
       0 8px 10px -6px rgb(0 0 0 / 0.1),
-      0 0 0 1px var(--level-up-glow-color),
-      0 0 28px 4px var(--level-up-glow-color),
-      0 0 56px 12px color-mix(in srgb, var(--level-up-glow-color) 45%, transparent);
+      0 0 0 2px var(--level-up-glow-color),
+      0 0 32px 6px var(--level-up-glow-color),
+      0 0 64px 16px color-mix(in srgb, var(--level-up-glow-color) 55%, transparent);
     border-color: var(--level-up-glow-color);
   }
 }
 
-.loyalty-profile-card.animate-loyalty-level-up-glow {
-  transition: none;
-  animation: loyalty-level-up-shadow-pulse 2.4s ease-in-out 1;
+.animate-loyalty-level-up-glow {
+  transition: none !important;
+  animation: loyalty-level-up-shadow-pulse 2.4s ease-in-out 1 both !important;
   will-change: box-shadow, border-color;
 }
