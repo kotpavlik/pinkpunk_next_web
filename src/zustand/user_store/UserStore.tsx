@@ -116,6 +116,7 @@ export type UserStateType = {
     updateContactInfo: (data: {
         personalFirstName?: string;
         personalLastName?: string;
+        username?: string;
         email?: string;
         userPhoneNumber?: string;
         shippingAddress?: ShippingAddress;
