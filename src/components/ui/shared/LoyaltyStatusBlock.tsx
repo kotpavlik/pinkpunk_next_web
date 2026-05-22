@@ -615,6 +615,7 @@ export function LoyaltyLevelPopout({
                 aria-labelledby="loyalty-level-drawer-title"
                 onClick={e => e.stopPropagation()}
             >
+
                 <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
                     <button
                         type="button"
