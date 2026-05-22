@@ -342,33 +342,29 @@ body::before {
   animation: loyalty-lock-shake 0.45s ease-in-out;
 }
 
-@keyframes loyalty-level-up-shadow-pulse {
+@keyframes loyalty-level-up-glow-pulse {
   0%,
   25%,
   50%,
   75%,
   100% {
-    box-shadow:
-      0 20px 25px -5px rgb(0 0 0 / 0.25),
-      0 8px 10px -6px rgb(0 0 0 / 0.1);
-    border-color: rgb(255 255 255 / 0.1);
+    opacity: 0;
   }
   12.5%,
   37.5%,
   62.5%,
   87.5% {
-    box-shadow:
-      0 20px 25px -5px rgb(0 0 0 / 0.25),
-      0 8px 10px -6px rgb(0 0 0 / 0.1),
-      0 0 0 2px var(--level-up-glow-color),
-      0 0 32px 6px var(--level-up-glow-color),
-      0 0 64px 16px color-mix(in srgb, var(--level-up-glow-color) 55%, transparent);
-    border-color: var(--level-up-glow-color);
+    opacity: 1;
   }
 }
 
-.animate-loyalty-level-up-glow {
-  transition: none !important;
-  animation: loyalty-level-up-shadow-pulse 2.4s ease-in-out 1 both !important;
-  will-change: box-shadow, border-color;
+.loyalty-level-up-glow-ring {
+  z-index: 20;
+  border: 2px solid var(--level-up-glow-color);
+  box-shadow:
+    0 0 24px 4px var(--level-up-glow-color),
+    0 0 48px 14px color-mix(in srgb, var(--level-up-glow-color) 70%, transparent),
+    inset 0 0 20px 2px color-mix(in srgb, var(--level-up-glow-color) 35%, transparent);
+  animation: loyalty-level-up-glow-pulse 2.4s ease-in-out 1 forwards;
+  will-change: opacity;
 }

@@ -7,9 +7,10 @@ type Props = {
     levelId: string
     apiLabel: string
     onDismiss: () => void
+    onCelebrate?: (levelId: string) => void
 }
 
-export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Props) {
+export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss, onCelebrate }: Props) {
     const [visible, setVisible] = useState(false)
     const theme = getLevelTheme(levelId)
     const item = getLadderItem(levelId)
@@ -17,7 +18,11 @@ export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Pr
     const onDismissRef = useRef(onDismiss)
     onDismissRef.current = onDismiss
 
+    const onCelebrateRef = useRef(onCelebrate)
+    onCelebrateRef.current = onCelebrate
+
     useEffect(() => {
+        onCelebrateRef.current?.(levelId)
         const enter = requestAnimationFrame(() => setVisible(true))
         const autoClose = window.setTimeout(() => {
             setVisible(false)
@@ -27,7 +32,7 @@ export default function LoyaltyLevelUpToast({ levelId, apiLabel, onDismiss }: Pr
             cancelAnimationFrame(enter)
             window.clearTimeout(autoClose)
         }
-    }, [])
+    }, [levelId])
 
     return (
         <>
