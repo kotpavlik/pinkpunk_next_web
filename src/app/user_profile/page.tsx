@@ -12,6 +12,7 @@ import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
+import TelegramLottieJson from '@/components/ui/shared/TelegramLottieJson'
 import ProfileIdentityFields from '@/components/ui/shared/ProfileIdentityFields'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
 import { UserApi } from '@/api/UserApi'
@@ -42,7 +43,7 @@ export default function UserProfile() {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
     const [hasLoaded, setHasLoaded] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-    const [isTelegramLinkModalOpen, setIsTelegramLinkModalOpen] = useState(false)
+    const [telegramModalMode, setTelegramModalMode] = useState<'link' | 'relink' | null>(null)
     const [isCheckingToken, setIsCheckingToken] = useState(true)
     const [paymentMessage, setPaymentMessage] = useState<{ type: 'success' | 'error'; title: string; description?: string } | null>(null)
     const hasCheckedPaymentRef = useRef(false)
@@ -414,13 +415,37 @@ export default function UserProfile() {
                                 <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
                                     <h3 className="text-sm font-bold text-white mb-2">Telegram</h3>
                                     {isTelegramLinked ? (
-                                        <div className="space-y-0.5">
-                                            <p className="text-sm font-semibold text-[#2AABEE]">Telegram подключён</p>
-                                            {telegramUsername && (
-                                                <p className="text-white/60 text-xs truncate">
-                                                    @{telegramUsername.replace(/^@/, '')}
-                                                </p>
-                                            )}
+                                        <div className="space-y-3">
+                                            <div className="space-y-0.5">
+                                                <p className="text-sm font-semibold text-[#2AABEE]">Telegram подключён</p>
+                                                {telegramUsername && (
+                                                    <p className="text-white/60 text-xs truncate">
+                                                        @{telegramUsername.replace(/^@/, '')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTelegramModalMode('relink')}
+                                                className="grid w-full grid-cols-[minmax(0,1fr)_4rem] overflow-hidden rounded-xl border border-white/15 bg-white/[0.06] text-left transition hover:border-white/22 hover:bg-white/[0.09] active:opacity-95"
+                                            >
+                                                <div className="flex min-h-[3.5rem] flex-col justify-center py-2 pl-3 pr-2">
+                                                    <p className="text-sm font-semibold text-white">
+                                                        Актуализировать Telegram
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    className="relative min-h-[3.5rem] overflow-hidden border-l border-white/10 bg-white/[0.04]"
+                                                    aria-hidden
+                                                >
+                                                    <div className="pointer-events-none absolute inset-0">
+                                                        <TelegramLottieJson
+                                                            loop
+                                                            style={{ width: '100%', height: '100%' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </button>
                                         </div>
                                     ) : (
                                         <>
@@ -430,10 +455,25 @@ export default function UserProfile() {
                                             </p>
                                             <button
                                                 type="button"
-                                                onClick={() => setIsTelegramLinkModalOpen(true)}
-                                                className="w-full px-3 py-2 bg-[#2AABEE]/20 hover:bg-[#2AABEE]/30 border border-[#2AABEE]/40 text-white text-sm font-semibold rounded-lg transition-colors"
+                                                onClick={() => setTelegramModalMode('link')}
+                                                className="grid w-full grid-cols-[minmax(0,1fr)_4rem] overflow-hidden rounded-xl border border-white/15 bg-white/[0.06] text-left transition hover:border-white/22 hover:bg-white/[0.09] active:opacity-95"
                                             >
-                                                Привязать Telegram
+                                                <div className="flex min-h-[3.5rem] flex-col justify-center py-2 pl-3 pr-2">
+                                                    <p className="text-sm font-semibold text-white">
+                                                        Привязать Telegram
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    className="relative min-h-[3.5rem] overflow-hidden border-l border-white/10 bg-white/[0.04]"
+                                                    aria-hidden
+                                                >
+                                                    <div className="pointer-events-none absolute inset-0">
+                                                        <TelegramLottieJson
+                                                            loop
+                                                            style={{ width: '100%', height: '100%' }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </button>
                                         </>
                                     )}
@@ -690,12 +730,12 @@ export default function UserProfile() {
                 />
             )}
 
-            {isTelegramLinkModalOpen && (
+            {telegramModalMode && (
                 <TelegramLoginModal
-                    isOpen={isTelegramLinkModalOpen}
+                    isOpen
                     linkTelegramOnly
-                    openTelegramOnMount
-                    onClose={() => setIsTelegramLinkModalOpen(false)}
+                    relinkTelegram={telegramModalMode === 'relink'}
+                    onClose={() => setTelegramModalMode(null)}
                 />
             )}
 

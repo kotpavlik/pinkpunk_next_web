@@ -28,10 +28,10 @@ interface TelegramLoginModalProps {
     isOpen: boolean
     onClose: () => void
     botName?: string
-    /** Сразу открыть виджет Telegram (привязка из профиля). */
-    openTelegramOnMount?: boolean
     /** Только привязка TG к текущей SMS-сессии — без формы телефона. */
     linkTelegramOnly?: boolean
+    /** Перепривязка Telegram к уже авторизованному аккаунту. */
+    relinkTelegram?: boolean
 }
 
 const DRAWER_TRANSITION_MS = 320
@@ -42,8 +42,8 @@ export default function TelegramLoginModal({
     isOpen,
     onClose,
     botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'pinkpunk_brand',
-    openTelegramOnMount = false,
     linkTelegramOnly = false,
+    relinkTelegram = false,
 }: TelegramLoginModalProps) {
     const [mounted, setMounted] = useState(false)
     const [drawerEntered, setDrawerEntered] = useState(false)
@@ -125,14 +125,11 @@ export default function TelegramLoginModal({
     }, [isOpen])
 
     const sessionActive = isAuthenticated()
+    const hasAccountId = sessionActive && Boolean(user._id?.trim())
     const canLinkTelegram =
-        sessionActive && Boolean(user._id?.trim()) && (user.telegramUserId == null || user.telegramUserId === undefined)
-    const linkOnlyMode = linkTelegramOnly && canLinkTelegram
-
-    useEffect(() => {
-        if (!isOpen || !linkOnlyMode || !openTelegramOnMount) return
-        setTelegramModalOpen(true)
-    }, [isOpen, linkOnlyMode, openTelegramOnMount])
+        hasAccountId && (user.telegramUserId == null || user.telegramUserId === undefined)
+    const linkOnlyMode =
+        linkTelegramOnly && hasAccountId && (canLinkTelegram || relinkTelegram)
 
     useEffect(() => {
         if (telegramModalOpen) {
@@ -460,11 +457,12 @@ export default function TelegramLoginModal({
                                     id="auth-drawer-title"
                                     className="text-base font-extrabold text-white sm:text-lg"
                                 >
-                                    Привязать Telegram
+                                    {relinkTelegram ? 'Актуализировать Telegram' : 'Привязать Telegram'}
                                 </h2>
                                 <p className="mt-3 max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
-                                    Telegram будет привязан к аккаунту с номером{' '}
-                                    {user.userPhoneNumber?.trim() || 'телефона'} — один профиль в магазине.
+                                    {relinkTelegram
+                                        ? 'Подтвердите вход через Telegram — аккаунт перепривяжется, username и данные профиля обновятся.'
+                                        : `Telegram будет привязан к аккаунту с номером ${user.userPhoneNumber?.trim() || 'телефона'} — один профиль в магазине.`}
                                 </p>
                             </>
                         ) : (
@@ -500,7 +498,7 @@ export default function TelegramLoginModal({
                                 }}
                                 className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-white/22 hover:bg-white/[0.09]"
                             >
-                                Открыть виджет Telegram
+                                {relinkTelegram ? 'Актуализировать' : 'Привязать Telegram'}
                             </button>
                         </div>
                     )}
@@ -790,9 +788,11 @@ export default function TelegramLoginModal({
                                 Telegram
                             </h3>
                             <p className="mt-2 text-xs text-white/45">
-                                {canLinkTelegram
-                                    ? 'Telegram будет привязан к текущему аккаунту с телефоном.'
-                                    : 'Подтвердите вход через бота ниже.'}
+                                {relinkTelegram
+                                    ? 'Telegram будет перепривязан к текущему аккаунту.'
+                                    : canLinkTelegram
+                                        ? 'Telegram будет привязан к текущему аккаунту с телефоном.'
+                                        : 'Подтвердите вход через бота ниже.'}
                             </p>
                         </div>
 

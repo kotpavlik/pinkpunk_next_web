@@ -200,7 +200,6 @@ export const UserApi = {
     async UpdateContactInfo(data: {
         personalFirstName?: string;
         personalLastName?: string;
-        username?: string;
         email?: string;
         userPhoneNumber?: string;
         shippingAddress?: {
@@ -219,7 +218,6 @@ export const UserApi = {
         const requestBody: {
             personalFirstName?: string;
             personalLastName?: string;
-            username?: string;
             email?: string;
             userPhoneNumber?: string;
             shippingAddress?: {
@@ -241,10 +239,6 @@ export const UserApi = {
 
         if (data.personalLastName !== undefined) {
             requestBody.personalLastName = data.personalLastName;
-        }
-
-        if (data.username !== undefined) {
-            requestBody.username = data.username;
         }
 
         if (data.email !== undefined) {

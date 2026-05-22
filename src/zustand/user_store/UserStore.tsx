@@ -116,7 +116,6 @@ export type UserStateType = {
     updateContactInfo: (data: {
         personalFirstName?: string;
         personalLastName?: string;
-        username?: string;
         email?: string;
         userPhoneNumber?: string;
         shippingAddress?: ShippingAddress;
@@ -621,7 +620,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
     updateContactInfo: async (data: {
         personalFirstName?: string;
         personalLastName?: string;
-        username?: string;
         email?: string;
         userPhoneNumber?: string;
         shippingAddress?: ShippingAddress;
@@ -648,12 +646,6 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                         responseData.user?.personalLastName ??
                         responseData.personalLastName ??
                         data.personalLastName;
-                }
-                if (data.username !== undefined) {
-                    updatedData.username =
-                        responseData.user?.username ??
-                        responseData.username ??
-                        data.username;
                 }
                 if (data.email !== undefined) {
                     updatedData.email =

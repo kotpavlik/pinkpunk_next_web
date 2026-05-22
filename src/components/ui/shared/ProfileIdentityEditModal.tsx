@@ -20,15 +20,6 @@ import {
     personalNameFieldsSchema,
     validatePersonalNameField,
 } from '@/utils/personalNameValidation'
-import {
-    normalizeTelegramUsernameInput,
-    telegramUsernameSchema,
-    validateTelegramUsernameField,
-} from '@/utils/telegramUsernameValidation'
-
-const profileIdentitySchema = personalNameFieldsSchema.shape({
-    username: telegramUsernameSchema,
-})
 
 type Props = {
     isOpen: boolean
@@ -39,7 +30,6 @@ type Props = {
 type FormErrors = {
     personalFirstName?: string
     personalLastName?: string
-    username?: string
     userPhoneNumber?: string
     form?: string
 }
@@ -57,7 +47,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
     const [mounted, setMounted] = useState(false)
     const [personalFirstName, setPersonalFirstName] = useState('')
     const [personalLastName, setPersonalLastName] = useState('')
-    const [username, setUsername] = useState('')
     const [phoneNational, setPhoneNational] = useState('')
     const [errors, setErrors] = useState<FormErrors>({})
     const [saving, setSaving] = useState(false)
@@ -70,7 +59,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
         if (!isOpen) return
         setPersonalFirstName(resolveInitialFirstName(user))
         setPersonalLastName(resolveInitialLastName(user))
-        setUsername(user.username?.trim() ?? '')
         setPhoneNational(phoneNationalFromStored(user.userPhoneNumber))
         setErrors({})
     }, [isOpen, user])
@@ -85,12 +73,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
         setPersonalLastName(value)
         const err = await validatePersonalNameField('personalLastName', value)
         setErrors((prev) => ({ ...prev, personalLastName: err }))
-    }, [])
-
-    const handleUsernameChange = useCallback(async (value: string) => {
-        setUsername(value)
-        const err = await validateTelegramUsernameField(value)
-        setErrors((prev) => ({ ...prev, username: err }))
     }, [])
 
     const handlePhoneChange = useCallback((value: string) => {
@@ -108,7 +90,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
     const handleSubmit = useCallback(async () => {
         const first = personalFirstName.trim()
         const last = personalLastName.trim()
-        const normalizedUsername = normalizeTelegramUsernameInput(username)
         const phoneError = validateBelarusPhoneNational(phoneNational)
         const phoneE164 = belarusPhoneE164(phoneNational)
         const nextErrors: FormErrors = {}
@@ -118,22 +99,17 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
         }
 
         try {
-            await profileIdentitySchema.validate(
+            await personalNameFieldsSchema.validate(
                 {
                     personalFirstName: first,
                     personalLastName: last,
-                    username: normalizedUsername,
                 },
                 { abortEarly: false },
             )
         } catch (err) {
             if (err instanceof yup.ValidationError) {
                 for (const inner of err.inner) {
-                    if (
-                        inner.path === 'personalFirstName' ||
-                        inner.path === 'personalLastName' ||
-                        inner.path === 'username'
-                    ) {
+                    if (inner.path === 'personalFirstName' || inner.path === 'personalLastName') {
                         nextErrors[inner.path as keyof FormErrors] = inner.message
                     }
                 }
@@ -150,7 +126,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
         const result = await updateContactInfo({
             personalFirstName: first,
             personalLastName: last,
-            username: normalizedUsername,
             userPhoneNumber: phoneE164,
         })
         setSaving(false)
@@ -161,7 +136,7 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
         }
 
         setErrors((prev) => ({ ...prev, form: result.error ?? 'Не удалось сохранить' }))
-    }, [onClose, personalFirstName, personalLastName, phoneNational, updateContactInfo, username])
+    }, [onClose, personalFirstName, personalLastName, phoneNational, updateContactInfo])
 
     const phoneDisplay = formatBelarusPhoneDisplay(phoneNational)
     const phoneReady = isBelarusMobileComplete(phoneNational)
@@ -210,7 +185,7 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
                         Профиль
                     </h2>
                     <p className="mb-6 text-sm text-white/55">
-                        Имя, фамилия, номер телефона и Telegram username
+                        Имя, фамилия и номер телефона
                     </p>
 
                     <form
@@ -234,9 +209,14 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
                                         }`}
                                     placeholder="Имя"
                                 />
-                                {errors.personalFirstName && (
-                                    <p className="mt-1.5 text-xs text-[#ff8ec4]">{errors.personalFirstName}</p>
-                                )}
+                                <div className="relative mt-1 min-h-4">
+                                    <p
+                                        className={`absolute inset-x-0 top-0 text-xs leading-tight text-[#ff8ec4] ${errors.personalFirstName ? '' : 'invisible'}`}
+                                        aria-live="polite"
+                                    >
+                                        {errors.personalFirstName ?? '\u00A0'}
+                                    </p>
+                                </div>
                             </label>
                             <label className="block">
                                 <span className="mb-1.5 block text-sm text-white/55">Фамилия</span>
@@ -250,9 +230,14 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
                                         }`}
                                     placeholder="Фамилия"
                                 />
-                                {errors.personalLastName && (
-                                    <p className="mt-1.5 text-xs text-[#ff8ec4]">{errors.personalLastName}</p>
-                                )}
+                                <div className="relative mt-1 min-h-4">
+                                    <p
+                                        className={`absolute inset-x-0 top-0 text-xs leading-tight text-[#ff8ec4] ${errors.personalLastName ? '' : 'invisible'}`}
+                                        aria-live="polite"
+                                    >
+                                        {errors.personalLastName ?? '\u00A0'}
+                                    </p>
+                                </div>
                             </label>
                         </div>
 
@@ -279,31 +264,14 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
                                 className={`w-full rounded-xl border bg-white/[0.06] px-4 py-3 text-white tabular-nums placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${errors.userPhoneNumber ? 'border-[#ff2b9c]/80' : 'border-white/15'
                                     }`}
                             />
-                            {errors.userPhoneNumber && (
-                                <p className="mt-1.5 text-xs text-[#ff8ec4]">{errors.userPhoneNumber}</p>
-                            )}
-                        </label>
-
-                        <label className="block">
-                            <span className="mb-1.5 block text-sm text-white/55">Telegram username</span>
-                            <div className="relative">
-                                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/45">
-                                    @
-                                </span>
-                                <input
-                                    type="text"
-                                    autoComplete="username"
-                                    value={username}
-                                    onChange={(e) => void handleUsernameChange(e.target.value)}
-                                    disabled={saving}
-                                    className={`w-full rounded-xl border bg-white/[0.06] py-3 pl-8 pr-4 text-white placeholder-white/30 focus:border-[#12c998]/80 focus:outline-none focus:ring-1 focus:ring-[#12c998]/40 ${errors.username ? 'border-[#ff2b9c]/80' : 'border-white/15'
-                                        }`}
-                                    placeholder="username"
-                                />
+                            <div className="relative mt-1 min-h-4">
+                                <p
+                                    className={`absolute inset-x-0 top-0 text-xs leading-tight text-[#ff8ec4] ${errors.userPhoneNumber ? '' : 'invisible'}`}
+                                    aria-live="polite"
+                                >
+                                    {errors.userPhoneNumber ?? '\u00A0'}
+                                </p>
                             </div>
-                            {errors.username && (
-                                <p className="mt-1.5 text-xs text-[#ff8ec4]">{errors.username}</p>
-                            )}
                         </label>
 
                         {errors.form && (
@@ -319,7 +287,6 @@ export default function ProfileIdentityEditModal({ isOpen, onClose, user }: Prop
                                 !phoneReady ||
                                 Boolean(errors.personalFirstName) ||
                                 Boolean(errors.personalLastName) ||
-                                Boolean(errors.username) ||
                                 Boolean(errors.userPhoneNumber)
                             }
                             className="w-full rounded-xl bg-[#ff2b9c] px-4 py-3 font-semibold text-white transition hover:bg-[#e02488] disabled:pointer-events-none disabled:opacity-45"
