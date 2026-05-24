@@ -7,18 +7,18 @@ type Props = {
     className?: string
 }
 
-/** Праздничная Lottie — внизу модалки, играет до закрытия. */
+/** Праздничная Lottie — в хедере модалки уровня (слева от крестика). */
 export default function LoyaltyLevelConfetti({ className = '' }: Props) {
     return (
         <div
-            className={`pointer-events-none shrink-0 flex h-36 items-end justify-center overflow-hidden px-2 pb-1 ${className}`.trim()}
+            className={`pointer-events-none flex h-10 w-10 items-center justify-center overflow-hidden ${className}`.trim()}
             aria-hidden
         >
             <Lottie
                 animationData={snoopDogAnimation}
                 loop
                 autoplay
-                className="h-full w-full max-w-[11rem] object-contain object-bottom"
+                className="h-full w-full object-contain"
             />
         </div>
     )

@@ -1300,11 +1300,14 @@ export function LoyaltyLevelPopout({
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="relative flex min-h-0 flex-1 flex-col">
-                        <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
+                        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+                                {showConfetti && <LoyaltyLevelConfetti />}
+                            </div>
                             <button
                                 type="button"
                                 onClick={requestClose}
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
                                 aria-label="Закрыть"
                             >
                                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -1400,8 +1403,6 @@ export function LoyaltyLevelPopout({
                             )}
                         </div>
                     </div>
-
-                    {showConfetti && <LoyaltyLevelConfetti />}
                 </motion.aside>
             </div>
         </LayoutGroup>
