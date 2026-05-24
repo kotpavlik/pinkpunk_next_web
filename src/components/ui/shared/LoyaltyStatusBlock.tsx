@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation'
 import {
     formatExpPoints,
     formatGiftCoordinates,
+    isLoyaltyGiftAlreadyReceived,
+    loyaltyGiftLevelHasRabbitFlow,
     resolveEffectiveDiscountPercent,
     resolveGiftLevelId,
     resolveLoyaltyProgressPercent,
@@ -615,10 +617,22 @@ function fmtGiftIssuedAt(iso?: string): string | null {
     }
 }
 
+function resolveGiftTerminalInitialPhase(
+    skipIntro: boolean,
+    claimStatus: LoyaltyGiftClaimResponse['status'],
+    rabbitFlowEnabled: boolean,
+): GiftTerminalPhase {
+    if (!skipIntro) return 'opening'
+    if (claimStatus === 'issued') return 'status'
+    if (rabbitFlowEnabled) return 'rabbit'
+    return 'status'
+}
+
 function LoyaltyGiftTerminal({
     claim,
     skipIntro = false,
     interactive = true,
+    rabbitFlowEnabled = true,
     onConfirm,
     confirmBusy = false,
     confirmError = null,
@@ -628,6 +642,8 @@ function LoyaltyGiftTerminal({
     skipIntro?: boolean
     /** false после issued — только просмотр */
     interactive?: boolean
+    /** Regular — кролик; остальные уровни — терминал без кролика (пока). */
+    rabbitFlowEnabled?: boolean
     onConfirm?: () => void | Promise<void>
     confirmBusy?: boolean
     confirmError?: string | null
@@ -635,18 +651,27 @@ function LoyaltyGiftTerminal({
     onDeclineCatch?: () => void
 }) {
     const coordinates = formatGiftCoordinates(claim.coordinates)
-    const [phase, setPhase] = useState<GiftTerminalPhase>(skipIntro ? 'rabbit' : 'opening')
+    const introMessage = rabbitFlowEnabled ? GIFT_TERMINAL_MESSAGE : ''
+    const [phase, setPhase] = useState<GiftTerminalPhase>(() =>
+        resolveGiftTerminalInitialPhase(skipIntro, claim.status, rabbitFlowEnabled),
+    )
     const [cursorVisible, setCursorVisible] = useState(true)
-    const [typedText, setTypedText] = useState(skipIntro ? GIFT_TERMINAL_MESSAGE : '')
+    const [typedText, setTypedText] = useState(() => {
+        if (!skipIntro) return ''
+        return introMessage
+    })
     const [copied, setCopied] = useState(false)
     const [rabbitTapCount, setRabbitTapCount] = useState(0)
     const rabbitReady = rabbitTapCount >= GIFT_RABBIT_TAP_TARGET
 
     useEffect(() => {
         if (skipIntro) return
-        const openTimer = window.setTimeout(() => setPhase('blink'), 520)
+        const openTimer = window.setTimeout(
+            () => setPhase(rabbitFlowEnabled ? 'blink' : 'status'),
+            520,
+        )
         return () => window.clearTimeout(openTimer)
-    }, [skipIntro])
+    }, [skipIntro, rabbitFlowEnabled])
 
     useEffect(() => {
         if (phase !== 'blink') return
@@ -667,7 +692,7 @@ function LoyaltyGiftTerminal({
     }, [phase])
 
     useEffect(() => {
-        if (phase !== 'typing') return
+        if (phase !== 'typing' || !rabbitFlowEnabled) return
 
         const message = GIFT_TERMINAL_MESSAGE
         let index = 0
@@ -702,7 +727,7 @@ function LoyaltyGiftTerminal({
             cancelled = true
             window.clearTimeout(timeoutId)
         }
-    }, [phase])
+    }, [phase, rabbitFlowEnabled])
 
     useEffect(() => {
         if (phase !== 'typed') return
@@ -712,11 +737,11 @@ function LoyaltyGiftTerminal({
     }, [phase])
 
     useEffect(() => {
-        if (phase !== 'status') return
+        if (phase !== 'status' || !rabbitFlowEnabled) return
 
         const timer = window.setTimeout(() => setPhase('rabbit'), TERMINAL_RABBIT_AFTER_STATUS_MS)
         return () => window.clearTimeout(timer)
-    }, [phase])
+    }, [phase, rabbitFlowEnabled])
 
     const handleCopy = useCallback(async () => {
         try {
@@ -741,7 +766,7 @@ function LoyaltyGiftTerminal({
 
     const showMessageLine = phase === 'typing' || phase === 'typed' || phase === 'status' || phase === 'rabbit'
     const showGiftStatus = phase === 'status' || phase === 'rabbit'
-    const showRabbit = phase === 'rabbit'
+    const showRabbit = phase === 'rabbit' && rabbitFlowEnabled
     const showRabbitInteractive = showRabbit && interactive && claim.status !== 'issued'
 
     return (
@@ -1115,15 +1140,39 @@ export function LoyaltyLevelPopout({
         return lower.includes('имя') || lower.includes('телефон') || lower.includes('профил')
     }, [])
 
-    const loadGiftClaim = useCallback(
-        async (targetLevelId: LoyaltyGiftLevelId, options?: { showTerminal?: boolean; skipIntro?: boolean }) => {
+    const loadGiftTerminal = useCallback(
+        async (
+            targetLevelId: LoyaltyGiftLevelId,
+            options?: { showTerminal?: boolean; skipIntro?: boolean; mode?: 'claim' | 'issued' },
+        ) => {
+            const mode = options?.mode ?? 'claim'
             setGiftClaimBusy(true)
             setGiftError(null)
             try {
-                const claim = await UserApi.claimLoyaltyGift(targetLevelId)
+                let claim: LoyaltyGiftClaimResponse
+                try {
+                    claim =
+                        mode === 'issued'
+                            ? await UserApi.confirmLoyaltyGiftReceived(targetLevelId)
+                            : await UserApi.claimLoyaltyGift(targetLevelId)
+                } catch (e) {
+                    const msg = resolveGiftApiError(e)
+                    if (
+                        mode === 'claim' &&
+                        (msg.toLowerCase().includes('уже выдан') || msg.toLowerCase().includes('already'))
+                    ) {
+                        claim = await UserApi.confirmLoyaltyGiftReceived(targetLevelId)
+                        setGiftSkipIntro(true)
+                    } else {
+                        throw e
+                    }
+                }
                 setGiftClaim(claim)
                 if (options?.showTerminal !== false) {
                     setShowGiftTerminal(true)
+                }
+                if (options?.skipIntro != null) {
+                    setGiftSkipIntro(options.skipIntro)
                 }
                 await onLoyaltyRefresh?.()
                 return claim
@@ -1139,21 +1188,31 @@ export function LoyaltyLevelPopout({
         [isContactInfoError, onLoyaltyRefresh, onNeedContactInfo, resolveGiftApiError],
     )
 
+    const giftAlreadyReceived = isLoyaltyGiftAlreadyReceived(levelGift)
+    const giftRabbitFlow = giftLevelId ? loyaltyGiftLevelHasRabbitFlow(giftLevelId) : false
+    const canClaimGift = levelGift?.status === 'available' && !giftAlreadyReceived
+    const shouldBootstrapTerminal =
+        levelGift?.status === 'requested' || giftAlreadyReceived
+
     useEffect(() => {
         if (!giftLevelId || !levelGift || giftBootstrapRef.current) return
-        if (levelGift.status !== 'requested' && levelGift.status !== 'issued') return
+        if (!shouldBootstrapTerminal) return
 
         giftBootstrapRef.current = true
         setGiftSkipIntro(true)
-        void loadGiftClaim(giftLevelId, { showTerminal: true })
-    }, [giftLevelId, levelGift, loadGiftClaim])
+        void loadGiftTerminal(giftLevelId, {
+            showTerminal: true,
+            skipIntro: true,
+            mode: giftAlreadyReceived ? 'issued' : 'claim',
+        })
+    }, [giftAlreadyReceived, giftLevelId, levelGift, loadGiftTerminal, shouldBootstrapTerminal])
 
     const handleClaimGift = useCallback(() => {
-        if (!giftLevelId) return
+        if (!giftLevelId || giftAlreadyReceived) return
         giftBootstrapRef.current = true
         setGiftSkipIntro(false)
-        void loadGiftClaim(giftLevelId, { showTerminal: true })
-    }, [giftLevelId, loadGiftClaim])
+        void loadGiftTerminal(giftLevelId, { showTerminal: true, skipIntro: false, mode: 'claim' })
+    }, [giftAlreadyReceived, giftLevelId, loadGiftTerminal])
 
     const handleConfirmGift = useCallback(async () => {
         if (!giftLevelId || !giftClaim) return
@@ -1274,26 +1333,28 @@ export function LoyaltyLevelPopout({
                             {body}
 
                             <div className="mt-6 flex flex-col gap-2">
-                                {giftLevelId && levelGift && (
+                                {giftLevelId && levelGift && levelGift.status !== 'locked' && (
                                     <>
                                         {showGiftTerminal && giftClaim ? (
                                             <LoyaltyGiftTerminal
                                                 claim={giftClaim}
                                                 skipIntro={giftSkipIntro || giftClaim.status === 'issued'}
                                                 interactive={giftClaim.status !== 'issued'}
+                                                rabbitFlowEnabled={giftRabbitFlow}
                                                 onConfirm={() => void handleConfirmGift()}
                                                 confirmBusy={giftConfirmBusy}
                                                 confirmError={giftConfirmError}
                                                 onDeclineCatch={() => setGiftConfirmError(null)}
                                             />
-                                        ) : levelGift.status === 'issued' ? (
-                                            <p className="rounded-xl border border-[#439f76]/35 bg-[#439f76]/8 px-4 py-3 text-center text-sm text-[#5cb88a]">
-                                                Подарок получен
-                                                {fmtGiftIssuedAt(levelGift.issuedAt)
-                                                    ? ` · ${fmtGiftIssuedAt(levelGift.issuedAt)}`
-                                                    : ''}
-                                            </p>
-                                        ) : levelGift.status === 'available' ? (
+                                        ) : shouldBootstrapTerminal ? (
+                                            giftClaimBusy ? (
+                                                <p className="text-center text-xs text-white/45 py-2">Загрузка экрана подарка…</p>
+                                            ) : giftError ? (
+                                                <p className="text-center text-xs text-red-300/90">{giftError}</p>
+                                            ) : (
+                                                <p className="text-center text-xs text-white/45 py-2">Загрузка экрана подарка…</p>
+                                            )
+                                        ) : canClaimGift ? (
                                             <>
                                                 {giftError && (
                                                     <p className="text-center text-xs text-red-300/90">{giftError}</p>
@@ -1307,12 +1368,6 @@ export function LoyaltyLevelPopout({
                                                     {giftClaimBusy ? 'Запрос…' : 'Получить подарок'}
                                                 </button>
                                             </>
-                                        ) : levelGift.status === 'requested' ? (
-                                            giftClaimBusy ? (
-                                                <p className="text-center text-xs text-white/45 py-2">Загрузка экрана подарка…</p>
-                                            ) : giftError ? (
-                                                <p className="text-center text-xs text-red-300/90">{giftError}</p>
-                                            ) : null
                                         ) : null}
                                     </>
                                 )}

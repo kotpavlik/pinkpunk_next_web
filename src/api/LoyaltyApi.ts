@@ -239,6 +239,22 @@ export function loyaltyGiftStatusLabel(status: LoyaltyGiftDisplayStatus | string
     return LOYALTY_GIFT_STATUS_LABELS[status as LoyaltyGiftDisplayStatus] ?? status
 }
 
+/** Подарок уже выдан — повторный claim не нужен. */
+export function isLoyaltyGiftAlreadyReceived(gift: LoyaltyGiftView | undefined): boolean {
+    if (!gift) return false
+    return gift.status === 'issued' || Boolean(gift.issuedAt?.trim())
+}
+
+/** Уровни с офлайн-подарком (explorer — только скидка). */
+export function loyaltyLevelHasGift(levelId: string | null | undefined): levelId is LoyaltyGiftLevelId {
+    return resolveGiftLevelId(levelId) != null
+}
+
+/** Regular — единственный уровень с кроликом (остальные flow — позже). */
+export function loyaltyGiftLevelHasRabbitFlow(levelId: LoyaltyGiftLevelId): boolean {
+    return levelId === 'regular'
+}
+
 export function normalizeGiftClaimCodeQuery(raw: string): string {
     return raw.trim().toUpperCase().replace(/\s+/g, '')
 }
