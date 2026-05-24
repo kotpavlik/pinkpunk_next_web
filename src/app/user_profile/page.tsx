@@ -91,9 +91,10 @@ export default function UserProfile() {
         setOpenedLevelCards(readOpenedLevelCards())
     }, [loyalty])
 
-    const loadLoyalty = useCallback(async () => {
+    const loadLoyalty = useCallback(async (options?: { silent?: boolean }) => {
         if (!user._id || !tokenManager.isAuthenticated()) return
-        setLoyaltyLoading(true)
+        const silent = options?.silent ?? false
+        if (!silent) setLoyaltyLoading(true)
         setLoyaltyError(null)
         try {
             const data = await UserApi.getLoyalty()
@@ -106,9 +107,11 @@ export default function UserProfile() {
             setLoyalty(data)
             setOpenedLevelCards(syncOpenedLevelCards(data.level.id))
         } catch {
-            setLoyaltyError('Не удалось загрузить программу лояльности')
+            if (!silent) {
+                setLoyaltyError('Не удалось загрузить программу лояльности')
+            }
         } finally {
-            setLoyaltyLoading(false)
+            if (!silent) setLoyaltyLoading(false)
         }
     }, [user._id])
 
@@ -307,10 +310,6 @@ export default function UserProfile() {
     const showLoyaltyProgressHint = showZeroDiscountHint || showNextLevelProgressHint
     const highlightExplorerCard =
         showZeroDiscountHint && loyalty != null && loyalty.expPoints === 0
-    const highlightNextLevelId =
-        showNextLevelProgressHint && loyalty != null
-            ? loyalty.nextLevel?.id ?? null
-            : null
 
     return (
         <div className="relative min-h-screen pt-20 pb-20 px-4 md:px-6 lg:px-8">
@@ -379,14 +378,7 @@ export default function UserProfile() {
                                     <LoyaltyProfileIdentityBlock
                                         status={loyalty}
                                         loading={loyaltyLoading}
-                                        onExplorerHintClick={() => {
-                                            if (!loyalty) return
-                                            if (loyalty.expPoints > 0 && loyalty.nextLevel) {
-                                                handleLevelClick(loyalty.nextLevel.id)
-                                            } else {
-                                                handleLevelClick('explorer')
-                                            }
-                                        }}
+                                        onExplorerHintClick={() => handleLevelClick('explorer')}
                                     >
                                         <div className="relative shrink-0">
                                             <LoyaltyAvatarRing
@@ -419,7 +411,6 @@ export default function UserProfile() {
                                         loading={loyaltyLoading}
                                         onLevelClick={handleLevelClick}
                                         highlightExplorerCard={highlightExplorerCard}
-                                        highlightLevelId={highlightNextLevelId}
                                         discoverableLevelId={discoverableLevelId}
                                         activePopoutLevelId={layoutMorphLevelId}
                                     />
@@ -435,6 +426,8 @@ export default function UserProfile() {
                                             }
                                             onClose={handleLevelPopoutClose}
                                             onOpened={handleLevelPopoutOpened}
+                                            onLoyaltyRefresh={() => void loadLoyalty({ silent: true })}
+                                            onNeedContactInfo={() => setIsPhoneModalOpen(true)}
                                         />
                                     )}
 

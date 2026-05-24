@@ -362,6 +362,60 @@ body::before {
   animation: loyalty-locked-deny-glow 0.65s ease-out forwards;
 }
 
+@keyframes loyalty-passed-label-glow {
+  0% {
+    color: rgba(255, 255, 255, 0.45);
+    text-shadow: none;
+  }
+  38% {
+    color: #439f76;
+    text-shadow:
+      0 0 12px rgba(67, 159, 118, 0.9),
+      0 0 4px rgba(67, 159, 118, 0.65);
+  }
+  72% {
+    color: #5cb88a;
+    text-shadow: 0 0 8px rgba(67, 159, 118, 0.55);
+  }
+  100% {
+    color: rgba(255, 255, 255, 0.45);
+    text-shadow: none;
+  }
+}
+
+.loyalty-passed-label {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.loyalty-passed-label--glow {
+  animation: loyalty-passed-label-glow 0.7s ease-out;
+}
+
+@keyframes loyalty-passed-card-glow {
+  0% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+  }
+  38% {
+    border-color: #439f76;
+    box-shadow:
+      0 0 14px rgba(67, 159, 118, 0.55),
+      0 0 4px rgba(67, 159, 118, 0.35);
+  }
+  72% {
+    border-color: #5cb88a;
+    box-shadow: 0 0 10px rgba(67, 159, 118, 0.4);
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+  }
+}
+
+.loyalty-passed-card--glow {
+  animation: loyalty-passed-card-glow 0.7s ease-out;
+}
+
 @keyframes loyalty-card-shake {
   0%,
   22%,
@@ -400,4 +454,120 @@ body::before {
 .animate-loyalty-card-shake {
   animation: loyalty-card-shake 2.2s ease-in-out infinite;
   will-change: transform;
+}
+
+@keyframes loyalty-terminal-cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.loyalty-terminal-cursor {
+  animation: loyalty-terminal-cursor-blink 0.9s step-end infinite;
+}
+
+@keyframes loyalty-terminal-rabbit-run {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-4px);
+  }
+}
+
+.loyalty-terminal-rabbit {
+  display: inline-block;
+  animation: loyalty-terminal-rabbit-run 0.38s ease-in-out infinite;
+}
+
+@keyframes loyalty-terminal-rabbit-marquee {
+  0% {
+    left: -1.25rem;
+  }
+  100% {
+    left: calc(100% + 0.25rem);
+  }
+}
+
+@keyframes loyalty-terminal-gift-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.22;
+  }
+}
+
+.loyalty-terminal-rabbit-track {
+  container-type: inline-size;
+}
+
+.loyalty-terminal-rabbit-track--catch {
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  background: rgba(67, 159, 118, 0.06);
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.loyalty-terminal-rabbit-track--catch:hover {
+  background: rgba(67, 159, 118, 0.1);
+}
+
+.loyalty-terminal-rabbit-track--catch:active {
+  background: rgba(67, 159, 118, 0.16);
+}
+
+.loyalty-terminal-rabbit-track--idle {
+  border: none;
+  border-radius: 0;
+  background: rgba(67, 159, 118, 0.06);
+}
+
+.loyalty-terminal-rabbit-runner {
+  position: absolute;
+  bottom: 0.35rem;
+  left: 0;
+  animation: loyalty-terminal-rabbit-marquee 3.4s linear infinite;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: default;
+  pointer-events: none;
+}
+
+.loyalty-terminal-gift-status {
+  border: none;
+  border-radius: 0;
+  padding: 0.35rem 0.65rem;
+  text-align: center;
+  animation: loyalty-terminal-gift-blink 1.1s step-end infinite;
+}
+
+.loyalty-terminal-gift-status--caught {
+  animation: none;
+  opacity: 1;
+}
+
+.loyalty-gift-terminal-shell {
+  min-height: 12.75rem;
+  height: 12.75rem;
+}
+
+.loyalty-gift-terminal {
+  background:
+    radial-gradient(ellipse at center, rgba(67, 159, 118, 0.06) 0%, transparent 70%),
+    #050805;
+  box-shadow:
+    inset 0 0 0 1px rgba(67, 159, 118, 0.35),
+    0 0 24px rgba(67, 159, 118, 0.12);
 }

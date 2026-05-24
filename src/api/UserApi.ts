@@ -1,7 +1,14 @@
 import { AxiosResponse } from "axios";
 import { UserType } from "@/zustand/user_store/UserStore";
 import { instance } from "./Api";
-import { LoyaltyStatus, normalizeLoyaltyStatus } from "./LoyaltyApi";
+import {
+    type LoyaltyGiftClaimResponse,
+    type LoyaltyGiftLevelId,
+    type LoyaltyStatus,
+    normalizeLoyaltyGiftClaimResponse,
+    normalizeLoyaltyStatus,
+    parseLoyaltyApiResponse,
+} from "./LoyaltyApi";
 
 /** Ответ авторизации Telegram / телефон (общий контракт бэкенда) */
 export type AuthLoginSuccessResponse = UserType & {
@@ -292,11 +299,34 @@ export const UserApi = {
     /** GET /user/loyalty — статус программы лояльности текущего пользователя */
     async getLoyalty(): Promise<LoyaltyStatus> {
         const { data } = await instance.get<unknown>('user/loyalty');
-        const status = normalizeLoyaltyStatus(data);
+        const status = parseLoyaltyApiResponse(data) ?? normalizeLoyaltyStatus(data);
         if (!status) {
             throw new Error('Неожиданный формат ответа loyalty');
         }
         return status;
+    },
+
+    /** POST /user/loyalty/gifts/:levelId/claim — запросить офлайн-подарок (идемпотентно при requested). */
+    async claimLoyaltyGift(levelId: LoyaltyGiftLevelId): Promise<LoyaltyGiftClaimResponse> {
+        const { data } = await instance.post<unknown>(`user/loyalty/gifts/${levelId}/claim`, {});
+        const claim = normalizeLoyaltyGiftClaimResponse(data);
+        if (!claim) {
+            throw new Error('Неожиданный формат ответа claim');
+        }
+        return claim;
+    },
+
+    /** POST /user/loyalty/gifts/:levelId/confirm-received — подтвердить получение на месте. */
+    async confirmLoyaltyGiftReceived(levelId: LoyaltyGiftLevelId): Promise<LoyaltyGiftClaimResponse> {
+        const { data } = await instance.post<unknown>(
+            `user/loyalty/gifts/${levelId}/confirm-received`,
+            {},
+        );
+        const claim = normalizeLoyaltyGiftClaimResponse(data);
+        if (!claim) {
+            throw new Error('Неожиданный формат ответа confirm-received');
+        }
+        return claim;
     },
 
 }

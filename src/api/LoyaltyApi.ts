@@ -6,6 +6,44 @@ export type LoyaltyLevelId =
     | 'insider'
     | 'legend'
 
+/** Уровни с офлайн-подарком (Explorer — только скидка). */
+export type LoyaltyGiftLevelId = Exclude<LoyaltyLevelId, 'explorer'>
+
+export type LoyaltyGiftDisplayStatus = 'locked' | 'available' | 'requested' | 'issued'
+
+export type LoyaltyGiftView = {
+    levelId: LoyaltyGiftLevelId
+    levelLabel: string
+    status: LoyaltyGiftDisplayStatus
+    claimCode?: string
+    requestedAt?: string
+    confirmedAt?: string
+    issuedAt?: string
+    issuedBy?: string
+}
+
+export type LoyaltyGiftClaimResponse = {
+    levelId: LoyaltyGiftLevelId
+    levelLabel: string
+    status: 'requested' | 'issued'
+    claimCode: string
+    recipientName: string
+    phone: string | null
+    username: string | null
+    expPoints: number
+    coordinates: { lat: number; lng: number }
+    addressLabel: string
+    confirmedAt?: string
+    issuedAt?: string
+}
+
+export const LOYALTY_GIFT_LEVEL_IDS: LoyaltyGiftLevelId[] = [
+    'regular',
+    'vibe_keeper',
+    'insider',
+    'legend',
+]
+
 export type LoyaltyLevelView = {
     id: LoyaltyLevelId | string
     label: string
@@ -32,6 +70,7 @@ export type LoyaltyStatus = {
     /** Дублирует discount.effectivePercent, если бэкенд отдаёт. */
     personalDiscountPercent?: number | null
     discount?: LoyaltyDiscountView | null
+    gifts?: Partial<Record<LoyaltyGiftLevelId, LoyaltyGiftView>>
 }
 
 export type LoyaltyLedgerSource = 'order' | 'offline' | 'admin_adjustment' | 'migration'
@@ -98,6 +137,139 @@ function normalizeDiscount(raw: unknown): LoyaltyDiscountView | null {
     }
 }
 
+const GIFT_STATUSES: LoyaltyGiftDisplayStatus[] = ['locked', 'available', 'requested', 'issued']
+
+function isLoyaltyGiftLevelId(id: string): id is LoyaltyGiftLevelId {
+    return LOYALTY_GIFT_LEVEL_IDS.includes(id as LoyaltyGiftLevelId)
+}
+
+export function resolveGiftLevelId(levelId: string | null | undefined): LoyaltyGiftLevelId | null {
+    if (!levelId) return null
+    const normalized = levelId.trim().toLowerCase().replace(/-/g, '_')
+    return isLoyaltyGiftLevelId(normalized) ? normalized : null
+}
+
+function normalizeGift(raw: unknown): LoyaltyGiftView | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const levelIdRaw = typeof o.levelId === 'string' ? o.levelId : ''
+    if (!isLoyaltyGiftLevelId(levelIdRaw)) return null
+    const statusRaw = typeof o.status === 'string' ? o.status : 'locked'
+    const status = GIFT_STATUSES.includes(statusRaw as LoyaltyGiftDisplayStatus)
+        ? (statusRaw as LoyaltyGiftDisplayStatus)
+        : 'locked'
+    const levelLabel =
+        typeof o.levelLabel === 'string' && o.levelLabel.trim()
+            ? o.levelLabel
+            : levelIdRaw
+
+    return {
+        levelId: levelIdRaw,
+        levelLabel,
+        status,
+        claimCode: typeof o.claimCode === 'string' ? o.claimCode : undefined,
+        requestedAt: typeof o.requestedAt === 'string' ? o.requestedAt : undefined,
+        confirmedAt: typeof o.confirmedAt === 'string' ? o.confirmedAt : undefined,
+        issuedAt: typeof o.issuedAt === 'string' ? o.issuedAt : undefined,
+        issuedBy: typeof o.issuedBy === 'string' ? o.issuedBy : undefined,
+    }
+}
+
+function normalizeGifts(raw: unknown): Partial<Record<LoyaltyGiftLevelId, LoyaltyGiftView>> | undefined {
+    if (!raw || typeof raw !== 'object') return undefined
+    const o = raw as Record<string, unknown>
+    const out: Partial<Record<LoyaltyGiftLevelId, LoyaltyGiftView>> = {}
+    for (const key of LOYALTY_GIFT_LEVEL_IDS) {
+        if (o[key] != null) {
+            const gift = normalizeGift(o[key])
+            if (gift) out[key] = gift
+        }
+    }
+    return Object.keys(out).length > 0 ? out : undefined
+}
+
+export function normalizeLoyaltyGiftClaimResponse(raw: unknown): LoyaltyGiftClaimResponse | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const levelIdRaw = typeof o.levelId === 'string' ? o.levelId : ''
+    if (!isLoyaltyGiftLevelId(levelIdRaw)) return null
+    const claimCode = typeof o.claimCode === 'string' ? o.claimCode : ''
+    const recipientName = typeof o.recipientName === 'string' ? o.recipientName : ''
+    const addressLabel = typeof o.addressLabel === 'string' ? o.addressLabel : ''
+    const expPoints = asNumber(o.expPoints)
+    const coordsRaw = o.coordinates
+    if (!claimCode || !recipientName || expPoints === null) return null
+    if (!coordsRaw || typeof coordsRaw !== 'object') return null
+    const c = coordsRaw as Record<string, unknown>
+    const lat = asNumber(c.lat)
+    const lng = asNumber(c.lng)
+    if (lat === null || lng === null) return null
+
+    const statusRaw = o.status === 'issued' ? 'issued' : 'requested'
+
+    return {
+        levelId: levelIdRaw,
+        levelLabel:
+            typeof o.levelLabel === 'string' && o.levelLabel.trim() ? o.levelLabel : levelIdRaw,
+        status: statusRaw,
+        claimCode,
+        recipientName,
+        phone: typeof o.phone === 'string' ? o.phone : o.phone === null ? null : null,
+        username: typeof o.username === 'string' ? o.username : o.username === null ? null : null,
+        expPoints,
+        coordinates: { lat, lng },
+        addressLabel,
+        confirmedAt: typeof o.confirmedAt === 'string' ? o.confirmedAt : undefined,
+        issuedAt: typeof o.issuedAt === 'string' ? o.issuedAt : undefined,
+    }
+}
+
+export function formatGiftCoordinates(coords: { lat: number; lng: number }): string {
+    return `${coords.lat}, ${coords.lng}`
+}
+
+export const LOYALTY_GIFT_STATUS_LABELS: Record<LoyaltyGiftDisplayStatus, string> = {
+    locked: 'Не достигнут',
+    available: 'Доступен',
+    requested: 'Запрошен',
+    issued: 'Получен',
+}
+
+export function loyaltyGiftStatusLabel(status: LoyaltyGiftDisplayStatus | string): string {
+    return LOYALTY_GIFT_STATUS_LABELS[status as LoyaltyGiftDisplayStatus] ?? status
+}
+
+export function normalizeGiftClaimCodeQuery(raw: string): string {
+    return raw.trim().toUpperCase().replace(/\s+/g, '')
+}
+
+/** Похоже на код подарка (PP-A7K3 и т.п.) — для подгрузки gifts в CRM. */
+export function looksLikeGiftClaimCodeSearch(raw: string): boolean {
+    const n = normalizeGiftClaimCodeQuery(raw)
+    if (n.length < 5) return false
+    return /^PP-[A-Z0-9]+$/.test(n)
+}
+
+export function collectUserGiftClaimCodes(loyalty: LoyaltyStatus | null | undefined): string[] {
+    const gifts = loyalty?.gifts
+    if (!gifts) return []
+    return Object.values(gifts)
+        .map(g => g?.claimCode?.trim())
+        .filter((code): code is string => !!code)
+}
+
+export function userMatchesGiftClaimCodeSearch(
+    loyalty: LoyaltyStatus | null | undefined,
+    query: string,
+): boolean {
+    const q = normalizeGiftClaimCodeQuery(query)
+    if (!q) return false
+    return collectUserGiftClaimCodes(loyalty).some(code => {
+        const c = normalizeGiftClaimCodeQuery(code)
+        return c.includes(q) || q.includes(c)
+    })
+}
+
 function normalizeLevel(raw: unknown): LoyaltyLevelView | null {
     if (!raw || typeof raw !== 'object') return null
     const o = raw as Record<string, unknown>
@@ -130,6 +302,7 @@ export function normalizeLoyaltyStatus(raw: unknown): LoyaltyStatus | null {
             ? null
             : asNumber(o.personalDiscountPercent)
     const discount = o.discount === null ? null : normalizeDiscount(o.discount)
+    const gifts = normalizeGifts(o.gifts)
 
     return {
         expPoints,
@@ -139,6 +312,7 @@ export function normalizeLoyaltyStatus(raw: unknown): LoyaltyStatus | null {
         progressPercent,
         personalDiscountPercent,
         discount,
+        gifts,
     }
 }
 

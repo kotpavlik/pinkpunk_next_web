@@ -7,7 +7,10 @@ import { CrmApi } from '@/api/CrmApi'
 import {
     type CrmLoyalty,
     type CrmSetDiscountBody,
+    type LoyaltyGiftLevelId,
     formatExpPoints,
+    LOYALTY_GIFT_LEVEL_IDS,
+    loyaltyGiftStatusLabel,
     loyaltySourceLabel,
     resolveEffectiveDiscountPercent,
 } from '@/api/LoyaltyApi'
@@ -16,7 +19,7 @@ import {
     fixedDiscountPercentForColor,
     resolveLoyaltyDiscountColor,
 } from '@/utils/fixedDiscountPercentColor'
-import { getLevelTheme } from '@/utils/loyaltyLevelTheme'
+import { getLevelTheme, getLadderItem } from '@/utils/loyaltyLevelTheme'
 
 function fmtDt(iso?: string) {
     if (!iso) return '—'
@@ -57,6 +60,11 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
     const [discountValue, setDiscountValue] = useState('')
     const [discountValueError, setDiscountValueError] = useState<string | null>(null)
     const [discountBusy, setDiscountBusy] = useState(false)
+    const [revokeGiftLevelId, setRevokeGiftLevelId] = useState<LoyaltyGiftLevelId | null>(null)
+    const [confirmRevokeGift, setConfirmRevokeGift] = useState<{
+        levelId: LoyaltyGiftLevelId
+        levelLabel: string
+    } | null>(null)
 
     const discountNeedsValue = discountMode !== 'clear'
     const discountValueEmpty = discountValue.trim().length === 0
@@ -113,6 +121,26 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
             onError(msg)
         } finally {
             setAdjustBusy(false)
+        }
+    }
+
+    const handleConfirmRevokeGift = async () => {
+        if (!confirmRevokeGift) return
+        const { levelId } = confirmRevokeGift
+
+        onError(null)
+        setRevokeGiftLevelId(levelId)
+        try {
+            const updated = await CrmApi.revokeLoyaltyGiftReceived(accountId, levelId)
+            onLoyaltyUpdated(updated)
+            setConfirmRevokeGift(null)
+        } catch (e) {
+            const msg = isAxiosError(e)
+                ? String(e.response?.data?.message ?? e.message)
+                : 'Не удалось отменить получение подарка'
+            onError(msg)
+        } finally {
+            setRevokeGiftLevelId(null)
         }
     }
 
@@ -196,7 +224,10 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
     const discountColor = resolveLoyaltyDiscountColor(loyalty)
     const fixedPercent = fixedDiscountPercentForColor(loyalty)
 
+    const revokeGiftBusy = revokeGiftLevelId != null
+
     return (
+        <>
         <div className="space-y-6">
             <div className="grid w-full grid-cols-[repeat(4,minmax(0,1fr))_auto] items-stretch gap-1.5">
                 <div className="min-w-0 bg-[#252525] border border-[#333] px-2 py-1.5">
@@ -288,6 +319,79 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                             aria-hidden
                         />
                     </button>
+                </div>
+            </div>
+
+            <div className="bg-[#252525] border border-[#333] p-4 space-y-3">
+                <h3 className="text-white font-semibold text-sm">Подарки за уровни</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr className="text-white/45 border-b border-[#444]">
+                                <th className="py-2 pr-2 font-normal">Уровень</th>
+                                <th className="py-2 pr-2 font-normal">Статус</th>
+                                <th className="py-2 pr-2 font-normal">Код</th>
+                                <th className="py-2 pr-2 font-normal">Запрошен</th>
+                                <th className="py-2 pr-2 font-normal">Получен</th>
+                                <th className="py-2 font-normal">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {LOYALTY_GIFT_LEVEL_IDS.map(levelId => {
+                                const gift = loyalty.gifts?.[levelId]
+                                const theme = getLevelTheme(levelId)
+                                const levelLabel = gift?.levelLabel ?? getLadderItem(levelId).label
+                                const status = gift?.status ?? 'locked'
+                                const statusColor =
+                                    status === 'issued'
+                                        ? '#5cb88a'
+                                        : status === 'requested'
+                                          ? '#fbbf24'
+                                          : status === 'available'
+                                            ? theme.labelColor
+                                            : 'rgb(255 255 255 / 0.35)'
+                                const revokeBusy = revokeGiftLevelId === levelId
+
+                                return (
+                                    <tr key={levelId} className="border-b border-[#333]/80 align-top">
+                                        <td className="py-2 pr-2">
+                                            <span className="font-semibold" style={{ color: theme.labelColor }}>
+                                                {levelLabel}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 pr-2 font-semibold" style={{ color: statusColor }}>
+                                            {loyaltyGiftStatusLabel(status)}
+                                        </td>
+                                        <td className="py-2 pr-2 font-mono text-[10px] text-white/80">
+                                            {gift?.claimCode ?? '—'}
+                                        </td>
+                                        <td className="py-2 pr-2 text-white/70 whitespace-nowrap">
+                                            {fmtDt(gift?.requestedAt)}
+                                        </td>
+                                        <td className="py-2 pr-2 text-white/70 whitespace-nowrap">
+                                            {fmtDt(gift?.issuedAt)}
+                                        </td>
+                                        <td className="py-2">
+                                            {status === 'issued' ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={revokeGiftBusy || confirmRevokeGift != null}
+                                                    onClick={() =>
+                                                        setConfirmRevokeGift({ levelId, levelLabel })
+                                                    }
+                                                    className="rounded border border-[var(--pink-punk)] bg-transparent px-2 py-1 text-[10px] font-semibold text-[var(--pink-punk)] transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-40 whitespace-nowrap"
+                                                >
+                                                    {revokeBusy ? 'Отмена…' : 'Отменить получение'}
+                                                </button>
+                                            ) : (
+                                                <span className="text-white/25">—</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -523,5 +627,54 @@ export default function AdminCrmLoyaltyTab({ accountId, loyalty, onLoyaltyUpdate
                 )}
             </div>
         </div>
+
+        {confirmRevokeGift && (
+            <div
+                className="fixed inset-0 z-[10100] flex items-center justify-center bg-black/75 p-4"
+                role="presentation"
+                onClick={() => !revokeGiftBusy && setConfirmRevokeGift(null)}
+            >
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="crm-revoke-gift-title"
+                    className="w-full max-w-md rounded-lg border border-[#444] bg-[#252525] p-4 shadow-xl"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <h2 id="crm-revoke-gift-title" className="text-lg font-semibold text-white">
+                        Отменить получение подарка?
+                    </h2>
+                    <p className="mt-2 text-sm text-white/80">
+                        Уровень:{' '}
+                        <span className="font-medium text-[var(--pink-punk)]">
+                            {confirmRevokeGift.levelLabel}
+                        </span>
+                    </p>
+                    <p className="mt-1 text-xs text-white/50">
+                        Статус вернётся к «запрошен». Пользователь снова сможет подтвердить получение в
+                        приложении.
+                    </p>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            disabled={revokeGiftBusy}
+                            className="rounded border border-white/20 bg-transparent px-4 py-2 text-sm text-white/90 hover:bg-white/10 disabled:opacity-40"
+                            onClick={() => setConfirmRevokeGift(null)}
+                        >
+                            Назад
+                        </button>
+                        <button
+                            type="button"
+                            disabled={revokeGiftBusy}
+                            className="rounded border border-[var(--pink-punk)] bg-transparent px-4 py-2 text-sm font-semibold text-[var(--pink-punk)] transition-opacity hover:opacity-80 disabled:opacity-40"
+                            onClick={() => void handleConfirmRevokeGift()}
+                        >
+                            {revokeGiftBusy ? 'Отмена…' : 'Отменить получение'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     )
 }

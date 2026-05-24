@@ -18,7 +18,12 @@ import { tokenManager } from '@/utils/TokenManager'
 import { accountObjectIdFromCrmListRow } from '@/utils/mongoObjectId'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import type { LoyaltyStatus } from '@/api/LoyaltyApi'
+import {
+    looksLikeGiftClaimCodeSearch,
+    userMatchesGiftClaimCodeSearch,
+} from '@/api/LoyaltyApi'
 import CrmLoyaltyInline, { loyaltyRowNeedsUpdate } from '@/components/ui/admin/CrmLoyaltyInline'
+import CrmUserGiftIcons from '@/components/ui/admin/CrmUserGiftIcons'
 import { getLevelTheme, getLoyaltyLevelBorderStyle, LOYALTY_LADDER, getLadderItem } from '@/utils/loyaltyLevelTheme'
 
 const LEVEL_FILTER_NONE = '__none__'
@@ -376,6 +381,8 @@ const AdminUsers = () => {
     const [deleteUserError, setDeleteUserError] = useState<string | null>(null)
     const [deleteCascadeResult, setDeleteCascadeResult] = useState<DeleteUserCascadeStats | null>(null)
     const [loyaltyEnriching, setLoyaltyEnriching] = useState(false)
+    const [giftSearchEnriching, setGiftSearchEnriching] = useState(false)
+    const giftSearchEnrichedRef = useRef(false)
     /** Второстепенный при перетаскивании (розовая рамка) */
     const [mergeDragAccountId, setMergeDragAccountId] = useState<string | null>(null)
     /** Основной — цель drop при drag (зелёная рамка) */
@@ -429,7 +436,8 @@ const AdminUsers = () => {
             setLoyaltyEnriching(true)
             try {
                 const enriched = await CrmApi.enrichUsersWithLoyalty(rows)
-                setUsers(enriched)
+                const withGifts = await CrmApi.enrichUsersWithLoyaltyGifts(enriched)
+                setUsers(withGifts)
             } finally {
                 setLoyaltyEnriching(false)
             }
@@ -443,6 +451,34 @@ const AdminUsers = () => {
     useEffect(() => {
         void loadUsers()
     }, [loadUsers])
+
+    useEffect(() => {
+        giftSearchEnrichedRef.current = false
+    }, [searchTerm])
+
+    useEffect(() => {
+        if (!looksLikeGiftClaimCodeSearch(searchTerm)) return
+        if (status !== 'success' || users.length === 0) return
+        if (giftSearchEnrichedRef.current) return
+
+        const needsGifts = users.some(u => u.loyalty?.gifts === undefined)
+        if (!needsGifts) return
+
+        giftSearchEnrichedRef.current = true
+        let cancelled = false
+        setGiftSearchEnriching(true)
+        void CrmApi.enrichUsersWithLoyaltyGifts(users)
+            .then(enriched => {
+                if (!cancelled) setUsers(enriched)
+            })
+            .finally(() => {
+                if (!cancelled) setGiftSearchEnriching(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [searchTerm, status, users])
 
     const handleUserLoyaltyChange = useCallback((accountId: string, loyalty: LoyaltyStatus) => {
         setUsers(prev => {
@@ -482,7 +518,8 @@ const AdminUsers = () => {
                     u.personalFirstName?.toLowerCase().includes(search) ||
                     u.personalLastName?.toLowerCase().includes(search) ||
                     u.email?.toLowerCase().includes(search) ||
-                    resolvedUserPhone(u).toLowerCase().includes(search)
+                    resolvedUserPhone(u).toLowerCase().includes(search) ||
+                    userMatchesGiftClaimCodeSearch(u.loyalty, searchTerm)
                 if (!hit) return false
             }
             if (onlyWithPhone && !resolvedUserPhone(u)) return false
@@ -684,7 +721,7 @@ const AdminUsers = () => {
                 <div className="mb-4 space-y-3">
                     <input
                         type="text"
-                        placeholder="Поиск по имени, username, accountId, Telegram ID или телефону..."
+                        placeholder="Поиск по имени, username, accountId, телефону или коду подарка (PP-…)"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full bg-white/10 backdrop-blur-sm border border-white/20 p-3 text-white placeholder-white/50 focus:outline-none focus:border-[var(--mint-bright)] transition-all"
@@ -904,6 +941,9 @@ const AdminUsers = () => {
                 <div>
                     {loyaltyEnriching && status === 'success' && (
                         <p className="mb-2 text-center text-xs text-white/50">Подгрузка уровней лояльности…</p>
+                    )}
+                    {giftSearchEnriching && status === 'success' && (
+                        <p className="mb-2 text-center text-xs text-white/50">Поиск по коду подарка…</p>
                     )}
                     {status === 'loading' ? (
                         <div className="text-center py-10 text-white/60">Загрузка клиентов…</div>
@@ -1197,6 +1237,7 @@ const AdminUsers = () => {
                                                 <span className="text-white/70">{u.referralsCount ?? 0}</span>
                                             </div>
                                         </div>
+                                        <CrmUserGiftIcons gifts={userLoyalty?.gifts} />
                                     </div>
                                 )
                             })}

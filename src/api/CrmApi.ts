@@ -4,6 +4,7 @@ import { accountObjectIdFromCrmListRow, requireMongoObjectIdString } from '@/uti
 import {
     type CrmLoyalty,
     type CrmSetDiscountBody,
+    type LoyaltyGiftLevelId,
     type LoyaltyStatus,
     isUsableLoyaltyStatus,
     normalizeCrmLoyalty,
@@ -447,6 +448,41 @@ export async function enrichCrmUsersWithLoyalty(users: CrmListUser[]): Promise<C
     })
 }
 
+function listRowNeedsLoyaltyGiftsFetch(u: CrmListUser): boolean {
+    const accountId = accountObjectIdFromCrmListRow(u)
+    if (!accountId) return false
+    return u.loyalty?.gifts === undefined
+}
+
+/** Подгрузка gifts для поиска по claimCode (GET …/loyalty на аккаунты без gifts). */
+export async function enrichCrmUsersWithLoyaltyGifts(users: CrmListUser[]): Promise<CrmListUser[]> {
+    const pending = users.filter(listRowNeedsLoyaltyGiftsFetch)
+    if (pending.length === 0) return users
+
+    const byAccountId = new Map<string, LoyaltyStatus | null>()
+
+    for (let i = 0; i < pending.length; i += LOYALTY_FETCH_CONCURRENCY) {
+        const batch = pending.slice(i, i + LOYALTY_FETCH_CONCURRENCY)
+        await Promise.all(
+            batch.map(async row => {
+                const accountId = accountObjectIdFromCrmListRow(row)
+                if (!accountId) return
+                const loyalty = await fetchUserLoyaltyStatus(accountId)
+                byAccountId.set(accountId, loyalty)
+            }),
+        )
+    }
+
+    return users.map(u => {
+        if (!listRowNeedsLoyaltyGiftsFetch(u)) return u
+        const accountId = accountObjectIdFromCrmListRow(u)
+        if (!accountId) return u
+        const loyalty = byAccountId.get(accountId)
+        if (loyalty === undefined) return u
+        return { ...u, loyalty }
+    })
+}
+
 export const CrmApi = {
     async getUsers(): Promise<CrmListUser[]> {
         const path = crmPath('/admin/crm/users')
@@ -461,6 +497,8 @@ export const CrmApi = {
     },
 
     enrichUsersWithLoyalty: enrichCrmUsersWithLoyalty,
+
+    enrichUsersWithLoyaltyGifts: enrichCrmUsersWithLoyaltyGifts,
 
     async getUserCard(accountId: string): Promise<CrmUserCardResponse> {
         const id = requireMongoObjectIdString(accountId, 'accountId')
@@ -532,6 +570,29 @@ export const CrmApi = {
             return await CrmApi.getUserLoyalty(accountId)
         } catch {
             return { ...status, history: [] }
+        }
+    },
+
+    /** PATCH /admin/crm/users/:accountId/loyalty/gifts/:levelId — issued → requested (отмена ошибочного confirm). */
+    async revokeLoyaltyGiftReceived(
+        accountId: string,
+        levelId: LoyaltyGiftLevelId,
+    ): Promise<CrmLoyalty> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.patch<unknown>(
+            crmPath(
+                `/admin/crm/users/${encodeURIComponent(id)}/loyalty/gifts/${encodeURIComponent(levelId)}`,
+            ),
+            { action: 'revoke_received' },
+        )
+        const status = parseCrmLoyaltyApiResponse(data)
+        if (!status) {
+            throw new Error('Неожиданный формат ответа revoke gift')
+        }
+        try {
+            return await CrmApi.getUserLoyalty(accountId)
+        } catch {
+            return status
         }
     },
 

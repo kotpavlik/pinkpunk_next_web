@@ -13,10 +13,16 @@ import { LayoutGroup, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
     formatExpPoints,
+    formatGiftCoordinates,
     resolveEffectiveDiscountPercent,
+    resolveGiftLevelId,
     resolveLoyaltyProgressPercent,
+    type LoyaltyGiftClaimResponse,
+    type LoyaltyGiftLevelId,
     type LoyaltyStatus,
 } from '@/api/LoyaltyApi'
+import { UserApi } from '@/api/UserApi'
+import { isAxiosError } from 'axios'
 import { resolveLoyaltyDiscountColor } from '@/utils/fixedDiscountPercentColor'
 import {
     CheckCircleIcon,
@@ -26,6 +32,8 @@ import {
     TrophyIcon,
     LockClosedIcon,
     LockOpenIcon,
+    ClipboardDocumentIcon,
+    CheckIcon,
 } from '@heroicons/react/24/outline'
 import {
     EXPLORER_LEVEL_DISCOUNT_PERCENT,
@@ -237,8 +245,11 @@ function LevelLadderCard({
     const locked = state === 'locked'
     const passed = state === 'passed'
     const effectivelyLocked = locked && !discoverable
+    const passedClosed = passed && !discoverable
     const isFlying = isSameLevelId(id, activePopoutLevelId)
     const [lockedDenied, setLockedDenied] = useState(false)
+    const [passedPressed, setPassedPressed] = useState(false)
+    const [passedGlowKey, setPassedGlowKey] = useState(0)
 
     const expLabel =
         item.minPoints >= 1000
@@ -251,8 +262,20 @@ function LevelLadderCard({
         return () => window.clearTimeout(t)
     }, [lockedDenied])
 
+    useEffect(() => {
+        if (!passedPressed) return
+        const t = window.setTimeout(() => setPassedPressed(false), 720)
+        return () => window.clearTimeout(t)
+    }, [passedPressed, passedGlowKey])
+
     const triggerLockedFeedback = useCallback(() => {
         setLockedDenied(true)
+    }, [])
+
+    const triggerPassedFeedback = useCallback(() => {
+        setPassedPressed(false)
+        setPassedGlowKey(k => k + 1)
+        requestAnimationFrame(() => setPassedPressed(true))
     }, [])
 
     const handleActivate = useCallback(() => {
@@ -260,8 +283,12 @@ function LevelLadderCard({
             triggerLockedFeedback()
             return
         }
+        if (passedClosed) {
+            triggerPassedFeedback()
+            return
+        }
         onClick?.(id)
-    }, [effectivelyLocked, id, onClick, triggerLockedFeedback])
+    }, [effectivelyLocked, passedClosed, id, onClick, triggerLockedFeedback, triggerPassedFeedback])
 
     const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -277,15 +304,19 @@ function LevelLadderCard({
         ? 'animate-loyalty-card-shake transition-[border-color,box-shadow,opacity]'
         : effectivelyLocked && lockedDenied
             ? 'animate-loyalty-locked-deny-glow'
-            : 'transition-[border-color,box-shadow,opacity]'
+            : passedClosed && passedPressed
+                ? 'loyalty-passed-card--glow'
+                : 'transition-[border-color,box-shadow,opacity]'
         } ${effectivelyLocked && !lockedDenied
             ? 'opacity-40'
             : effectivelyLocked && lockedDenied
                 ? 'opacity-55'
-                : passed && !discoverable
-                    ? 'opacity-70'
-                    : 'opacity-100'
-        } ${!effectivelyLocked && !discoverable ? 'active:scale-[0.98]' : ''} ${state === 'current' || discoverable ? 'ring-1 ring-inset' : ''} ${showHighlight ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''
+                : passed && !discoverable && passedPressed
+                    ? 'opacity-100'
+                    : passed && !discoverable
+                        ? 'opacity-70'
+                        : 'opacity-100'
+        } ${!effectivelyLocked && !discoverable && !passedClosed ? 'active:scale-[0.98]' : ''} ${state === 'current' || discoverable ? 'ring-1 ring-inset' : ''} ${showHighlight ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''
         }`
 
     const cardStyle = {
@@ -334,8 +365,11 @@ function LevelLadderCard({
                 </p>
                 <p className="text-[8px] text-white/40 leading-tight">{expLabel}</p>
             </div>
-            <p className="shrink-0 text-[8px] leading-tight text-white/45 mt-1">
-                {passed && !discoverable && '✓ пройден'}
+            <p
+                key={passedGlowKey}
+                className={`loyalty-passed-label shrink-0 text-[8px] leading-tight mt-1 font-semibold ${passedClosed && passedPressed ? 'loyalty-passed-label--glow' : ''}`}
+            >
+                {passedClosed && '✓ уровень пройден'}
                 {state === 'current' && !discoverable && '★ текущ.'}
                 {discoverable && '✨ открой'}
                 {effectivelyLocked && '🔒'}
@@ -354,7 +388,9 @@ function LevelLadderCard({
                     ? `${apiLabel}, новый уровень — открой карточку`
                     : effectivelyLocked
                         ? `${apiLabel}, уровень заблокирован`
-                        : apiLabel
+                        : passedClosed
+                            ? `${apiLabel}, уровень пройден`
+                            : apiLabel
             }
             aria-hidden={isFlying}
             className={`${cardClassName}${isFlying ? ' pointer-events-none' : ''}`}
@@ -364,7 +400,9 @@ function LevelLadderCard({
                     ? `${apiLabel} — открой карточку уровня`
                     : effectivelyLocked
                         ? `${apiLabel} — уровень ещё не открыт`
-                        : apiLabel
+                        : passedClosed
+                            ? `${apiLabel} — уровень уже пройден`
+                            : apiLabel
             }
             animate={{ opacity: isFlying ? 0 : 1 }}
             transition={{
@@ -440,34 +478,36 @@ export function LoyaltyExplorerDiscountHint({
 
     if (!showExplorerOnboarding && !showNextLevelProgress) return null
 
+    if (showNextLevelProgress) {
+        return (
+            <p
+                className={`w-full cursor-default text-right text-[11px] text-white/50 leading-snug mb-4 ${className}`.trim()}
+            >
+                достигни следующий уровень
+                {nextTheme ? (
+                    <>
+                        {' '}
+                        <span className="font-semibold" style={{ color: nextTheme.labelColor }}>
+                            {nextLevel!.label}
+                        </span>
+                    </>
+                ) : null}{' '}
+                и разблокируй новые бонусы
+            </p>
+        )
+    }
+
     return (
         <button
             type="button"
             onClick={onClick}
             className={`w-full text-right text-[11px] text-white/50 leading-snug mb-4 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25 rounded ${className}`.trim()}
         >
-            {showNextLevelProgress ? (
-                <>
-                    достигни следующий уровень
-                    {nextTheme ? (
-                        <>
-                            {' '}
-                            <span className="font-semibold" style={{ color: nextTheme.labelColor }}>
-                                {nextLevel.label}
-                            </span>
-                        </>
-                    ) : null}{' '}
-                    и разблокируй новые бонусы
-                </>
-            ) : (
-                <>
-                    нажми на карточку{' '}
-                    <span className="font-semibold" style={{ color: getLevelTheme('explorer').labelColor }}>
-                        Explorer
-                    </span>{' '}
-                    и получи свою скидку
-                </>
-            )}
+            нажми на карточку{' '}
+            <span className="font-semibold" style={{ color: getLevelTheme('explorer').labelColor }}>
+                Explorer
+            </span>{' '}
+            и получи свою скидку
         </button>
     )
 }
@@ -538,17 +578,463 @@ function LoyaltyLevelsGrid({
 }
 
 const LOYALTY_DRAWER_TRANSITION_MS = 320
+const GIFT_TERMINAL_MESSAGE =
+    'ты знаешь, что с этим делать , беги за белым кроликом и покажи это сообщение там'
+const GIFT_TERMINAL_RABBIT = '🐇'
+const GIFT_TERMINAL_STATUS_LABEL = 'подарок ожидает получения'
+const TERMINAL_BLINK_MS = 480
+const TERMINAL_GIFT_STATUS_APPEAR_MS = 1000
+const TERMINAL_RABBIT_AFTER_STATUS_MS = 1200
+const GIFT_RABBIT_TAP_TARGET = 5
+
+function resolveHumanTypingDelayMs(char: string, prevChar: string): number {
+    const jitter = 16 + Math.random() * 28
+
+    if (char === ',') return jitter + 100 + Math.random() * 85
+    if (char === ' ') return jitter + 45 + Math.random() * 60
+    if (prevChar === ',' || prevChar === ' ') return jitter + 62 + Math.random() * 55
+    if (Math.random() < 0.08) return jitter + 72 + Math.random() * 95
+
+    return jitter + 8 + Math.random() * 18
+}
+
+type GiftTerminalPhase = 'opening' | 'blink' | 'typing' | 'typed' | 'status' | 'rabbit'
+
+function fmtGiftIssuedAt(iso?: string): string | null {
+    if (!iso) return null
+    try {
+        return new Date(iso).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+    } catch {
+        return null
+    }
+}
+
+function LoyaltyGiftTerminal({
+    claim,
+    skipIntro = false,
+    interactive = true,
+    onConfirm,
+    confirmBusy = false,
+    confirmError = null,
+    onDeclineCatch,
+}: {
+    claim: LoyaltyGiftClaimResponse
+    skipIntro?: boolean
+    /** false после issued — только просмотр */
+    interactive?: boolean
+    onConfirm?: () => void | Promise<void>
+    confirmBusy?: boolean
+    confirmError?: string | null
+    /** Отказ от подтверждения — снова ловить кролика (5 тапов). */
+    onDeclineCatch?: () => void
+}) {
+    const coordinates = formatGiftCoordinates(claim.coordinates)
+    const [phase, setPhase] = useState<GiftTerminalPhase>(skipIntro ? 'rabbit' : 'opening')
+    const [cursorVisible, setCursorVisible] = useState(true)
+    const [typedText, setTypedText] = useState(skipIntro ? GIFT_TERMINAL_MESSAGE : '')
+    const [copied, setCopied] = useState(false)
+    const [rabbitTapCount, setRabbitTapCount] = useState(0)
+    const rabbitReady = rabbitTapCount >= GIFT_RABBIT_TAP_TARGET
+
+    useEffect(() => {
+        if (skipIntro) return
+        const openTimer = window.setTimeout(() => setPhase('blink'), 520)
+        return () => window.clearTimeout(openTimer)
+    }, [skipIntro])
+
+    useEffect(() => {
+        if (phase !== 'blink') return
+
+        let step = 0
+        setCursorVisible(true)
+        const interval = window.setInterval(() => {
+            step += 1
+            setCursorVisible(step % 2 === 1)
+            if (step >= 6) {
+                window.clearInterval(interval)
+                setCursorVisible(true)
+                setPhase('typing')
+            }
+        }, TERMINAL_BLINK_MS)
+
+        return () => window.clearInterval(interval)
+    }, [phase])
+
+    useEffect(() => {
+        if (phase !== 'typing') return
+
+        const message = GIFT_TERMINAL_MESSAGE
+        let index = 0
+        let timeoutId = 0
+        let cancelled = false
+
+        const typeNext = () => {
+            if (cancelled) return
+
+            if (index >= message.length) {
+                setPhase('typed')
+                return
+            }
+
+            const char = message[index]
+            const prevChar = index > 0 ? message[index - 1] : ''
+            index += 1
+            setTypedText(message.slice(0, index))
+
+            if (index >= message.length) {
+                setPhase('typed')
+                return
+            }
+
+            const nextChar = message[index]
+            timeoutId = window.setTimeout(typeNext, resolveHumanTypingDelayMs(nextChar, char))
+        }
+
+        timeoutId = window.setTimeout(typeNext, 95 + Math.random() * 85)
+
+        return () => {
+            cancelled = true
+            window.clearTimeout(timeoutId)
+        }
+    }, [phase])
+
+    useEffect(() => {
+        if (phase !== 'typed') return
+
+        const timer = window.setTimeout(() => setPhase('status'), TERMINAL_GIFT_STATUS_APPEAR_MS)
+        return () => window.clearTimeout(timer)
+    }, [phase])
+
+    useEffect(() => {
+        if (phase !== 'status') return
+
+        const timer = window.setTimeout(() => setPhase('rabbit'), TERMINAL_RABBIT_AFTER_STATUS_MS)
+        return () => window.clearTimeout(timer)
+    }, [phase])
+
+    const handleCopy = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(coordinates)
+            setCopied(true)
+            window.setTimeout(() => setCopied(false), 1200)
+        } catch {
+            /* ignore */
+        }
+    }, [coordinates])
+
+    const handleRabbitTap = useCallback(() => {
+        if (!interactive || confirmBusy || claim.status === 'issued') return
+        setRabbitTapCount(c => Math.min(GIFT_RABBIT_TAP_TARGET, c + 1))
+    }, [interactive, confirmBusy, claim.status])
+
+    const handleDeclineCatch = useCallback(() => {
+        if (confirmBusy) return
+        setRabbitTapCount(0)
+        onDeclineCatch?.()
+    }, [confirmBusy, onDeclineCatch])
+
+    const showMessageLine = phase === 'typing' || phase === 'typed' || phase === 'status' || phase === 'rabbit'
+    const showGiftStatus = phase === 'status' || phase === 'rabbit'
+    const showRabbit = phase === 'rabbit'
+    const showRabbitInteractive = showRabbit && interactive && claim.status !== 'issued'
+
+    return (
+        <motion.div
+            initial={{ opacity: 0.65, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="loyalty-gift-terminal loyalty-gift-terminal-shell flex w-full flex-col overflow-hidden rounded-xl border border-[#439f76]/40 font-mono text-[#439f76] shadow-[0_0_14px_rgba(67,159,118,0.12)]"
+        >
+            <div className="flex min-h-0 flex-1 flex-col p-2.5">
+                <div className="mb-1.5 flex shrink-0 flex-col gap-0.5 border-b border-[#439f76]/20 pb-1.5">
+                    <div className="flex items-start gap-1.5">
+                        <span className="min-w-0 flex-1 text-[9px] leading-snug tabular-nums">{coordinates}</span>
+                        <button
+                            type="button"
+                            onClick={() => void handleCopy()}
+                            title="Скопировать координаты"
+                            aria-label="Скопировать координаты"
+                            className="inline-flex shrink-0 rounded p-0.5 text-[#439f76]/80 transition hover:bg-[#439f76]/10 hover:text-[#5cb88a] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#439f76]"
+                        >
+                            {copied ? (
+                                <CheckIcon className="h-3 w-3" aria-hidden />
+                            ) : (
+                                <ClipboardDocumentIcon className="h-3 w-3" aria-hidden />
+                            )}
+                        </button>
+                    </div>
+                    {claim.addressLabel && (
+                        <p className="text-[9px] leading-snug text-[#439f76]/85">{claim.addressLabel}</p>
+                    )}
+                    <div className="text-[9px] leading-snug">
+                        код: <span className="font-semibold tracking-wide">{claim.claimCode}</span>
+                    </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-hidden py-0.5">
+                    {phase === 'blink' && (
+                        <p className="text-[10px] leading-relaxed">
+                            <span
+                                className="inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle transition-opacity duration-75"
+                                style={{ opacity: cursorVisible ? 1 : 0 }}
+                                aria-hidden
+                            />
+                        </p>
+                    )}
+
+                    {showMessageLine && (
+                        <p className="line-clamp-3 text-[10px] leading-relaxed whitespace-pre-wrap break-words">
+                            {typedText}
+                            {phase === 'typing' && (
+                                <span className="loyalty-terminal-cursor ml-px inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle" />
+                            )}
+                        </p>
+                    )}
+                </div>
+
+                <div className="mt-auto -mx-2.5 flex shrink-0 flex-col">
+                    {claim.status === 'issued' ? (
+                        <div className="loyalty-terminal-rabbit-slot relative h-10 w-full shrink-0">
+                            <div className="flex h-full w-full items-center justify-center bg-[#439f76]/[0.06] px-2.5">
+                                <p className="text-[9px] leading-snug tracking-wide text-[#5cb88a]">
+                                    подарок получен
+                                    {fmtGiftIssuedAt(claim.issuedAt) ? ` · ${fmtGiftIssuedAt(claim.issuedAt)}` : ''}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex shrink-0 items-center justify-center">
+                                {showGiftStatus && (
+                                    <p
+                                        className={`loyalty-terminal-gift-status w-full text-[9px] leading-snug tracking-wide ${showRabbitInteractive && rabbitReady
+                                            ? `loyalty-terminal-gift-status--caught${confirmError ? ' text-red-300/90' : ''}`
+                                            : ''
+                                            }`}
+                                    >
+                                        {showRabbitInteractive && rabbitReady
+                                            ? confirmError ?? 'поймал кролика = подарок получен'
+                                            : GIFT_TERMINAL_STATUS_LABEL}
+                                    </p>
+                                )}
+                            </div>
+
+                            {showRabbit && (
+                                <div className="loyalty-terminal-rabbit-slot relative h-10 w-full shrink-0">
+                                    {showRabbitInteractive && rabbitReady ? (
+                                        <div className="flex h-full w-full items-stretch gap-1 bg-[#439f76]/[0.06] px-2.5">
+                                            <button
+                                                type="button"
+                                                disabled={confirmBusy}
+                                                onClick={() => void onConfirm?.()}
+                                                className="min-w-0 flex-1 rounded border border-[#439f76]/55 bg-[#439f76]/10 px-2 py-1.5 text-[9px] font-semibold leading-snug text-[#5cb88a] transition hover:bg-[#439f76]/18 disabled:opacity-50"
+                                            >
+                                                {confirmBusy ? '…' : 'Поймал кролика'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={confirmBusy}
+                                                onClick={handleDeclineCatch}
+                                                className="min-w-0 flex-1 rounded border border-[#439f76]/25 px-2 py-1.5 text-[9px] font-semibold leading-snug text-[#439f76]/75 transition hover:border-[#439f76]/40 hover:text-[#439f76] disabled:opacity-50"
+                                            >
+                                                Назад
+                                            </button>
+                                        </div>
+                                    ) : showRabbitInteractive && !rabbitReady ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleRabbitTap}
+                                            aria-label="Кролик"
+                                            className="loyalty-terminal-rabbit-track loyalty-terminal-rabbit-track--catch relative h-full w-full overflow-hidden"
+                                        >
+                                            <span className="loyalty-terminal-rabbit-runner pointer-events-none" aria-hidden>
+                                                <span className="loyalty-terminal-rabbit text-base leading-none">
+                                                    {GIFT_TERMINAL_RABBIT}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <div className="loyalty-terminal-rabbit-track loyalty-terminal-rabbit-track--idle relative h-full w-full overflow-hidden">
+                                            <span className="loyalty-terminal-rabbit-runner pointer-events-none" aria-hidden>
+                                                <span className="loyalty-terminal-rabbit text-sm leading-none">
+                                                    {GIFT_TERMINAL_RABBIT}
+                                                </span>
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        </motion.div>
+    )
+}
+
+function hasRichLevelPopout(levelId: string): boolean {
+    return (
+        isSameLevelId(levelId, 'explorer') ||
+        isSameLevelId(levelId, 'regular') ||
+        isSameLevelId(levelId, 'insider')
+    )
+}
+
+function LoyaltyLevelPopoutBody({
+    levelId,
+    theme,
+    levelDiscount,
+    hasExp,
+}: {
+    levelId: string
+    theme: ReturnType<typeof getLevelTheme>
+    levelDiscount: number
+    hasExp: boolean
+}) {
+    if (isSameLevelId(levelId, 'explorer')) {
+        return (
+            <div className="space-y-3 text-sm leading-relaxed text-white/80">
+                {hasExp ? (
+                    <>
+                        <p>Поздравляем! Ты только что открыл свой первый бонус.</p>
+                        <p>
+                            <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
+                                {levelDiscount}%
+                            </span>{' '}
+                            скидки теперь всегда с тобой.
+                        </p>
+                        <p>
+                            Но это лишь первый шаг. Чем выше уровень — тем крупнее подарки, вкуснее скидки и круче
+                            сюрпризы.
+                        </p>
+                        <p>Мы за тобой наблюдаем и готовим награды. Не останавливайся.</p>
+                    </>
+                ) : (
+                    <>
+                        <p>
+                            Ты сделал первый шаг — авторизовался и получил свой первый уровень. Мы ценим даже простое
+                            любопытство.
+                        </p>
+                        <p>
+                            Раз ты уже здесь — значит, ты не просто зевака. Поздравляем! Разблокируй свою первую
+                            награду! Сделай свою первую покупку и получи{' '}
+                            <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
+                                5%
+                            </span>{' '}
+                            скидку навсегда.
+                        </p>
+                        <div className="space-y-2 text-white/55 text-xs leading-relaxed">
+                            <p>
+                                Покупали в офлайн-магазине? Назовите продавцу телефон или Telegram — администратор
+                                привяжет заказ к вашему аккаунту.
+                            </p>
+                            <p>Как только exp станет больше 0, скидка включится автоматически.</p>
+                        </div>
+                    </>
+                )}
+            </div>
+        )
+    }
+
+    if (isSameLevelId(levelId, 'regular')) {
+        return (
+            <div className="space-y-3 text-sm leading-relaxed text-white/80">
+                {hasExp ? (
+                    <>
+                        <p>
+                            Поздравляем! Ты вышел на уровень Regular — ты уже не новичок, а наш постоянный бро.
+                        </p>
+                        <p>
+                            <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
+                                {levelDiscount}%
+                            </span>{' '}
+                            скидки теперь твои. Но это ещё не всё — нажми кнопку «получить подарок» и посмотрим, что
+                            будет.
+                        </p>
+                        <p>Дальше — ещё круче. Чем выше уровень, тем больше сюрпризов. Не останавливайся.</p>
+                    </>
+                ) : (
+                    <>
+                        <p>
+                            Regular — уровень для тех, кто остаётся с нами. Это уже не первый шаг, а настоящая
+                            вовлечённость.
+                        </p>
+                        <p>
+                            Набери 1 000 exp и получи приоритет в рассылках, постоянную скидку и доступ к бонусам
+                            для постоянных.
+                        </p>
+                        <div className="space-y-2 text-white/55 text-xs leading-relaxed">
+                            <p>
+                                Покупали в офлайн-магазине? Назовите продавцу телефон или Telegram — администратор
+                                привяжет заказ к вашему аккаунту.
+                            </p>
+                            <p>Как только exp станет больше 0, прогресс к Regular пойдёт автоматически.</p>
+                        </div>
+                    </>
+                )}
+            </div>
+        )
+    }
+
+    if (isSameLevelId(levelId, 'insider')) {
+        return (
+            <div className="space-y-3 text-sm leading-relaxed text-white/80">
+                {hasExp ? (
+                    <>
+                        <p>Поздравляем! Ты дошёл до Insider — теперь ты в нашем внутреннем круге.</p>
+                        <p>
+                            <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
+                                {levelDiscount}%
+                            </span>{' '}
+                            скидки теперь всегда с тобой.
+                        </p>
+                        <p>
+                            Тебе открыт ранний доступ к коллабам и закрытым дропам — мы делимся с Insider первыми,
+                            ещё до всех остальных.
+                        </p>
+                        <p>До Legend остался один шаг. Мы готовим для тебя максимальные привилегии. Не останавливайся.</p>
+                    </>
+                ) : (
+                    <>
+                        <p>
+                            Insider — уровень для тех, кто с нами по-настоящему. Это статус внутреннего круга Pink Punk.
+                        </p>
+                        <p>
+                            Набери 10 000 exp и получи ранний доступ к коллабам, постоянную скидку и привилегии,
+                            которые мы не показываем всем.
+                        </p>
+                        <div className="space-y-2 text-white/55 text-xs leading-relaxed">
+                            <p>
+                                Покупали в офлайн-магазине? Назовите продавцу телефон или Telegram — администратор
+                                привяжет заказ к вашему аккаунту.
+                            </p>
+                            <p>Как только exp станет больше 0, прогресс к Insider пойдёт автоматически.</p>
+                        </div>
+                    </>
+                )}
+            </div>
+        )
+    }
+
+    return <p className="text-white/70 text-sm leading-relaxed">{theme.perk}</p>
+}
 
 function NextLevelUnlockTeaser({ nextLevelLabel, nextLevelId }: { nextLevelLabel: string; nextLevelId: string }) {
     const nextTheme = getLevelTheme(nextLevelId)
 
     return (
         <p className="mt-6 border-t border-white/10 pt-5 text-xs leading-relaxed text-white/55">
-            Быстрее разблокируй следующий уровень{' '}
+            Медианный уровень{' '}
             <span className="font-semibold font-durik" style={{ color: nextTheme.labelColor }}>
                 {nextLevelLabel}
             </span>{' '}
-            и узнай, какие сюрпризы ждут тебя дальше.
+            уже близко
         </p>
     )
 }
@@ -559,6 +1045,8 @@ export function LoyaltyLevelPopout({
     status,
     onClose,
     onOpened,
+    onLoyaltyRefresh,
+    onNeedContactInfo,
     celebrate = false,
     layoutMorph = true,
 }: {
@@ -567,6 +1055,8 @@ export function LoyaltyLevelPopout({
     onClose: () => void
     /** Popout полностью открыт — карточку уровня можно считать «просмотренной». */
     onOpened?: (levelId: string) => void
+    onLoyaltyRefresh?: () => void | Promise<void>
+    onNeedContactInfo?: () => void
     /** Первое «открытие» discoverable-карточки — confetti в цвете уровня. */
     celebrate?: boolean
     /** Shared layout morph из карточки (false = мгновенное закрытие без обратного morph). */
@@ -575,14 +1065,24 @@ export function LoyaltyLevelPopout({
     const router = useRouter()
     const theme = getLevelTheme(levelId)
     const item = getLadderItem(levelId)
-    const isExplorer = levelId === 'explorer'
+    const richPopout = hasRichLevelPopout(levelId)
+    const giftLevelId = resolveGiftLevelId(levelId)
+    const levelGift = giftLevelId ? status.gifts?.[giftLevelId] : undefined
     const levelDiscount =
         status.discount?.levelDiscountPercent ?? EXPLORER_LEVEL_DISCOUNT_PERCENT
     const hasExp = status.expPoints > 0
 
     const [mounted, setMounted] = useState(false)
     const [showConfetti, setShowConfetti] = useState(celebrate)
+    const [giftClaim, setGiftClaim] = useState<LoyaltyGiftClaimResponse | null>(null)
+    const [showGiftTerminal, setShowGiftTerminal] = useState(false)
+    const [giftSkipIntro, setGiftSkipIntro] = useState(false)
+    const [giftClaimBusy, setGiftClaimBusy] = useState(false)
+    const [giftConfirmBusy, setGiftConfirmBusy] = useState(false)
+    const [giftError, setGiftError] = useState<string | null>(null)
+    const [giftConfirmError, setGiftConfirmError] = useState<string | null>(null)
     const openedReportedRef = useRef(false)
+    const giftBootstrapRef = useRef(false)
 
     useEffect(() => {
         setMounted(true)
@@ -590,8 +1090,85 @@ export function LoyaltyLevelPopout({
 
     useEffect(() => {
         openedReportedRef.current = false
+        giftBootstrapRef.current = false
         setShowConfetti(celebrate)
+        setGiftClaim(null)
+        setShowGiftTerminal(false)
+        setGiftSkipIntro(false)
+        setGiftClaimBusy(false)
+        setGiftConfirmBusy(false)
+        setGiftError(null)
+        setGiftConfirmError(null)
     }, [levelId, celebrate])
+
+    const resolveGiftApiError = useCallback((e: unknown): string => {
+        if (isAxiosError(e)) {
+            const msg = e.response?.data?.message ?? e.response?.data?.error
+            if (typeof msg === 'string' && msg.trim()) return msg
+        }
+        if (e instanceof Error && e.message) return e.message
+        return 'Не удалось выполнить операцию'
+    }, [])
+
+    const isContactInfoError = useCallback((message: string) => {
+        const lower = message.toLowerCase()
+        return lower.includes('имя') || lower.includes('телефон') || lower.includes('профил')
+    }, [])
+
+    const loadGiftClaim = useCallback(
+        async (targetLevelId: LoyaltyGiftLevelId, options?: { showTerminal?: boolean; skipIntro?: boolean }) => {
+            setGiftClaimBusy(true)
+            setGiftError(null)
+            try {
+                const claim = await UserApi.claimLoyaltyGift(targetLevelId)
+                setGiftClaim(claim)
+                if (options?.showTerminal !== false) {
+                    setShowGiftTerminal(true)
+                }
+                await onLoyaltyRefresh?.()
+                return claim
+            } catch (e) {
+                const msg = resolveGiftApiError(e)
+                setGiftError(msg)
+                if (isContactInfoError(msg)) onNeedContactInfo?.()
+                return null
+            } finally {
+                setGiftClaimBusy(false)
+            }
+        },
+        [isContactInfoError, onLoyaltyRefresh, onNeedContactInfo, resolveGiftApiError],
+    )
+
+    useEffect(() => {
+        if (!giftLevelId || !levelGift || giftBootstrapRef.current) return
+        if (levelGift.status !== 'requested' && levelGift.status !== 'issued') return
+
+        giftBootstrapRef.current = true
+        setGiftSkipIntro(true)
+        void loadGiftClaim(giftLevelId, { showTerminal: true })
+    }, [giftLevelId, levelGift, loadGiftClaim])
+
+    const handleClaimGift = useCallback(() => {
+        if (!giftLevelId) return
+        giftBootstrapRef.current = true
+        setGiftSkipIntro(false)
+        void loadGiftClaim(giftLevelId, { showTerminal: true })
+    }, [giftLevelId, loadGiftClaim])
+
+    const handleConfirmGift = useCallback(async () => {
+        if (!giftLevelId || !giftClaim) return
+        setGiftConfirmBusy(true)
+        setGiftConfirmError(null)
+        try {
+            const confirmed = await UserApi.confirmLoyaltyGiftReceived(giftLevelId)
+            setGiftClaim(confirmed)
+            await onLoyaltyRefresh?.()
+        } catch (e) {
+            setGiftConfirmError(resolveGiftApiError(e))
+        } finally {
+            setGiftConfirmBusy(false)
+        }
+    }, [giftClaim, giftLevelId, onLoyaltyRefresh, resolveGiftApiError])
 
     useEffect(() => {
         document.body.style.overflow = 'hidden'
@@ -622,49 +1199,13 @@ export function LoyaltyLevelPopout({
 
     const nextLevel = status.nextLevel
 
-    const body = isExplorer ? (
-        <div className="space-y-3 text-sm leading-relaxed text-white/80">
-            {hasExp ? (
-                <>
-                    <p>Поздравляем! Ты только что открыл свой первый бонус.</p>
-                    <p>
-                        <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
-                            {levelDiscount}%
-                        </span>{' '}
-                        скидки теперь всегда с тобой.
-                    </p>
-                    <p>
-                        Но это лишь первый шаг. Чем выше уровень — тем крупнее подарки, вкуснее скидки и круче
-                        сюрпризы.
-                    </p>
-                    <p>Мы за тобой наблюдаем и готовим награды. Не останавливайся.</p>
-                </>
-            ) : (
-                <>
-                    <p>
-                        Ты сделал первый шаг — авторизовался и получил свой первый уровень. Мы ценим даже простое
-                        любопытство.
-                    </p>
-                    <p>
-                        Раз ты уже здесь — значит, ты не просто зевака. Поздравляем! Разблокируй свою первую
-                        награду! Сделай свою первую покупку и получи{' '}
-                        <span className="font-bold tabular-nums" style={{ color: theme.labelColor }}>
-                            5%
-                        </span>{' '}
-                        скидку навсегда.
-                    </p>
-                    <div className="space-y-2 text-white/55 text-xs leading-relaxed">
-                        <p>
-                            Покупали в офлайн-магазине? Назовите продавцу телефон или Telegram — администратор
-                            привяжет заказ к вашему аккаунту.
-                        </p>
-                        <p>Как только exp станет больше 0, скидка включится автоматически.</p>
-                    </div>
-                </>
-            )}
-        </div>
-    ) : (
-        <p className="text-white/70 text-sm leading-relaxed">{theme.perk}</p>
+    const body = (
+        <LoyaltyLevelPopoutBody
+            levelId={levelId}
+            theme={theme}
+            levelDiscount={levelDiscount}
+            hasExp={hasExp}
+        />
     )
 
     if (!mounted || typeof document === 'undefined' || !document.body) {
@@ -733,7 +1274,49 @@ export function LoyaltyLevelPopout({
                             {body}
 
                             <div className="mt-6 flex flex-col gap-2">
-                                {isExplorer && (
+                                {giftLevelId && levelGift && (
+                                    <>
+                                        {showGiftTerminal && giftClaim ? (
+                                            <LoyaltyGiftTerminal
+                                                claim={giftClaim}
+                                                skipIntro={giftSkipIntro || giftClaim.status === 'issued'}
+                                                interactive={giftClaim.status !== 'issued'}
+                                                onConfirm={() => void handleConfirmGift()}
+                                                confirmBusy={giftConfirmBusy}
+                                                confirmError={giftConfirmError}
+                                                onDeclineCatch={() => setGiftConfirmError(null)}
+                                            />
+                                        ) : levelGift.status === 'issued' ? (
+                                            <p className="rounded-xl border border-[#439f76]/35 bg-[#439f76]/8 px-4 py-3 text-center text-sm text-[#5cb88a]">
+                                                Подарок получен
+                                                {fmtGiftIssuedAt(levelGift.issuedAt)
+                                                    ? ` · ${fmtGiftIssuedAt(levelGift.issuedAt)}`
+                                                    : ''}
+                                            </p>
+                                        ) : levelGift.status === 'available' ? (
+                                            <>
+                                                {giftError && (
+                                                    <p className="text-center text-xs text-red-300/90">{giftError}</p>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    disabled={giftClaimBusy}
+                                                    onClick={handleClaimGift}
+                                                    className="w-full rounded-xl border border-[#12c998]/45 bg-transparent px-4 py-3 text-sm font-semibold text-[#12c998] transition hover:border-[#12c998]/70 hover:bg-[#12c998]/10 disabled:opacity-50"
+                                                >
+                                                    {giftClaimBusy ? 'Запрос…' : 'Получить подарок'}
+                                                </button>
+                                            </>
+                                        ) : levelGift.status === 'requested' ? (
+                                            giftClaimBusy ? (
+                                                <p className="text-center text-xs text-white/45 py-2">Загрузка экрана подарка…</p>
+                                            ) : giftError ? (
+                                                <p className="text-center text-xs text-red-300/90">{giftError}</p>
+                                            ) : null
+                                        ) : null}
+                                    </>
+                                )}
+                                {richPopout && (
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -754,7 +1337,7 @@ export function LoyaltyLevelPopout({
                                 </button>
                             </div>
 
-                            {isExplorer && nextLevel && (
+                            {richPopout && nextLevel && (
                                 <NextLevelUnlockTeaser
                                     nextLevelLabel={nextLevel.label}
                                     nextLevelId={nextLevel.id}
@@ -803,7 +1386,7 @@ export function LoyaltyLevelsSection({
             : `w-full mt-4 pt-4 border-t border-white/10 ${className}`
         : `bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-5 shadow-xl ${className}`
 
-    if (loading) {
+    if (loading && !status) {
         return (
             <div className={wrapClass}>
                 <div className="h-4 w-20 mx-auto bg-white/10 rounded animate-pulse mb-4" />
@@ -848,7 +1431,7 @@ function LoyaltyContent({
     hideLevelTitle,
     hideLevels,
 }: Pick<Props, 'status' | 'loading' | 'error' | 'onRetry' | 'hideLevelTitle' | 'hideLevels'>) {
-    if (loading) {
+    if (loading && !status) {
         return <p className="text-white/45 text-xs text-center py-2">загрузка уровня…</p>
     }
 
