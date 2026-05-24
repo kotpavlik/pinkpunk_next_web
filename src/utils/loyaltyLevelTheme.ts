@@ -72,6 +72,32 @@ function normalizeLevelId(id: string): LoyaltyLevelId | string {
     return id.trim().toLowerCase().replace(/\s+/g, '_') as LoyaltyLevelId
 }
 
+export function isSameLevelId(a: string, b: string | null | undefined): boolean {
+    if (!b) return false
+    return normalizeLevelId(a) === normalizeLevelId(b)
+}
+
+/** Связка shared-layout между карточкой в сетке и popout (Framer Motion). */
+export const LOYALTY_LEVEL_LAYOUT_GROUP_ID = 'loyalty-level-cards'
+
+export function loyaltyLevelLayoutId(levelId: string): string {
+    return `loyalty-level-card-${normalizeLevelId(levelId)}`
+}
+
+/** CSS-filter для Lottie-confetti в палитре уровня. */
+export function resolveLevelConfettiFilter(levelId: string): string {
+    const id = normalizeLevelId(levelId)
+    const hueByLevel: Record<string, number> = {
+        explorer: 8,
+        regular: 0,
+        vibe_keeper: 42,
+        insider: 208,
+        legend: 328,
+    }
+    const hue = hueByLevel[id] ?? hueByLevel.explorer
+    return `saturate(1.85) hue-rotate(${hue}deg) brightness(1.08) contrast(1.05)`
+}
+
 export function getLadderItem(levelId: string) {
     const id = normalizeLevelId(levelId)
     return LOYALTY_LADDER.find(l => l.id === id) ?? LOYALTY_LADDER[0]
@@ -148,6 +174,125 @@ export function resolveLadderState(itemId: string, currentLevelId: string): Ladd
 }
 
 const LEVEL_UP_SEEN_KEY = 'pp_loyalty_level_id'
+const OPENED_LEVEL_CARDS_KEY = 'pp_loyalty_opened_cards'
+
+/** levelId → индекс текущего уровня пользователя в момент открытия popout. */
+type OpenedLevelCardsStore = Record<string, number>
+
+function resolveLevelIndex(levelId: string): number {
+    return LOYALTY_LADDER.findIndex(l => l.id === normalizeLevelId(levelId))
+}
+
+function readOpenedLevelCardsStore(): OpenedLevelCardsStore {
+    if (typeof window === 'undefined') return {}
+    try {
+        const raw = localStorage.getItem(OPENED_LEVEL_CARDS_KEY)
+        if (!raw) return {}
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+            const migrated: OpenedLevelCardsStore = {}
+            for (const value of parsed) {
+                const id = normalizeLevelId(String(value))
+                const idx = resolveLevelIndex(id)
+                if (idx >= 0) migrated[id] = idx
+            }
+            return migrated
+        }
+        if (parsed && typeof parsed === 'object') {
+            const store: OpenedLevelCardsStore = {}
+            for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+                const id = normalizeLevelId(key)
+                const idx = resolveLevelIndex(id)
+                const openedWhenLevelIdx =
+                    typeof value === 'number' && Number.isFinite(value) ? value : idx
+                if (idx >= 0) store[id] = openedWhenLevelIdx
+            }
+            return store
+        }
+        return {}
+    } catch {
+        return {}
+    }
+}
+
+function writeOpenedLevelCardsStore(store: OpenedLevelCardsStore): void {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(OPENED_LEVEL_CARDS_KEY, JSON.stringify(store))
+}
+
+export function readOpenedLevelCards(): Set<string> {
+    return new Set(Object.keys(readOpenedLevelCardsStore()))
+}
+
+/** Сбрасывает «открытые» карточки уровней, которые пользователь потерял после отката. */
+export function syncOpenedLevelCards(currentLevelId: string): Set<string> {
+    const currentIdx = resolveLevelIndex(currentLevelId)
+    const store = readOpenedLevelCardsStore()
+    if (currentIdx < 0) return new Set(Object.keys(store))
+
+    const next: OpenedLevelCardsStore = {}
+    for (const [levelId, openedWhenLevelIdx] of Object.entries(store)) {
+        if (currentIdx >= openedWhenLevelIdx) {
+            next[levelId] = openedWhenLevelIdx
+        }
+    }
+
+    if (JSON.stringify(next) !== JSON.stringify(store)) {
+        writeOpenedLevelCardsStore(next)
+    }
+
+    return new Set(Object.keys(next))
+}
+
+export function storeOpenedLevelCard(levelId: string, currentLevelId: string): void {
+    if (typeof window === 'undefined') return
+    const id = normalizeLevelId(levelId)
+    const currentIdx = resolveLevelIndex(currentLevelId)
+    if (currentIdx < 0) return
+
+    const store = readOpenedLevelCardsStore()
+    const levelIdx = resolveLevelIndex(id)
+    if (levelIdx < 0) return
+
+    if (store[id] != null && store[id] >= levelIdx) return
+
+    store[id] = currentIdx
+    writeOpenedLevelCardsStore(store)
+}
+
+function isLevelCardOpened(levelId: string, openedCards: Set<string>): boolean {
+    return openedCards.has(normalizeLevelId(levelId))
+}
+
+/** Popout открыт уже на этом уровне (не превью следующего с более низкой ступени). */
+function isLevelCardFullyOpened(levelId: string): boolean {
+    const store = readOpenedLevelCardsStore()
+    const id = normalizeLevelId(levelId)
+    const openedWhen = store[id]
+    if (openedWhen == null) return false
+    const levelIdx = resolveLevelIndex(id)
+    if (levelIdx < 0) return false
+    return openedWhen >= levelIdx
+}
+
+/** Карточка уровня, которую пользователь ещё ни разу не открывал (popout), но уже может. */
+export function resolveDiscoverableLevelId(
+    status: { expPoints: number; level: { id: string }; nextLevel: { id: string; minPoints: number } | null; pointsToNextLevel: number | null },
+    openedCards: Set<string>,
+): string | null {
+    const currentId = normalizeLevelId(status.level.id)
+    if (!isLevelCardFullyOpened(currentId)) return currentId
+
+    if (!status.nextLevel) return null
+    const nextId = normalizeLevelId(status.nextLevel.id)
+    if (isLevelCardOpened(nextId, openedCards)) return null
+
+    const hasEnoughPts =
+        status.expPoints >= status.nextLevel.minPoints ||
+        status.pointsToNextLevel === 0
+
+    return hasEnoughPts ? nextId : null
+}
 
 export function readStoredLoyaltyLevelId(): string | null {
     if (typeof window === 'undefined') return null

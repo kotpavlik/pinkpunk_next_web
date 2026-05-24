@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
@@ -25,11 +25,15 @@ import LoyaltyStatusBlock, {
     LoyaltyUserDiscountBadge,
 } from '@/components/ui/shared/LoyaltyStatusBlock'
 import LoyaltyLevelUpToast from '@/components/ui/shared/LoyaltyLevelUpToast'
-import { LoyaltyLevelUpCardGlow } from '@/components/ui/shared/LoyaltyLevelUpCardGlow'
 import {
     detectLevelUp,
+    isSameLevelId,
+    readOpenedLevelCards,
     readStoredLoyaltyLevelId,
+    resolveDiscoverableLevelId,
     storeLoyaltyLevelId,
+    storeOpenedLevelCard,
+    syncOpenedLevelCards,
 } from '@/utils/loyaltyLevelTheme'
 
 export default function UserProfile() {
@@ -51,12 +55,41 @@ export default function UserProfile() {
     const [loyaltyLoading, setLoyaltyLoading] = useState(false)
     const [loyaltyError, setLoyaltyError] = useState<string | null>(null)
     const [levelUpToast, setLevelUpToast] = useState<{ levelId: string; apiLabel: string } | null>(null)
-    const [levelUpCardGlow, setLevelUpCardGlow] = useState<{ levelId: string; key: number } | null>(null)
     const [loyaltyLevelPopout, setLoyaltyLevelPopout] = useState<string | null>(null)
+    const [layoutMorphLevelId, setLayoutMorphLevelId] = useState<string | null>(null)
+    const [celebrateLevelPopout, setCelebrateLevelPopout] = useState(false)
+    const [openedLevelCards, setOpenedLevelCards] = useState<Set<string>>(() => new Set())
 
-    const handleLevelUpCelebrate = useCallback((levelId: string) => {
-        setLevelUpCardGlow({ levelId, key: Date.now() })
+    useEffect(() => {
+        setOpenedLevelCards(readOpenedLevelCards())
     }, [])
+
+    const discoverableLevelId = useMemo(
+        () => (loyalty ? resolveDiscoverableLevelId(loyalty, openedLevelCards) : null),
+        [loyalty, openedLevelCards],
+    )
+
+    const handleLevelClick = useCallback((levelId: string) => {
+        setCelebrateLevelPopout(
+            discoverableLevelId != null && isSameLevelId(levelId, discoverableLevelId),
+        )
+        setLayoutMorphLevelId(levelId)
+        setLoyaltyLevelPopout(levelId)
+    }, [discoverableLevelId])
+
+    const handleLevelPopoutClose = useCallback(() => {
+        setLayoutMorphLevelId(null)
+        setCelebrateLevelPopout(false)
+        requestAnimationFrame(() => {
+            setLoyaltyLevelPopout(null)
+        })
+    }, [])
+
+    const handleLevelPopoutOpened = useCallback((levelId: string) => {
+        if (!loyalty) return
+        storeOpenedLevelCard(levelId, loyalty.level.id)
+        setOpenedLevelCards(readOpenedLevelCards())
+    }, [loyalty])
 
     const loadLoyalty = useCallback(async () => {
         if (!user._id || !tokenManager.isAuthenticated()) return
@@ -71,6 +104,7 @@ export default function UserProfile() {
             }
             storeLoyaltyLevelId(data.level.id)
             setLoyalty(data)
+            setOpenedLevelCards(syncOpenedLevelCards(data.level.id))
         } catch {
             setLoyaltyError('Не удалось загрузить программу лояльности')
         } finally {
@@ -265,10 +299,16 @@ export default function UserProfile() {
         !loyaltyLoading &&
         loyalty != null &&
         resolveEffectiveDiscountPercent(loyalty) === 0
+    const showNextLevelProgressHint =
+        !loyaltyLoading &&
+        loyalty != null &&
+        loyalty.nextLevel != null &&
+        loyalty.expPoints > 0
+    const showLoyaltyProgressHint = showZeroDiscountHint || showNextLevelProgressHint
     const highlightExplorerCard =
         showZeroDiscountHint && loyalty != null && loyalty.expPoints === 0
     const highlightNextLevelId =
-        showZeroDiscountHint && loyalty != null && loyalty.expPoints > 0
+        showNextLevelProgressHint && loyalty != null
             ? loyalty.nextLevel?.id ?? null
             : null
 
@@ -286,7 +326,6 @@ export default function UserProfile() {
                     levelId={levelUpToast.levelId}
                     apiLabel={levelUpToast.apiLabel}
                     onDismiss={() => setLevelUpToast(null)}
-                    onCelebrate={handleLevelUpCelebrate}
                 />
             )}
 
@@ -343,9 +382,9 @@ export default function UserProfile() {
                                         onExplorerHintClick={() => {
                                             if (!loyalty) return
                                             if (loyalty.expPoints > 0 && loyalty.nextLevel) {
-                                                setLoyaltyLevelPopout(loyalty.nextLevel.id)
+                                                handleLevelClick(loyalty.nextLevel.id)
                                             } else {
-                                                setLoyaltyLevelPopout('explorer')
+                                                handleLevelClick('explorer')
                                             }
                                         }}
                                     >
@@ -375,19 +414,27 @@ export default function UserProfile() {
 
                                     <LoyaltyLevelsSection
                                         embedded
-                                        embeddedCompactTop={showZeroDiscountHint}
+                                        embeddedCompactTop={showLoyaltyProgressHint}
                                         status={loyalty}
                                         loading={loyaltyLoading}
-                                        onLevelClick={setLoyaltyLevelPopout}
+                                        onLevelClick={handleLevelClick}
                                         highlightExplorerCard={highlightExplorerCard}
                                         highlightLevelId={highlightNextLevelId}
+                                        discoverableLevelId={discoverableLevelId}
+                                        activePopoutLevelId={layoutMorphLevelId}
                                     />
 
                                     {loyaltyLevelPopout && loyalty && (
                                         <LoyaltyLevelPopout
                                             levelId={loyaltyLevelPopout}
                                             status={loyalty}
-                                            onClose={() => setLoyaltyLevelPopout(null)}
+                                            celebrate={celebrateLevelPopout}
+                                            layoutMorph={
+                                                layoutMorphLevelId != null &&
+                                                isSameLevelId(layoutMorphLevelId, loyaltyLevelPopout)
+                                            }
+                                            onClose={handleLevelPopoutClose}
+                                            onOpened={handleLevelPopoutOpened}
                                         />
                                     )}
 
@@ -401,13 +448,6 @@ export default function UserProfile() {
                                     />
                                 </div>
                             </div>
-                            {levelUpCardGlow && (
-                                <LoyaltyLevelUpCardGlow
-                                    key={levelUpCardGlow.key}
-                                    levelId={levelUpCardGlow.levelId}
-                                    onComplete={() => setLevelUpCardGlow(null)}
-                                />
-                            )}
                         </div>
 
                         <div className="flex flex-col gap-3 md:gap-4 lg:col-span-2">

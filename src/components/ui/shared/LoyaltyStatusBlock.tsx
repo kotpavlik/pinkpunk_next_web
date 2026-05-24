@@ -9,6 +9,7 @@ import {
     type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { LayoutGroup, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
     formatExpPoints,
@@ -24,15 +25,20 @@ import {
     StarIcon,
     TrophyIcon,
     LockClosedIcon,
+    LockOpenIcon,
 } from '@heroicons/react/24/outline'
 import {
     EXPLORER_LEVEL_DISCOUNT_PERCENT,
     getLevelTheme,
     getLadderItem,
+    isSameLevelId,
     LOYALTY_LADDER,
+    LOYALTY_LEVEL_LAYOUT_GROUP_ID,
+    loyaltyLevelLayoutId,
     resolveLadderState,
     type LadderItemState,
 } from '@/utils/loyaltyLevelTheme'
+import LoyaltyLevelConfetti from '@/components/ui/shared/LoyaltyLevelConfetti'
 
 type Props = {
     status: LoyaltyStatus | null
@@ -200,23 +206,38 @@ function levelCardColStartClass(index: number, total: number): string {
     return ''
 }
 
+const LOYALTY_LAYOUT_OPEN_SPRING = {
+    type: 'spring' as const,
+    damping: 26,
+    stiffness: 118,
+    mass: 1.18,
+}
+
+const LOYALTY_LAYOUT_INSTANT = { duration: 0 as const }
+
 function LevelLadderCard({
     id,
     apiLabel,
     state,
     onClick,
     highlighted = false,
+    discoverable = false,
+    activePopoutLevelId = null,
 }: {
     id: string
     apiLabel: string
     state: LadderItemState
     onClick?: (levelId: string) => void
     highlighted?: boolean
+    discoverable?: boolean
+    activePopoutLevelId?: string | null
 }) {
     const item = getLadderItem(id)
     const theme = getLevelTheme(id)
     const locked = state === 'locked'
     const passed = state === 'passed'
+    const effectivelyLocked = locked && !discoverable
+    const isFlying = isSameLevelId(id, activePopoutLevelId)
     const [lockedDenied, setLockedDenied] = useState(false)
 
     const expLabel =
@@ -226,7 +247,7 @@ function LevelLadderCard({
 
     useEffect(() => {
         if (!lockedDenied) return
-        const t = window.setTimeout(() => setLockedDenied(false), 480)
+        const t = window.setTimeout(() => setLockedDenied(false), 680)
         return () => window.clearTimeout(t)
     }, [lockedDenied])
 
@@ -235,12 +256,12 @@ function LevelLadderCard({
     }, [])
 
     const handleActivate = useCallback(() => {
-        if (locked) {
+        if (effectivelyLocked) {
             triggerLockedFeedback()
             return
         }
         onClick?.(id)
-    }, [locked, id, onClick, triggerLockedFeedback])
+    }, [effectivelyLocked, id, onClick, triggerLockedFeedback])
 
     const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -249,27 +270,53 @@ function LevelLadderCard({
         }
     }
 
-    const showHighlight = highlighted || lockedDenied
+    const showHighlight = highlighted && !effectivelyLocked
+    const showActiveGlow = state === 'current' || discoverable || showHighlight
 
-    return (
-        <div
-            role="button"
-            tabIndex={0}
-            onClick={handleActivate}
-            onKeyDown={handleKeyDown}
-            aria-label={locked ? `${apiLabel}, уровень заблокирован` : apiLabel}
-            className={`group relative flex aspect-square w-full cursor-pointer flex-col rounded-xl border border-white/10 bg-white/[0.04] p-2.5 sm:p-3 text-center transition-all duration-200 hover:!opacity-100 hover:border-white/25 [&_*]:cursor-pointer ${locked && !lockedDenied ? 'opacity-40' : locked && lockedDenied ? 'opacity-65' : passed ? 'opacity-70' : 'opacity-100'
-                } ${!locked ? 'active:scale-[0.98]' : ''} ${state === 'current' ? 'ring-1 ring-inset' : ''} ${showHighlight ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''
-                } ${highlighted && !lockedDenied ? 'animate-pulse' : ''}`}
-            style={{
-                ...(state === 'current' || showHighlight
-                    ? { borderColor: theme.labelColor, boxShadow: theme.glow }
-                    : undefined),
-                ...(showHighlight ? { ['--tw-ring-color' as string]: theme.labelColor } : undefined),
-            }}
-            title={locked ? `${apiLabel} — уровень ещё не открыт` : apiLabel}
-        >
-            {locked && (
+    const cardClassName = `group relative flex aspect-square w-full cursor-pointer flex-col rounded-xl border border-white/10 bg-white/[0.04] p-2.5 sm:p-3 text-center hover:!opacity-100 hover:border-white/25 [&_*]:cursor-pointer ${discoverable && !isFlying
+        ? 'animate-loyalty-card-shake transition-[border-color,box-shadow,opacity]'
+        : effectivelyLocked && lockedDenied
+            ? 'animate-loyalty-locked-deny-glow'
+            : 'transition-[border-color,box-shadow,opacity]'
+        } ${effectivelyLocked && !lockedDenied
+            ? 'opacity-40'
+            : effectivelyLocked && lockedDenied
+                ? 'opacity-55'
+                : passed && !discoverable
+                    ? 'opacity-70'
+                    : 'opacity-100'
+        } ${!effectivelyLocked && !discoverable ? 'active:scale-[0.98]' : ''} ${state === 'current' || discoverable ? 'ring-1 ring-inset' : ''} ${showHighlight ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''
+        }`
+
+    const cardStyle = {
+        ...(effectivelyLocked
+            ? {
+                ['--loyalty-card-glow' as string]: theme.glow,
+                ['--loyalty-card-color' as string]: theme.labelColor,
+            }
+            : undefined),
+        ...(showActiveGlow && !lockedDenied
+            ? { borderColor: theme.labelColor, boxShadow: theme.glow }
+            : undefined),
+        ...(showHighlight || discoverable
+            ? { ['--tw-ring-color' as string]: theme.labelColor }
+            : undefined),
+    }
+
+    const cardBody = (
+        <>
+            {discoverable && (
+                <LockOpenIcon
+                    className="absolute top-2 right-2 h-4 w-4 origin-center"
+                    style={{
+                        color: theme.labelColor,
+                        filter: `drop-shadow(0 0 5px ${theme.labelColor})`,
+                    }}
+                    strokeWidth={2}
+                    aria-hidden
+                />
+            )}
+            {effectivelyLocked && (
                 <LockClosedIcon
                     className={`absolute top-2 right-2 h-3.5 w-3.5 text-white/35 origin-center ${lockedDenied ? 'animate-loyalty-lock-shake text-white/55' : ''
                         }`}
@@ -288,11 +335,46 @@ function LevelLadderCard({
                 <p className="text-[8px] text-white/40 leading-tight">{expLabel}</p>
             </div>
             <p className="shrink-0 text-[8px] leading-tight text-white/45 mt-1">
-                {passed && '✓ пройден'}
-                {state === 'current' && '★ текущ.'}
-                {locked && '🔒'}
+                {passed && !discoverable && '✓ пройден'}
+                {state === 'current' && !discoverable && '★ текущ.'}
+                {discoverable && '✨ открой'}
+                {effectivelyLocked && '🔒'}
             </p>
-        </div>
+        </>
+    )
+
+    return (
+        <motion.div
+            role="button"
+            tabIndex={isFlying ? -1 : 0}
+            onClick={handleActivate}
+            onKeyDown={handleKeyDown}
+            aria-label={
+                discoverable
+                    ? `${apiLabel}, новый уровень — открой карточку`
+                    : effectivelyLocked
+                        ? `${apiLabel}, уровень заблокирован`
+                        : apiLabel
+            }
+            aria-hidden={isFlying}
+            className={`${cardClassName}${isFlying ? ' pointer-events-none' : ''}`}
+            style={cardStyle}
+            title={
+                discoverable
+                    ? `${apiLabel} — открой карточку уровня`
+                    : effectivelyLocked
+                        ? `${apiLabel} — уровень ещё не открыт`
+                        : apiLabel
+            }
+            animate={{ opacity: isFlying ? 0 : 1 }}
+            transition={{
+                layout: isFlying ? LOYALTY_LAYOUT_OPEN_SPRING : LOYALTY_LAYOUT_INSTANT,
+                opacity: isFlying ? { duration: 0.14 } : LOYALTY_LAYOUT_INSTANT,
+            }}
+            {...(isFlying ? { layoutId: loyaltyLevelLayoutId(id) } : {})}
+        >
+            {cardBody}
+        </motion.div>
     )
 }
 
@@ -335,7 +417,7 @@ export function LoyaltyUserDiscountBadge({
     )
 }
 
-/** Подсказка при 0% скидки — на всю ширину под блоком аватар / имя / скидка. */
+/** Подсказка: onboarding Explorer при 0 pts или прогресс к следующему уровню. */
 export function LoyaltyExplorerDiscountHint({
     status,
     loading,
@@ -348,11 +430,15 @@ export function LoyaltyExplorerDiscountHint({
     onClick?: () => void
 }) {
     if (loading || !status) return null
-    if (resolveEffectiveDiscountPercent(status) !== 0) return null
 
     const hasPts = status.expPoints > 0
     const nextLevel = status.nextLevel
     const nextTheme = nextLevel ? getLevelTheme(nextLevel.id) : null
+    const showExplorerOnboarding =
+        resolveEffectiveDiscountPercent(status) === 0 && !hasPts
+    const showNextLevelProgress = nextLevel != null && hasPts
+
+    if (!showExplorerOnboarding && !showNextLevelProgress) return null
 
     return (
         <button
@@ -360,10 +446,10 @@ export function LoyaltyExplorerDiscountHint({
             onClick={onClick}
             className={`w-full text-right text-[11px] text-white/50 leading-snug mb-4 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25 rounded ${className}`.trim()}
         >
-            {hasPts ? (
+            {showNextLevelProgress ? (
                 <>
                     достигни следующий уровень
-                    {nextLevel && nextTheme ? (
+                    {nextTheme ? (
                         <>
                             {' '}
                             <span className="font-semibold" style={{ color: nextTheme.labelColor }}>
@@ -417,11 +503,15 @@ function LoyaltyLevelsGrid({
     onLevelClick,
     highlightExplorerCard = false,
     highlightLevelId = null,
+    discoverableLevelId = null,
+    activePopoutLevelId = null,
 }: {
     currentLevelId: string
     onLevelClick?: (levelId: string) => void
     highlightExplorerCard?: boolean
     highlightLevelId?: string | null
+    discoverableLevelId?: string | null
+    activePopoutLevelId?: string | null
 }) {
     const total = LOYALTY_LADDER.length
 
@@ -438,6 +528,8 @@ function LoyaltyLevelsGrid({
                             (highlightExplorerCard && l.id === 'explorer') ||
                             (highlightLevelId != null && l.id === highlightLevelId)
                         }
+                        discoverable={isSameLevelId(l.id, discoverableLevelId)}
+                        activePopoutLevelId={activePopoutLevelId}
                     />
                 </div>
             ))}
@@ -461,15 +553,24 @@ function NextLevelUnlockTeaser({ nextLevelLabel, nextLevelId }: { nextLevelLabel
     )
 }
 
-/** Панель уровня / скидки Explorer — выезд справа, как авторизация. */
+/** Панель уровня — shared layout morph из карточки сетки + confetti при первом открытии. */
 export function LoyaltyLevelPopout({
     levelId,
     status,
     onClose,
+    onOpened,
+    celebrate = false,
+    layoutMorph = true,
 }: {
     levelId: string
     status: LoyaltyStatus
     onClose: () => void
+    /** Popout полностью открыт — карточку уровня можно считать «просмотренной». */
+    onOpened?: (levelId: string) => void
+    /** Первое «открытие» discoverable-карточки — confetti в цвете уровня. */
+    celebrate?: boolean
+    /** Shared layout morph из карточки (false = мгновенное закрытие без обратного morph). */
+    layoutMorph?: boolean
 }) {
     const router = useRouter()
     const theme = getLevelTheme(levelId)
@@ -480,25 +581,17 @@ export function LoyaltyLevelPopout({
     const hasExp = status.expPoints > 0
 
     const [mounted, setMounted] = useState(false)
-    const [drawerEntered, setDrawerEntered] = useState(false)
-    const closingRef = useRef(false)
-    const closeTimeoutRef = useRef<number | null>(null)
+    const [showConfetti, setShowConfetti] = useState(celebrate)
+    const openedReportedRef = useRef(false)
 
     useEffect(() => {
         setMounted(true)
     }, [])
 
     useEffect(() => {
-        let rafMain = 0
-        let rafNest = 0
-        rafMain = requestAnimationFrame(() => {
-            rafNest = requestAnimationFrame(() => setDrawerEntered(true))
-        })
-        return () => {
-            cancelAnimationFrame(rafMain)
-            cancelAnimationFrame(rafNest)
-        }
-    }, [])
+        openedReportedRef.current = false
+        setShowConfetti(celebrate)
+    }, [levelId, celebrate])
 
     useEffect(() => {
         document.body.style.overflow = 'hidden'
@@ -508,34 +601,24 @@ export function LoyaltyLevelPopout({
     }, [])
 
     useEffect(() => {
-        return () => {
-            if (closeTimeoutRef.current) {
-                window.clearTimeout(closeTimeoutRef.current)
-            }
-        }
-    }, [])
+        if (openedReportedRef.current) return
+        openedReportedRef.current = true
+        onOpened?.(levelId)
+    }, [levelId, onOpened])
 
-    const requestCloseAnimated = useCallback(() => {
-        if (closingRef.current) return
-        closingRef.current = true
-        setDrawerEntered(false)
-        if (closeTimeoutRef.current) {
-            window.clearTimeout(closeTimeoutRef.current)
-        }
-        closeTimeoutRef.current = window.setTimeout(() => {
-            closeTimeoutRef.current = null
-            closingRef.current = false
-            onClose()
-        }, LOYALTY_DRAWER_TRANSITION_MS)
+    const requestClose = useCallback(() => {
+        onClose()
     }, [onClose])
+
+    const layoutTransition = layoutMorph ? LOYALTY_LAYOUT_OPEN_SPRING : LOYALTY_LAYOUT_INSTANT
 
     useEffect(() => {
         const onKey = (e: globalThis.KeyboardEvent) => {
-            if (e.key === 'Escape') requestCloseAnimated()
+            if (e.key === 'Escape') requestClose()
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [requestCloseAnimated])
+    }, [requestClose])
 
     const nextLevel = status.nextLevel
 
@@ -589,96 +672,101 @@ export function LoyaltyLevelPopout({
     }
 
     const drawer = (
-        <div className="fixed inset-0" style={{ zIndex: 10003 }}>
-            <div
-                className="absolute inset-0 bg-black/55 backdrop-blur-[2px] transition-opacity ease-out"
-                style={{
-                    transitionDuration: `${LOYALTY_DRAWER_TRANSITION_MS}ms`,
-                    opacity: drawerEntered ? 1 : 0,
-                }}
-                onClick={() => requestCloseAnimated()}
-                aria-hidden
-            />
+        <LayoutGroup id={LOYALTY_LEVEL_LAYOUT_GROUP_ID}>
+            <div className="fixed inset-0" style={{ zIndex: 10003 }}>
+                <motion.div
+                    className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+                    onClick={requestClose}
+                    aria-hidden
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.28, ease: 'easeOut' }}
+                />
 
-            <aside
-                className="absolute inset-y-0 right-0 flex w-[min(calc(100vw-1.5rem),21rem)] max-w-[88vw] flex-col overflow-hidden border-l border-white/[0.08] bg-[#0a0a0b]/[0.97] backdrop-blur-2xl transition-transform ease-out sm:w-[min(22rem,78vw)] md:w-[min(24rem,36vw)]"
-                style={{
-                    transitionDuration: `${LOYALTY_DRAWER_TRANSITION_MS}ms`,
-                    transform: drawerEntered ? 'translateX(0)' : 'translateX(100%)',
-                    paddingTop: 'env(safe-area-inset-top)',
-                    paddingBottom: 'env(safe-area-inset-bottom)',
-                    borderTopWidth: 3,
-                    borderTopColor: theme.labelColor,
-                }}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="loyalty-level-drawer-title"
-                onClick={e => e.stopPropagation()}
-            >
-
-                <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
-                    <button
-                        type="button"
-                        onClick={() => requestCloseAnimated()}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
-                        aria-label="Закрыть"
-                    >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
-                    <header className="mb-6">
-                        <h2
-                            id="loyalty-level-drawer-title"
-                            className="text-lg font-bold font-durik leading-tight"
-                            style={{ color: theme.labelColor }}
-                        >
-                            {item.label}
-                        </h2>
-                        <p className="text-[10px] text-white/45 mt-1">{theme.expRangeLabel}</p>
-                    </header>
-
-                    {body}
-
-                    <div className="mt-6 flex flex-col gap-2">
-                        {isExplorer && (
+                <motion.aside
+                    {...(layoutMorph ? { layoutId: loyaltyLevelLayoutId(levelId) } : {})}
+                    transition={{ layout: layoutTransition }}
+                    className="absolute inset-y-0 right-0 flex w-[min(calc(100vw-1.5rem),21rem)] max-w-[88vw] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0b]/[0.97] backdrop-blur-2xl sm:w-[min(22rem,78vw)] md:w-[min(24rem,36vw)]"
+                    style={{
+                        paddingTop: 'env(safe-area-inset-top)',
+                        paddingBottom: 'env(safe-area-inset-bottom)',
+                        borderTopWidth: 3,
+                        borderTopColor: theme.labelColor,
+                        boxShadow: theme.glow,
+                    }}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="loyalty-level-drawer-title"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="relative flex min-h-0 flex-1 flex-col">
+                        <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-3">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    requestCloseAnimated()
-                                    window.setTimeout(() => router.push('/catalog'), LOYALTY_DRAWER_TRANSITION_MS)
-                                }}
-                                className="w-full rounded-xl border border-[#12c998]/45 bg-transparent px-4 py-3 text-sm font-semibold text-[#12c998] transition hover:border-[#12c998]/70 hover:bg-[#12c998]/10"
+                                onClick={requestClose}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+                                aria-label="Закрыть"
                             >
-                                В каталог
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
                             </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() => requestCloseAnimated()}
-                            className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-white/25 hover:bg-white/[0.09]"
-                        >
-                            Закрыть
-                        </button>
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
+                            <header className="mb-6">
+                                <h2
+                                    id="loyalty-level-drawer-title"
+                                    className="text-lg font-bold font-durik leading-tight"
+                                    style={{ color: theme.labelColor }}
+                                >
+                                    {item.label}
+                                </h2>
+                                <p className="text-[10px] text-white/45 mt-1">{theme.expRangeLabel}</p>
+                            </header>
+
+                            {body}
+
+                            <div className="mt-6 flex flex-col gap-2">
+                                {isExplorer && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            requestClose()
+                                            window.setTimeout(() => router.push('/catalog'), LOYALTY_DRAWER_TRANSITION_MS)
+                                        }}
+                                        className="w-full rounded-xl border border-[#12c998]/45 bg-transparent px-4 py-3 text-sm font-semibold text-[#12c998] transition hover:border-[#12c998]/70 hover:bg-[#12c998]/10"
+                                    >
+                                        В каталог
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={requestClose}
+                                    className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-white/25 hover:bg-white/[0.09]"
+                                >
+                                    Закрыть
+                                </button>
+                            </div>
+
+                            {isExplorer && nextLevel && (
+                                <NextLevelUnlockTeaser
+                                    nextLevelLabel={nextLevel.label}
+                                    nextLevelId={nextLevel.id}
+                                />
+                            )}
+                        </div>
                     </div>
 
-                    {isExplorer && nextLevel && (
-                        <NextLevelUnlockTeaser
-                            nextLevelLabel={nextLevel.label}
-                            nextLevelId={nextLevel.id}
-                        />
-                    )}
-                </div>
-            </aside>
-        </div>
+                    {showConfetti && <LoyaltyLevelConfetti />}
+                </motion.aside>
+            </div>
+        </LayoutGroup>
     )
 
     return createPortal(drawer, document.body)
@@ -694,6 +782,8 @@ export function LoyaltyLevelsSection({
     onLevelClick,
     highlightExplorerCard = false,
     highlightLevelId = null,
+    discoverableLevelId = null,
+    activePopoutLevelId = null,
 }: {
     status: LoyaltyStatus | null
     loading?: boolean
@@ -704,6 +794,8 @@ export function LoyaltyLevelsSection({
     onLevelClick?: (levelId: string) => void
     highlightExplorerCard?: boolean
     highlightLevelId?: string | null
+    discoverableLevelId?: string | null
+    activePopoutLevelId?: string | null
 }) {
     const wrapClass = embedded
         ? embeddedCompactTop
@@ -734,12 +826,16 @@ export function LoyaltyLevelsSection({
             <p className="text-[10px] uppercase tracking-wider text-white/35 text-center mb-4">
                 уровни
             </p>
-            <LoyaltyLevelsGrid
-                currentLevelId={status.level.id}
-                onLevelClick={onLevelClick}
-                highlightExplorerCard={highlightExplorerCard}
-                highlightLevelId={highlightLevelId}
-            />
+            <LayoutGroup id={LOYALTY_LEVEL_LAYOUT_GROUP_ID}>
+                <LoyaltyLevelsGrid
+                    currentLevelId={status.level.id}
+                    onLevelClick={onLevelClick}
+                    highlightExplorerCard={highlightExplorerCard}
+                    highlightLevelId={highlightLevelId}
+                    discoverableLevelId={discoverableLevelId}
+                    activePopoutLevelId={activePopoutLevelId}
+                />
+            </LayoutGroup>
         </div>
     )
 }
