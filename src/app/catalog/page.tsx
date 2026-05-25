@@ -346,12 +346,12 @@ const Catalog = () => {
                                                         borderTop: '1px solid var(--mint-dark)',
                                                     }}>
                                                     <div className="p-4 md:pb-2 pb-10">
-                                                        <div className="flex items-center justify-between ">
-                                                            <h3 className="font-blauer-nue text-sm md:text-base font-semibold line-clamp-2">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <h3 className="min-w-0 flex-1 font-blauer-nue text-sm md:text-base font-semibold line-clamp-2 leading-snug">
                                                                 {product.name}
                                                             </h3>
-                                                            <p className="font-blauer-nue text-base md:text-lg font-bold text-[var(--mint-dark)]">
-                                                                {product.price.toLocaleString('ru-RU')} BYN
+                                                            <p className="shrink-0 whitespace-nowrap font-blauer-nue text-base md:text-lg font-bold text-[var(--mint-dark)] tabular-nums leading-none pt-0.5">
+                                                                {product.price.toLocaleString('ru-RU')}&nbsp;BYN
                                                             </p>
                                                         </div>
 
