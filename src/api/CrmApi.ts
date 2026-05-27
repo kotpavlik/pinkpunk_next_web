@@ -11,6 +11,7 @@ import {
     parseCrmLoyaltyApiResponse,
     parseLoyaltyApiResponse,
 } from './LoyaltyApi'
+import { type CartPricing, normalizeCartPricing } from '@/utils/cartPricing'
 
 /** Сводка + полные заказы в списке CRM (GET /admin/crm/users) */
 export type CrmUserStats = {
@@ -42,6 +43,8 @@ export type CrmCartSummary = {
     lastUpdated: string
     /** Позиции в порядке из Mongo (если бэкенд отдаёт в CRM) */
     items?: CrmCartLineItem[]
+    /** Блок pricing из Cart API (если CRM проксирует скидку клиента). */
+    pricing?: CartPricing
 }
 
 export type CrmOfflinePurchasesSummary = {
@@ -216,6 +219,17 @@ export type CrmInsufficientStockErrorBody = {
  * Карточка CRM: бэкенд обязан отдавать `profile`, а `orders` иногда опускают при `[]`.
  * Раньше требование `'orders' in body` ломало парсинг и вкладку «Заказы».
  */
+function normalizeCrmCart(raw: unknown): CrmCartSummary | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const totalItems = typeof o.totalItems === 'number' ? o.totalItems : 0
+    const totalPrice = typeof o.totalPrice === 'number' ? o.totalPrice : 0
+    const lastUpdated = typeof o.lastUpdated === 'string' ? o.lastUpdated : ''
+    const items = Array.isArray(o.items) ? (o.items as CrmCartLineItem[]) : undefined
+    const pricing = normalizeCartPricing(o.pricing) ?? undefined
+    return { totalItems, totalPrice, lastUpdated, items, pricing }
+}
+
 function normalizeCrmUserCardPayload(raw: unknown): CrmUserCardResponse | null {
     if (!raw || typeof raw !== 'object') return null
     const o = raw as Record<string, unknown>
@@ -235,7 +249,7 @@ function normalizeCrmUserCardPayload(raw: unknown): CrmUserCardResponse | null {
 
     let cart: CrmCartSummary | null = null
     if (o.cart === null) cart = null
-    else if (o.cart && typeof o.cart === 'object') cart = o.cart as CrmCartSummary
+    else if (o.cart && typeof o.cart === 'object') cart = normalizeCrmCart(o.cart)
 
     let loyalty: CrmLoyalty | null = null
     if (o.loyalty === null) loyalty = null

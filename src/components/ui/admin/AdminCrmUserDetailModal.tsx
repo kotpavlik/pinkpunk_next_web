@@ -26,6 +26,12 @@ import { formatProductName } from '@/utils/formatProductName'
 import { crmUserDisplayName } from '@/utils/crmUserDisplayName'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 import type { CrmLoyalty, LoyaltyStatus } from '@/api/LoyaltyApi'
+import { resolveEffectiveDiscountPercent } from '@/api/LoyaltyApi'
+import {
+    computeLineDiscountedSum,
+    hasCartDiscount,
+    resolveCartPricing,
+} from '@/utils/cartPricing'
 import AdminCrmLoyaltyTab from '@/components/ui/admin/AdminCrmLoyaltyTab'
 import CrmUserHeaderMeta from '@/components/ui/admin/CrmUserHeaderMeta'
 
@@ -857,6 +863,17 @@ export default function AdminCrmUserDetailModal({
 
     const cart = card?.cart
 
+    const cartPricing = useMemo(() => {
+        if (!cart) return null
+        const discountPercent = loyalty ? resolveEffectiveDiscountPercent(loyalty) : 0
+        return resolveCartPricing(cart.pricing, cart.items ?? [], discountPercent, cart.totalPrice)
+    }, [cart, loyalty])
+
+    const cartHasDiscount = hasCartDiscount(cartPricing)
+    const cartDiscountPercent = cartPricing?.discountPercent ?? 0
+    const cartLineCount = cart?.items?.length ?? 0
+    const showCartTotal = cartLineCount > 1
+
     const tabBtn = (id: TabId, label: string) => (
         <button
             type="button"
@@ -1515,6 +1532,15 @@ export default function AdminCrmUserDetailModal({
                                         </p>
                                     ) : (
                                         <div className="border-t border-[#333] pt-3">
+                                            {cartHasDiscount && cartPricing ? (
+                                                <p className="text-xs text-white/55 mb-2 tabular-nums">
+                                                    Скидка клиента:{' '}
+                                                    <span className="text-[var(--mint-bright)] font-semibold">
+                                                        {cartPricing.discountPercent}%
+                                                    </span>
+                                                    {' '}(−{fmtMoney(cartPricing.discountAmount)})
+                                                </p>
+                                            ) : null}
                                             <p className="text-white/50 text-xs font-medium uppercase tracking-wide mb-2">
                                                 Состав корзины
                                             </p>
@@ -1536,6 +1562,14 @@ export default function AdminCrmUserDetailModal({
                                                             const lineSum =
                                                                 unit != null && !Number.isNaN(unit)
                                                                     ? unit * line.quantity
+                                                                    : null
+                                                            const discountedLineSum =
+                                                                lineSum != null
+                                                                    ? computeLineDiscountedSum(lineSum, cartDiscountPercent)
+                                                                    : null
+                                                            const discountedUnit =
+                                                                discountedLineSum != null && line.quantity > 0
+                                                                    ? Math.floor(discountedLineSum / line.quantity)
                                                                     : null
                                                             const photo = line.photo?.trim()
                                                             return (
@@ -1567,14 +1601,42 @@ export default function AdminCrmUserDetailModal({
                                                                     <td className="py-2 pr-2 text-white/80">
                                                                         {line.size?.trim() || '—'}
                                                                     </td>
-                                                                    <td className="py-2 pr-2 text-right text-white/80">
-                                                                        {unit != null ? fmtMoney(unit) : '—'}
+                                                                    <td className="py-2 pr-2 text-right tabular-nums">
+                                                                        {unit != null ? (
+                                                                            cartHasDiscount && discountedUnit != null ? (
+                                                                                <div className="space-y-0.5">
+                                                                                    <p className="text-white/40 line-through">{fmtMoney(unit)}</p>
+                                                                                    <p className="text-[var(--mint-bright)] font-medium">
+                                                                                        {fmtMoney(discountedUnit)}
+                                                                                    </p>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-white/80">{fmtMoney(unit)}</span>
+                                                                            )
+                                                                        ) : (
+                                                                            '—'
+                                                                        )}
                                                                     </td>
                                                                     <td className="py-2 pr-2 text-right text-white/80">
                                                                         {line.quantity}
                                                                     </td>
-                                                                    <td className="py-2 text-right font-medium text-white/90">
-                                                                        {lineSum != null ? fmtMoney(lineSum) : '—'}
+                                                                    <td className="py-2 text-right font-medium tabular-nums">
+                                                                        {lineSum != null ? (
+                                                                            cartHasDiscount && discountedLineSum != null ? (
+                                                                                <div className="space-y-0.5">
+                                                                                    <p className="text-white/40 line-through font-normal">
+                                                                                        {fmtMoney(lineSum)}
+                                                                                    </p>
+                                                                                    <p className="text-[var(--mint-bright)]">
+                                                                                        {fmtMoney(discountedLineSum)}
+                                                                                    </p>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-white/90">{fmtMoney(lineSum)}</span>
+                                                                            )
+                                                                        ) : (
+                                                                            '—'
+                                                                        )}
                                                                     </td>
                                                                 </tr>
                                                             )
@@ -1585,12 +1647,25 @@ export default function AdminCrmUserDetailModal({
                                         </div>
                                     )}
 
-                                    <div className="border-t border-[#333] pt-4 mt-1 text-right">
-                                        <p className="text-xs text-white/45 mb-1">Итого</p>
-                                        <p className="text-lg font-semibold text-white tabular-nums">
-                                            {fmtMoney(cart.totalPrice)}
-                                        </p>
-                                    </div>
+                                    {showCartTotal && cartPricing ? (
+                                        <div className="border-t border-[#333] pt-4 mt-1 text-right space-y-1">
+                                            {cartHasDiscount ? (
+                                                <>
+                                                    <p className="text-xs text-white/45 tabular-nums">
+                                                        Без скидки:{' '}
+                                                        <span className="line-through">{fmtMoney(cartPricing.subtotal)}</span>
+                                                    </p>
+                                                    <p className="text-xs text-white/55 tabular-nums">
+                                                        Скидка {cartPricing.discountPercent}%: −{fmtMoney(cartPricing.discountAmount)}
+                                                    </p>
+                                                </>
+                                            ) : null}
+                                            <p className="text-xs text-white/45 mb-1">Итого</p>
+                                            <p className="text-lg font-semibold text-[var(--mint-bright)] tabular-nums">
+                                                {fmtMoney(cartPricing.total)}
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>
