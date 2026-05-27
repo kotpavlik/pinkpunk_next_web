@@ -862,6 +862,7 @@ export default function AdminCrmUserDetailModal({
     }, [card?.orders, listRow.stats?.orders, listRow.stats?.ordersTotal, listRow.offlinePurchasesSummary?.linesCount])
 
     const cart = card?.cart
+    const cartItemCount = cart?.totalItems ?? listRow.cart?.totalItems ?? 0
 
     const cartPricing = useMemo(() => {
         if (!cart) return null
@@ -920,7 +921,7 @@ export default function AdminCrmUserDetailModal({
                     {tabBtn('profile', 'Профиль')}
                     {tabBtn('offline', 'Покупки офлайн')}
                     {tabBtn('orders', `Заказы (${orders.length})`)}
-                    {tabBtn('cart', 'Корзина')}
+                    {tabBtn('cart', `Корзина (${cartItemCount})`)}
                     {tabBtn('loyalty', 'Прогресс')}
                     {tabBtn('referrals', 'Рефералы')}
                 </div>
