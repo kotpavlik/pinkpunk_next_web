@@ -457,7 +457,7 @@ export default function TelegramLoginModal({
                                     id="auth-drawer-title"
                                     className="text-base font-extrabold text-white sm:text-lg"
                                 >
-                                    {relinkTelegram ? 'Актуализировать Telegram' : 'Привязать Telegram'}
+                                    {relinkTelegram ? 'Обновить Telegram' : 'Привязать Telegram'}
                                 </h2>
                                 <p className="mt-3 max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
                                     {relinkTelegram
@@ -498,7 +498,7 @@ export default function TelegramLoginModal({
                                 }}
                                 className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-white/22 hover:bg-white/[0.09]"
                             >
-                                {relinkTelegram ? 'Актуализировать' : 'Привязать Telegram'}
+                                {relinkTelegram ? 'Обновить' : 'Привязать Telegram'}
                             </button>
                         </div>
                     )}

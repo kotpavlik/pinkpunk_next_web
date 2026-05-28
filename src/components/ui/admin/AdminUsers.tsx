@@ -24,6 +24,7 @@ import {
 } from '@/api/LoyaltyApi'
 import CrmLoyaltyInline, { loyaltyRowNeedsUpdate } from '@/components/ui/admin/CrmLoyaltyInline'
 import CrmUserGiftIcons from '@/components/ui/admin/CrmUserGiftIcons'
+import AdminCrmInstagramReelsGlobal from '@/components/ui/admin/AdminCrmInstagramReelsGlobal'
 import { getLevelTheme, getLoyaltyLevelBorderStyle, LOYALTY_LADDER, getLadderItem } from '@/utils/loyaltyLevelTheme'
 
 const LEVEL_FILTER_NONE = '__none__'
@@ -366,6 +367,9 @@ function CrmCopyIconBtn({ text, label }: { text: string; label: string }) {
 
 const AdminUsers = () => {
     const [users, setUsers] = useState<CrmListUser[]>([])
+    const [crmSection, setCrmSection] = useState<'clients' | 'reels'>('clients')
+    const [reelsPanelError, setReelsPanelError] = useState<string | null>(null)
+    const [reelsRefreshKey, setReelsRefreshKey] = useState(0)
     const [detailRow, setDetailRow] = useState<CrmListUser | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [onlyWithPhone, setOnlyWithPhone] = useState(false)
@@ -693,19 +697,51 @@ const AdminUsers = () => {
     return (
         <>
             <div className="relative p-4 mt-4 bg-white/5 backdrop-blur-md border border-white/10 text-white">
-                <div className="flex items-center justify-between mb-5">
-                    <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">Клиенты (CRM)</h1>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-[var(--mint-bright)] text-xl font-bold font-durik">Клиенты (CRM)</h1>
+                        <div className="inline-flex rounded border border-white/15 overflow-hidden text-xs">
+                            <button
+                                type="button"
+                                onClick={() => setCrmSection('clients')}
+                                className={`px-3 py-1.5 font-medium transition ${
+                                    crmSection === 'clients'
+                                        ? 'bg-[var(--mint-bright)]/20 text-[var(--mint-bright)]'
+                                        : 'bg-white/5 text-white/55 hover:text-white/80'
+                                }`}
+                            >
+                                Клиенты
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCrmSection('reels')}
+                                className={`px-3 py-1.5 font-medium transition ${
+                                    crmSection === 'reels'
+                                        ? 'bg-[var(--mint-bright)]/20 text-[var(--mint-bright)]'
+                                        : 'bg-white/5 text-white/55 hover:text-white/80'
+                                }`}
+                            >
+                                Рилсы Instagram
+                            </button>
+                        </div>
+                    </div>
                     <button
                         type="button"
-                        onClick={() => void loadUsers()}
-                        className="relative inline-flex items-center justify-center px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:bg-white/15 transition-all duration-200"
-                        disabled={status === 'loading'}
+                        onClick={() => {
+                            if (crmSection === 'clients') void loadUsers()
+                            else setReelsRefreshKey(k => k + 1)
+                        }}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/20 bg-white/10 text-white hover:bg-white/15 transition-colors disabled:opacity-50"
+                        disabled={crmSection === 'clients' && status === 'loading'}
+                        title="Обновить"
+                        aria-label="Обновить"
                     >
                         <svg
-                            className={`w-5 h-5 mr-2 ${status === 'loading' ? 'animate-spin' : ''}`}
+                            className={`h-4 w-4 ${crmSection === 'clients' && status === 'loading' ? 'animate-spin' : ''}`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
+                            aria-hidden
                         >
                             <path
                                 strokeLinecap="round"
@@ -714,9 +750,31 @@ const AdminUsers = () => {
                                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                             />
                         </svg>
-                        Обновить
                     </button>
                 </div>
+
+                {crmSection === 'reels' ? (
+                    <div className="space-y-2">
+                        {reelsPanelError ? (
+                            <p className="text-sm text-red-200/90 bg-red-950/40 border border-red-500/30 p-3 rounded">
+                                {reelsPanelError}
+                            </p>
+                        ) : null}
+                        <AdminCrmInstagramReelsGlobal
+                            refreshKey={reelsRefreshKey}
+                            onError={setReelsPanelError}
+                            onOpenClient={(accountId) => {
+                                const row = users.find(u => accountObjectIdFromCrmListRow(u) === accountId)
+                                if (row) {
+                                    setDetailRow(row)
+                                    return
+                                }
+                                setDetailRow({ _id: accountId, username: undefined })
+                            }}
+                        />
+                    </div>
+                ) : (
+                <>
 
                 <div className="mb-4 space-y-3">
                     <input
@@ -1244,6 +1302,8 @@ const AdminUsers = () => {
                         </div>
                     )}
                 </div>
+                </>
+                )}
             </div>
 
             {portalMounted &&

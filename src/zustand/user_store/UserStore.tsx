@@ -5,6 +5,7 @@ import { useAppStore } from '../app_store/AppStore';
 import { create } from 'zustand';
 import { HandleError } from "@/features/HandleError";
 import { UserApi, TelegramLoginWidgetData, AuthLoginSuccessResponse } from "@/api/UserApi";
+import type { UserInstagram } from "@/api/InstagramReelsApi";
 import { tokenManager } from "@/utils/TokenManager";
 import { normalizeAuthTokensFromResponse } from "@/utils/normalizeAuthTokensPayload";
 import { digitsToPlusE164, isPhoneDigitsProbablyValid, normalizePhoneDigits } from "@/utils/phoneNormalize";
@@ -54,6 +55,9 @@ export type UserType = {
     my_ref_invite_id?: number | null
     my_referers?: Array<UserType>
     walletAddress?: string
+    /** @deprecated предпочтительно user.instagram.username */
+    instagramUsername?: string
+    instagram?: UserInstagram
     lastActivity?: string
     hasStartedBot?: boolean
     token?: string // JWT токен для аутентификации
@@ -118,8 +122,10 @@ export type UserStateType = {
         personalLastName?: string;
         email?: string;
         userPhoneNumber?: string;
+        instagramUsername?: string;
         shippingAddress?: ShippingAddress;
     }) => Promise<{ success: boolean; error?: string }>
+    patchInstagramUsername: (instaUsername: string) => Promise<{ success: boolean; error?: string }>
     checkTokenForAdmin: () => Promise<void>
     authenticateTelegramLoginWidget: (telegramUser: TelegramUser) => Promise<{ success: boolean; error?: string }>
     requestPhoneAuthCode: (
@@ -622,6 +628,7 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
         personalLastName?: string;
         email?: string;
         userPhoneNumber?: string;
+        instagramUsername?: string;
         shippingAddress?: ShippingAddress;
     }) => {
         try {
@@ -663,6 +670,14 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
                     }
                 }
 
+                if (data.instagramUsername !== undefined) {
+                    const handle =
+                        responseData.user?.instagramUsername ??
+                        responseData.instagramUsername ??
+                        data.instagramUsername;
+                    updatedData.instagramUsername = handle;
+                }
+
                 if (data.shippingAddress !== undefined) {
                     // Приоритет: responseData.user.shippingAddress > responseData.shippingAddress > data.shippingAddress
                     if (responseData.user?.shippingAddress) {
@@ -676,6 +691,12 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
 
                 // Обновляем UserStore с новыми данными
                 set(state => {
+                    if (updatedData.instagramUsername !== undefined) {
+                        updatedData.instagram = {
+                            ...(state.user.instagram ?? { reels: [] }),
+                            username: updatedData.instagramUsername.replace(/^@+/, '').toLowerCase(),
+                        };
+                    }
                     state.user = { ...state.user, ...updatedData };
                     saveUserToStorage(state.user);
                 });
@@ -732,6 +753,29 @@ export const useUserStore = create<UserStateType>()(immer((set, get) => {
 
             HandleError(err);
             return { success: false, error: errorMessage };
+        }
+    },
+
+    patchInstagramUsername: async (instaUsername: string) => {
+        try {
+            const instagram = await UserApi.patchInstagram({ username: instaUsername });
+            set(state => {
+                state.user.instagram = instagram;
+                state.user.instagramUsername = instagram.username;
+                saveUserToStorage(state.user);
+            });
+            return { success: true };
+        } catch (err) {
+            const axiosError = err as AxiosError<{ message?: string; error?: string }>;
+            const errorMessage =
+                axiosError.response?.data?.message ??
+                axiosError.response?.data?.error ??
+                'Не удалось сохранить Instagram username';
+            HandleError(err);
+            return {
+                success: false,
+                error: typeof errorMessage === 'string' ? errorMessage : 'Не удалось сохранить Instagram username',
+            };
         }
     },
     };

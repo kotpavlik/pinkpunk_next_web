@@ -9,6 +9,12 @@ import {
     normalizeLoyaltyStatus,
     parseLoyaltyApiResponse,
 } from "./LoyaltyApi";
+import {
+    normalizeUserInstagram,
+    normalizeUserInstagramReel,
+    type UserInstagram,
+    type UserInstagramReel,
+} from "./InstagramReelsApi";
 
 /** Ответ авторизации Telegram / телефон (общий контракт бэкенда) */
 export type AuthLoginSuccessResponse = UserType & {
@@ -209,6 +215,7 @@ export const UserApi = {
         personalLastName?: string;
         email?: string;
         userPhoneNumber?: string;
+        instagramUsername?: string;
         shippingAddress?: {
             fullName: string;
             phone: string;
@@ -227,6 +234,7 @@ export const UserApi = {
             personalLastName?: string;
             email?: string;
             userPhoneNumber?: string;
+            instagramUsername?: string;
             shippingAddress?: {
                 fullName: string;
                 phone: string;
@@ -254,6 +262,10 @@ export const UserApi = {
 
         if (data.userPhoneNumber !== undefined) {
             requestBody.userPhoneNumber = data.userPhoneNumber;
+        }
+
+        if (data.instagramUsername !== undefined) {
+            requestBody.instagramUsername = data.instagramUsername;
         }
         
         if (data.shippingAddress) {
@@ -327,6 +339,53 @@ export const UserApi = {
             throw new Error('Неожиданный формат ответа confirm-received');
         }
         return claim;
+    },
+
+    /** GET /user/instagram — блок Instagram пользователя. */
+    async getInstagram(): Promise<UserInstagram> {
+        const { data } = await instance.get<unknown>('user/instagram');
+        return normalizeUserInstagram(data);
+    },
+
+    /** PATCH /user/instagram — обновить только ник Instagram. */
+    async patchInstagram(body: { username: string }): Promise<UserInstagram> {
+        const normalized = body.username.trim().replace(/^@+/, '').toLowerCase()
+        const { data } = await instance.patch<unknown>('user/instagram', { username: normalized })
+        const instagram = normalizeUserInstagram(data)
+        if (data && typeof data === 'object' && 'instagram' in (data as object)) {
+            return normalizeUserInstagram((data as { instagram: unknown }).instagram)
+        }
+        return instagram
+    },
+
+    /** POST /user/instagram/reels — отправить Reels (ник + ссылка). */
+    async submitInstagramReel(payload: {
+        username: string
+        url: string
+    }): Promise<{ reel?: UserInstagramReel; username?: string } & Record<string, unknown>> {
+        const { data } = await instance.post<unknown>('user/instagram/reels', {
+            username: payload.username.trim().replace(/^@+/, '').toLowerCase(),
+            url: payload.url.trim(),
+        })
+        if (!data || typeof data !== 'object') {
+            return { success: true }
+        }
+        const o = data as Record<string, unknown>
+        const reelRaw = o.reel ?? o.submission ?? o
+        const reel = normalizeUserInstagramReel(reelRaw)
+        const username =
+            typeof o.username === 'string'
+                ? o.username
+                : typeof o.instaUsername === 'string'
+                  ? o.instaUsername
+                  : typeof o.instagramUsername === 'string'
+                    ? o.instagramUsername
+                    : undefined
+        return {
+            ...(o as Record<string, unknown>),
+            reel: reel ?? undefined,
+            username,
+        }
     },
 
 }

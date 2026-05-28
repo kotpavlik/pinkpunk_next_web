@@ -33,9 +33,10 @@ import {
     resolveCartPricing,
 } from '@/utils/cartPricing'
 import AdminCrmLoyaltyTab from '@/components/ui/admin/AdminCrmLoyaltyTab'
+import AdminCrmInstagramReelsTab from '@/components/ui/admin/AdminCrmInstagramReelsTab'
 import CrmUserHeaderMeta from '@/components/ui/admin/CrmUserHeaderMeta'
 
-type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals' | 'loyalty'
+type TabId = 'profile' | 'offline' | 'orders' | 'cart' | 'referrals' | 'loyalty' | 'instagram'
 
 type CrmDblEditRowProps = {
     editKey: string
@@ -863,6 +864,7 @@ export default function AdminCrmUserDetailModal({
 
     const cart = card?.cart
     const cartItemCount = cart?.totalItems ?? listRow.cart?.totalItems ?? 0
+    const instagramReelsCount = card?.instagram?.reels?.length ?? 0
 
     const cartPricing = useMemo(() => {
         if (!cart) return null
@@ -923,6 +925,7 @@ export default function AdminCrmUserDetailModal({
                     {tabBtn('orders', `Заказы (${orders.length})`)}
                     {tabBtn('cart', `Корзина (${cartItemCount})`)}
                     {tabBtn('loyalty', 'Прогресс')}
+                    {tabBtn('instagram', `Инстаграм(${instagramReelsCount})`)}
                     {tabBtn('referrals', 'Рефералы')}
                 </div>
 
@@ -1677,6 +1680,16 @@ export default function AdminCrmUserDetailModal({
                             accountId={accountId}
                             loyalty={loyalty}
                             onLoyaltyUpdated={handleLoyaltyUpdated}
+                            onError={setCrmBannerError}
+                        />
+                    )}
+
+                    {!loading && !error && tab === 'instagram' && accountId && (
+                        <AdminCrmInstagramReelsTab
+                            accountId={accountId}
+                            instagram={card?.instagram ?? null}
+                            onRefresh={() => void loadCard()}
+                            onLoyaltyRefresh={() => void refreshLoyalty()}
                             onError={setCrmBannerError}
                         />
                     )}

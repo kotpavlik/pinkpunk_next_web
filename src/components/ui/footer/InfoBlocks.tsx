@@ -166,6 +166,11 @@ const InfoBlocks = memo(function InfoBlocks() {
                                     подарочные сертификаты
                                 </Link>
                             </p>
+                            <p className='text-sm font-cabinet-grotesk lowercase text-gray-500 mt-4'>
+                                <Link href="/loyalty_rules">
+                                    правила PTS
+                                </Link>
+                            </p>
                         </div>
                     </div>
 
@@ -318,6 +323,14 @@ const InfoBlocks = memo(function InfoBlocks() {
                             setIsModalOpen(false)
                         }}>
                             подарочные сертификаты
+                        </div>
+                    </div>
+                    <div className=' text-gray-500 mt-4'>
+                        <div onClick={() => {
+                            router.push('/loyalty_rules')
+                            setIsModalOpen(false)
+                        }}>
+                            правила PTS
                         </div>
                     </div>
                 </div>}

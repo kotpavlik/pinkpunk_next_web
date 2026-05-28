@@ -12,6 +12,17 @@ import {
     parseLoyaltyApiResponse,
 } from './LoyaltyApi'
 import { type CartPricing, normalizeCartPricing } from '@/utils/cartPricing'
+import {
+    normalizeCrmInstagramReelsListResponse,
+    normalizeUserInstagram,
+    normalizeUserInstagramReel,
+    parseInstagramReelPointsReversed,
+    type CrmInstagramReelsListResponse,
+    type CrmInstagramReelsQuery,
+    type InstagramReelPointsReversed,
+    type UserInstagram,
+    type UserInstagramReel,
+} from './InstagramReelsApi'
 
 /** Сводка + полные заказы в списке CRM (GET /admin/crm/users) */
 export type CrmUserStats = {
@@ -155,6 +166,7 @@ export type CrmUserCardResponse = {
     referralsCount: number
     cart: CrmCartSummary | null
     loyalty?: CrmLoyalty | null
+    instagram?: UserInstagram | null
 }
 
 /** PATCH /admin/crm/users/:accountId — только разрешённые поля, без owner */
@@ -257,7 +269,14 @@ function normalizeCrmUserCardPayload(raw: unknown): CrmUserCardResponse | null {
         loyalty = normalizeCrmLoyalty(o.loyalty)
     }
 
-    return { profile, orders, referralsCount, cart, loyalty }
+    let instagram: UserInstagram | null = null
+    const instagramRaw = o.instagram ?? p.instagram
+    if (instagramRaw === null) instagram = null
+    else if (instagramRaw && typeof instagramRaw === 'object') {
+        instagram = normalizeUserInstagram(instagramRaw)
+    }
+
+    return { profile, orders, referralsCount, cart, loyalty, instagram }
 }
 
 function unwrapList<T>(data: unknown): T[] {
@@ -674,5 +693,93 @@ export const CrmApi = {
             data: { deleteOrders: true, clearCart: true },
         })
         return data
+    },
+
+    /** GET /admin/crm/instagram/reels — глобальный список Reels. */
+    async getInstagramReels(query: CrmInstagramReelsQuery = {}): Promise<CrmInstagramReelsListResponse> {
+        const params: Record<string, string | number | boolean> = {}
+        if (query.moderationStatus) params.moderationStatus = query.moderationStatus
+        if (query.viewsStatus) params.viewsStatus = query.viewsStatus
+        if (query.dueOnly != null) params.dueOnly = query.dueOnly
+        if (query.page != null) params.page = query.page
+        if (query.limit != null) params.limit = query.limit
+        if (query.accountId) params.accountId = query.accountId
+        const { data } = await instance.get<unknown>(crmPath('/admin/crm/instagram/reels'), { params })
+        return normalizeCrmInstagramReelsListResponse(data)
+    },
+
+    async approveInstagramReel(accountId: string, reelId: string): Promise<UserInstagramReel> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.post<unknown>(
+            crmPath(
+                `/admin/crm/users/${encodeURIComponent(id)}/instagram/reels/${encodeURIComponent(reelId)}/approve`,
+            ),
+            {},
+        )
+        const reel = normalizeUserInstagramReel(
+            data && typeof data === 'object' && 'reel' in (data as object)
+                ? (data as { reel: unknown }).reel
+                : data,
+        )
+        if (!reel) throw new Error('Неожиданный формат ответа approve')
+        return reel
+    },
+
+    async rejectInstagramReel(
+        accountId: string,
+        reelId: string,
+        reason: string,
+    ): Promise<{ reel: UserInstagramReel; pointsReversed?: InstagramReelPointsReversed }> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.post<unknown>(
+            crmPath(
+                `/admin/crm/users/${encodeURIComponent(id)}/instagram/reels/${encodeURIComponent(reelId)}/reject`,
+            ),
+            { reason: reason.trim() },
+        )
+        const reel = normalizeUserInstagramReel(
+            data && typeof data === 'object' && 'reel' in (data as object)
+                ? (data as { reel: unknown }).reel
+                : data,
+        )
+        if (!reel) throw new Error('Неожиданный формат ответа reject')
+        return { reel, pointsReversed: parseInstagramReelPointsReversed(data) }
+    },
+
+    async recordInstagramReelViews(
+        accountId: string,
+        reelId: string,
+        viewCount: number,
+    ): Promise<UserInstagramReel> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.post<unknown>(
+            crmPath(
+                `/admin/crm/users/${encodeURIComponent(id)}/instagram/reels/${encodeURIComponent(reelId)}/record-views`,
+            ),
+            { viewCount },
+        )
+        const reel = normalizeUserInstagramReel(
+            data && typeof data === 'object' && 'reel' in (data as object)
+                ? (data as { reel: unknown }).reel
+                : data,
+        )
+        if (!reel) throw new Error('Неожиданный формат ответа record-views')
+        return reel
+    },
+
+    /** DELETE /admin/crm/users/:accountId/instagram/reels/:reelId */
+    async deleteInstagramReel(
+        accountId: string,
+        reelId: string,
+    ): Promise<{ success: boolean; pointsReversed?: InstagramReelPointsReversed }> {
+        const id = requireMongoObjectIdString(accountId, 'accountId')
+        const { data } = await instance.delete<unknown>(
+            crmPath(
+                `/admin/crm/users/${encodeURIComponent(id)}/instagram/reels/${encodeURIComponent(reelId)}`,
+            ),
+        )
+        if (!data || typeof data !== 'object') return { success: true }
+        const o = data as Record<string, unknown>
+        return { success: o.success !== false, pointsReversed: parseInstagramReelPointsReversed(data) }
     },
 }

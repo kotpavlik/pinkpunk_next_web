@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/zustand/user_store/UserStore'
 import { useOrderStore } from '@/zustand/order_store/OrderStore'
-import { XMarkIcon, CalendarIcon, PhoneIcon, MapPinIcon, PencilIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, PhoneIcon, MapPinIcon, PencilIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { CheckBadgeIcon as CheckBadgeIconSolid } from '@heroicons/react/24/solid'
 import ContactInfoModal from '@/components/ui/shared/ContactInfoModal'
 import Loader from '@/components/ui/shared/Loader'
@@ -12,7 +12,7 @@ import AvatarLoader from '@/components/ui/shared/AvatarLoader'
 import { OrderCard } from '@/components/ui/shared/OrderCard'
 import { tokenManager } from '@/utils/TokenManager'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
-import TelegramLottieJson from '@/components/ui/shared/TelegramLottieJson'
+import ProfileConnectionsRow from '@/components/ui/shared/ProfileConnectionsRow'
 import ProfileIdentityFields from '@/components/ui/shared/ProfileIdentityFields'
 import { formatShippingAddress } from '@/utils/formatShippingAddress'
 import { UserApi } from '@/api/UserApi'
@@ -444,86 +444,19 @@ export default function UserProfile() {
                         </div>
 
                         <div className="flex flex-col gap-3 md:gap-4 lg:col-span-2">
-                            <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2">
-                                <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
-                                    <h3 className="text-sm font-bold text-white mb-2">Telegram</h3>
-                                    {isTelegramLinked ? (
-                                        <div className="space-y-3">
-                                            <div className="space-y-0.5">
-                                                <p className="text-sm font-semibold text-[#2AABEE]">Telegram подключён</p>
-                                                {telegramUsername && (
-                                                    <p className="text-white/60 text-xs truncate">
-                                                        @{telegramUsername.replace(/^@/, '')}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setTelegramModalMode('relink')}
-                                                className="grid w-full grid-cols-[minmax(0,1fr)_4rem] overflow-hidden rounded-xl border border-white/15 bg-white/[0.06] text-left transition hover:border-white/22 hover:bg-white/[0.09] active:opacity-95"
-                                            >
-                                                <div className="flex min-h-[3.5rem] flex-col justify-center py-2 pl-3 pr-2">
-                                                    <p className="text-sm font-semibold text-white">
-                                                        Актуализировать Telegram
-                                                    </p>
-                                                </div>
-                                                <div
-                                                    className="relative min-h-[3.5rem] overflow-hidden border-l border-white/10 bg-white/[0.04]"
-                                                    aria-hidden
-                                                >
-                                                    <div className="pointer-events-none absolute inset-0">
-                                                        <TelegramLottieJson
-                                                            loop
-                                                            style={{ width: '100%', height: '100%' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <p className="text-white/60 text-xs leading-relaxed mb-2">
-                                                Привяжите Telegram к аккаунту с номером {user.userPhoneNumber || 'телефона'}, чтобы
-                                                не создавать второй профиль в магазине.
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => setTelegramModalMode('link')}
-                                                className="grid w-full grid-cols-[minmax(0,1fr)_4rem] overflow-hidden rounded-xl border border-white/15 bg-white/[0.06] text-left transition hover:border-white/22 hover:bg-white/[0.09] active:opacity-95"
-                                            >
-                                                <div className="flex min-h-[3.5rem] flex-col justify-center py-2 pl-3 pr-2">
-                                                    <p className="text-sm font-semibold text-white">
-                                                        Привязать Telegram
-                                                    </p>
-                                                </div>
-                                                <div
-                                                    className="relative min-h-[3.5rem] overflow-hidden border-l border-white/10 bg-white/[0.04]"
-                                                    aria-hidden
-                                                >
-                                                    <div className="pointer-events-none absolute inset-0">
-                                                        <TelegramLottieJson
-                                                            loop
-                                                            style={{ width: '100%', height: '100%' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                                <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
-                                    <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                                        <CalendarIcon className="h-4 w-4 text-[var(--pink-punk)]" />
-                                        Активность
-                                    </h3>
-                                    <div>
-                                        <span className="text-white/60 text-xs block mb-1">Последняя активность</span>
-                                        <p className="text-white font-semibold text-sm">
-                                            {formatDate(user.lastActivity)}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            <ProfileConnectionsRow
+                                isTelegramLinked={isTelegramLinked}
+                                telegramUsername={telegramUsername}
+                                telegramPhoneHint={
+                                    !isTelegramLinked
+                                        ? `Привяжите Telegram к аккаунту с номером ${user.userPhoneNumber || 'телефона'}, чтобы не создавать второй профиль в магазине.`
+                                        : undefined
+                                }
+                                instagramUsername={user.instagram?.username ?? user.instagramUsername}
+                                lastActivityLabel={formatDate(user.lastActivity)}
+                                onTelegramLink={() => setTelegramModalMode('link')}
+                                onTelegramRelink={() => setTelegramModalMode('relink')}
+                            />
 
                             <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-xl">
                                 <div className="flex items-center justify-between mb-3">
