@@ -263,6 +263,16 @@ export default function Header() {
                                 Каталог
                             </Link>
                             <Link
+                                href="/loyalty_rules"
+                                className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base font-medium transition-all duration-200 rounded-lg"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsMenuOpen(false)
+                                }}
+                            >
+                                Правила игры
+                            </Link>
+                            <Link
                                 href="/gift_certificate"
                                 className="text-white/50 hover:text-white hover:bg-white/10 block px-3 py-2 text-base  font-medium transition-all duration-200 rounded-lg"
                                 onClick={(e) => {
