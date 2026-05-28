@@ -1,38 +1,46 @@
 export type CrmUserNameFields = {
     personalFirstName?: string | null
     personalLastName?: string | null
+    firstName?: string | null
+    lastName?: string | null
     username?: string | null
 }
 
-export type StorefrontProfileNameFields = CrmUserNameFields & {
-    firstName?: string | null
-    lastName?: string | null
-}
+export type StorefrontProfileNameFields = CrmUserNameFields
 
-/** Заголовок карточки CRM: личное имя + фамилия, иначе @username. */
-export function crmUserDisplayName(user: CrmUserNameFields): string {
-    const personal = [user.personalFirstName, user.personalLastName]
-        .filter((part) => Boolean(part?.trim()))
+function joinNameParts(...parts: (string | null | undefined)[]): string {
+    return parts
+        .map((part) => part?.trim())
+        .filter((part): part is string => Boolean(part))
         .join(' ')
         .trim()
+}
+
+function formatUsername(username: string): string {
+    const trimmed = username.trim()
+    return trimmed.startsWith('@') ? trimmed : `@${trimmed}`
+}
+
+/** personal → first/last → @username → fallback. */
+export function resolveProfileDisplayName(user: CrmUserNameFields, fallback: string): string {
+    const personal = joinNameParts(user.personalFirstName, user.personalLastName)
     if (personal) return personal
 
-    const username = user.username?.trim()
-    if (username) return username.startsWith('@') ? username : `@${username}`
+    const fromProfile = joinNameParts(user.firstName, user.lastName)
+    if (fromProfile) return fromProfile
 
-    return '—'
+    const username = user.username?.trim()
+    if (username) return formatUsername(username)
+
+    return fallback
 }
 
-/** Имя в личном кабинете: personal → @username → имя из Telegram → «Пользователь». */
+/** Заголовок карточки CRM: personal → first/last → @username. */
+export function crmUserDisplayName(user: CrmUserNameFields): string {
+    return resolveProfileDisplayName(user, '—')
+}
+
+/** Имя в личном кабинете: personal → first/last → @username → «Пользователь». */
 export function storefrontProfileDisplayName(user: StorefrontProfileNameFields): string {
-    const primary = crmUserDisplayName(user)
-    if (primary !== '—') return primary
-
-    const fromTelegram = [user.firstName, user.lastName]
-        .filter((part) => Boolean(part?.trim()))
-        .join(' ')
-        .trim()
-    if (fromTelegram) return fromTelegram
-
-    return 'Пользователь'
+    return resolveProfileDisplayName(user, 'Пользователь')
 }

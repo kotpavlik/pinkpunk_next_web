@@ -483,7 +483,7 @@ export function LoyaltyExplorerDiscountHint({
     if (showNextLevelProgress) {
         return (
             <p
-                className={`w-full cursor-default text-right text-[11px] text-white/50 leading-snug mb-4 ${className}`.trim()}
+                className={`mt-2 w-full cursor-default text-right text-[11px] text-white/50 leading-snug mb-4 ${className}`.trim()}
             >
                 достигни следующий уровень
                 {nextTheme ? (
@@ -503,7 +503,7 @@ export function LoyaltyExplorerDiscountHint({
         <button
             type="button"
             onClick={onClick}
-            className={`w-full text-right text-[11px] text-white/50 leading-snug mb-4 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25 rounded ${className}`.trim()}
+            className={`mt-2 w-full text-right text-[11px] text-white/50 leading-snug mb-4 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/25 rounded ${className}`.trim()}
         >
             нажми на карточку{' '}
             <span className="font-semibold" style={{ color: getLevelTheme('explorer').labelColor }}>
