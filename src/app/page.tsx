@@ -33,10 +33,13 @@ export default function Home() {
   const [shouldShowSeasonalWidgets, setShouldShowSeasonalWidgets] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const { products, getProducts } = useProductsStore()
-  const displayedText = useTypewriter(HERO_TYPEWRITER_TEXT, hasMounted)
+  const typewriterEnabled = hasMounted && !isMobile
+  const displayedText = useTypewriter(HERO_TYPEWRITER_TEXT, typewriterEnabled)
+  const heroSubtext = !hasMounted ? '' : isMobile ? HERO_TYPEWRITER_TEXT : displayedText
 
   const markVideoReady = useCallback(() => {
     setVideoReady(true)
@@ -44,6 +47,11 @@ export default function Home() {
 
   useEffect(() => {
     setHasMounted(true)
+    const mq = window.matchMedia('(max-width: 639px)')
+    const syncMobile = () => setIsMobile(mq.matches)
+    syncMobile()
+    mq.addEventListener('change', syncMobile)
+    return () => mq.removeEventListener('change', syncMobile)
   }, [])
 
   useEffect(() => {
@@ -145,11 +153,13 @@ export default function Home() {
                 aria-hidden
               >
                 {HERO_TYPEWRITER_TEXT}
-                <span className="ml-1 inline-block w-0.5 sm:w-0.5">|</span>
+                <span className="ml-1 hidden sm:inline-block w-0.5">|</span>
               </p>
               <p className="absolute inset-0 text-sm leading-normal text-foreground/70 sm:text-base md:text-lg">
-                {displayedText}
-                <span className="ml-1 inline-block h-4 w-0.5 animate-blink bg-foreground/70 sm:h-5 md:h-6">|</span>
+                {heroSubtext}
+                {typewriterEnabled ? (
+                  <span className="ml-1 inline-block h-4 w-0.5 animate-blink bg-foreground/70 sm:h-5 md:h-6">|</span>
+                ) : null}
               </p>
             </div>
 
