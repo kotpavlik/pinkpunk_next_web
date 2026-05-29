@@ -14,8 +14,14 @@ import Loader from '@/components/ui/shared/Loader'
 import Link from 'next/link'
 import Image from 'next/image'
 import TelegramLoginModal from '@/components/ui/shared/LazyTelegramLoginModal'
+import CartOrderTotal from '@/components/ui/shared/CartOrderTotal'
 import { writeOrderSuccessToStorage } from '@/app/order/orderSuccessUtils'
 import { formatProductName } from '@/utils/formatProductName'
+import {
+    computeLineDiscountedSum,
+    formatByn,
+    hasCartDiscount,
+} from '@/utils/cartPricing'
 import OrderPendingSplash from '@/app/order/OrderPendingSplash'
 
 type OrderPaymentMethod = 'card_online' | 'card_offline' | 'cash' | 'crypto' | 'bank_transfer'
@@ -104,6 +110,7 @@ export default function OrderPage() {
     const {
         items: cartItems,
         stats,
+        pricing,
         cartId,
         clearCart,
         validateCart,
@@ -597,8 +604,12 @@ export default function OrderPage() {
         )
     }
 
-    const totalPrice = stats?.totalPrice || 0
-    const totalItems = stats?.totalItems || 0
+    const cartPricing = pricing ?? stats?.pricing ?? null
+    const subtotalFallback =
+        stats?.totalPrice || cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0)
+    const totalItems = stats?.totalItems || cartItems.reduce((total, item) => total + item.quantity, 0)
+    const cartHasDiscount = hasCartDiscount(cartPricing)
+    const discountPercent = cartPricing?.discountPercent ?? 0
 
     return (
         <>
@@ -906,6 +917,10 @@ export default function OrderPage() {
                                 <div className="space-y-3 mb-4">
                                     {cartItems.map(({ _id, product, quantity }) => {
                                         const firstPhoto = product.photos?.[0]
+                                        const lineSum = product.price * quantity
+                                        const discountedLineSum = computeLineDiscountedSum(lineSum, discountPercent)
+                                        const discountedUnit =
+                                            quantity > 0 ? Math.floor(discountedLineSum / quantity) : null
                                         // Функция для обработки URL фотографий
                                         const getImageUrl = (photoUrl: string) => {
                                             if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
@@ -939,9 +954,23 @@ export default function OrderPage() {
                                                             <h3 className="text-white font-semibold text-sm line-clamp-2 leading-tight">{product.name}</h3>
 
                                                             {/* Цена */}
-                                                            <div className="text-[var(--mint-bright)] font-bold text-base">
-                                                                {product.price} BYN
-                                                            </div>
+                                                            {cartHasDiscount && discountedUnit != null ? (
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-sm text-white/45 line-through tabular-nums">
+                                                                        {formatByn(product.price)}
+                                                                    </p>
+                                                                    <p className="text-base font-bold text-[var(--mint-bright)] tabular-nums">
+                                                                        {formatByn(discountedUnit)}
+                                                                    </p>
+                                                                    <p className="text-xs text-white/55 tabular-nums">
+                                                                        {quantity} шт · {formatByn(discountedLineSum)}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-[var(--mint-bright)] font-bold text-base tabular-nums">
+                                                                    {formatByn(product.price)}
+                                                                </div>
+                                                            )}
 
                                                             {/* Размер */}
                                                             {product.size && (
@@ -951,9 +980,11 @@ export default function OrderPage() {
                                                             )}
 
                                                             {/* Количество */}
-                                                            <div className="text-white/60 text-sm">
-                                                                Количество: {quantity} шт
-                                                            </div>
+                                                            {!cartHasDiscount && (
+                                                                <div className="text-white/60 text-sm">
+                                                                    Количество: {quantity} шт
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -967,17 +998,12 @@ export default function OrderPage() {
                                     {/* Декоративный градиент */}
                                     <div className="absolute inset-0 bg-gradient-to-r from-[var(--mint-dark)]/10 via-transparent to-[var(--mint-dark)]/10 opacity-50"></div>
 
-                                    <div className="relative">
-                                        {/* На мобильных: вертикальная компоновка, на десктопе: горизонтальная */}
-                                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-2 md:gap-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xl font-blauer-nue font-bold text-white">Итого</span>
-                                                <div className="h-1 w-1 bg-[var(--mint-dark)]"></div>
-                                            </div>
-                                            <span className="text-3xl font-blauer-nue font-bold text-[var(--mint-bright)]">
-                                                {totalPrice.toFixed(2)} BYN
-                                            </span>
-                                        </div>
+                                    <div className="relative space-y-4">
+                                        <CartOrderTotal
+                                            pricing={cartPricing}
+                                            subtotalFallback={subtotalFallback}
+                                            size="lg"
+                                        />
 
                                         <div className="flex flex-col md:flex-row md:items-center md:justify-between pt-3 border-t border-white/10 gap-2 md:gap-0">
                                             <div className="flex items-center gap-2">

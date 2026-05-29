@@ -1,7 +1,8 @@
 'use client'
 
+import { formatExpPoints } from '@/api/LoyaltyApi'
 import type { CartPricing } from '@/utils/cartPricing'
-import { formatByn, hasCartDiscount } from '@/utils/cartPricing'
+import { formatByn, hasCartDiscount, resolveExpPointsAward } from '@/utils/cartPricing'
 
 type Props = {
     pricing: CartPricing | null | undefined
@@ -20,6 +21,7 @@ export default function CartOrderTotal({
     const subtotal = pricing?.subtotal ?? subtotalFallback
     const total = pricing?.total ?? subtotalFallback
     const withDiscount = hasCartDiscount(pricing)
+    const expPointsAward = resolveExpPointsAward(pricing, subtotalFallback)
     const totalClass = size === 'lg' ? 'text-3xl' : 'text-2xl'
 
     return (
@@ -55,6 +57,14 @@ export default function CartOrderTotal({
             ) : pricing ? (
                 <p className="text-[10px] text-white/35 text-right leading-snug">
                     Справочно. Итог к оплате считает сервер при оформлении заказа.
+                </p>
+            ) : null}
+            {expPointsAward > 0 ? (
+                <p className="text-xs text-white/55 text-right tabular-nums">
+                    Будет начислено:{' '}
+                    <span className="text-[var(--mint-bright)] font-semibold">
+                        +{formatExpPoints(expPointsAward)} pts
+                    </span>
                 </p>
             ) : null}
         </div>

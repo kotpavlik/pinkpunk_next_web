@@ -4,6 +4,8 @@ export type CartPricing = {
     discountPercent: number
     discountAmount: number
     total: number
+    /** Очки к начислению за покупку (если отдал бэкенд). */
+    expPointsAward?: number
 }
 
 function asInt(v: unknown): number | null {
@@ -25,7 +27,19 @@ export function normalizeCartPricing(raw: unknown): CartPricing | null {
     if (subtotal === null || discountPercent === null || discountAmount === null || total === null) {
         return null
     }
-    return { subtotal, discountPercent, discountAmount, total }
+    const expPointsAward =
+        asInt(o.expPointsAward) ??
+        asInt(o.expPointsToEarn) ??
+        asInt(o.ptsToEarn) ??
+        asInt(o.pointsToEarn) ??
+        undefined
+    return {
+        subtotal,
+        discountPercent,
+        discountAmount,
+        total,
+        ...(expPointsAward !== undefined ? { expPointsAward } : {}),
+    }
 }
 
 export function formatByn(amount: number): string {
@@ -49,15 +63,34 @@ export function computeLineDiscountedSum(lineSum: number, discountPercent: numbe
     return lineSum - Math.floor((lineSum * p) / 100)
 }
 
+/** 1 BYN к оплате = 1 exp_point (округление вниз). */
+export function computeExpPointsFromPurchaseTotal(total: number): number {
+    if (!Number.isFinite(total) || total <= 0) return 0
+    return Math.floor(total)
+}
+
+export function resolveExpPointsAward(
+    pricing: CartPricing | null | undefined,
+    totalFallback: number,
+): number {
+    if (pricing?.expPointsAward != null && Number.isFinite(pricing.expPointsAward)) {
+        return Math.max(0, Math.floor(pricing.expPointsAward))
+    }
+    const total = pricing?.total ?? totalFallback
+    return computeExpPointsFromPurchaseTotal(total)
+}
+
 export function computeCartPricingFromSubtotal(subtotal: number, discountPercent: number): CartPricing {
     const safeSubtotal = Math.max(0, Math.floor(subtotal))
     const p = clampDiscountPercent(discountPercent)
     const discountAmount = p > 0 ? Math.floor((safeSubtotal * p) / 100) : 0
+    const total = safeSubtotal - discountAmount
     return {
         subtotal: safeSubtotal,
         discountPercent: p,
         discountAmount,
-        total: safeSubtotal - discountAmount,
+        total,
+        expPointsAward: computeExpPointsFromPurchaseTotal(total),
     }
 }
 
