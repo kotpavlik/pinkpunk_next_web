@@ -40,6 +40,7 @@ export default function Home() {
   const typewriterEnabled = hasMounted && !isMobile
   const displayedText = useTypewriter(HERO_TYPEWRITER_TEXT, typewriterEnabled)
   const heroSubtext = !hasMounted ? '' : isMobile ? HERO_TYPEWRITER_TEXT : displayedText
+  const showHeroVideo = hasMounted && !isMobile
 
   const markVideoReady = useCallback(() => {
     setVideoReady(true)
@@ -55,6 +56,11 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (!showHeroVideo) {
+      setVideoReady(false)
+      return
+    }
+
     const video = videoRef.current
     if (!video) return
 
@@ -70,7 +76,7 @@ export default function Home() {
       video.removeEventListener('canplaythrough', handleReady)
       video.removeEventListener('playing', handleReady)
     }
-  }, [markVideoReady])
+  }, [markVideoReady, showHeroVideo])
 
   useEffect(() => {
     getProducts(false)
@@ -96,6 +102,7 @@ export default function Home() {
     <div className="relative cursor-default">
       <section className="relative h-screen w-full overflow-hidden">
         <div className="absolute inset-0 w-full h-full">
+          {/* Mobile: только постер — без декодирования видео */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={HERO_VIDEO_POSTER}
@@ -103,30 +110,51 @@ export default function Home() {
             aria-hidden
             fetchPriority="high"
             decoding="async"
-            className={`absolute inset-0 h-full w-full object-cover blur-sm scale-105 transition-opacity duration-700 ease-out pointer-events-none ${videoReady ? 'opacity-0' : 'opacity-100'
-              }`}
+            className="absolute inset-0 h-full w-full object-cover pointer-events-none sm:hidden"
           />
-          <video
-            ref={videoRef}
-            className={`absolute inset-0 h-full w-full object-cover pointer-events-none transition-opacity duration-700 ease-out ${videoReady ? 'opacity-100' : 'opacity-0'
-              }`}
-            src={HERO_VIDEO_SRC}
-            poster={HERO_VIDEO_POSTER}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
+          {/* Desktop: постер → видео */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={HERO_VIDEO_POSTER}
+            alt=""
             aria-hidden
+            fetchPriority="high"
+            decoding="async"
+            className={`absolute inset-0 hidden h-full w-full object-cover blur-sm scale-105 transition-opacity duration-700 ease-out pointer-events-none sm:block ${videoReady && showHeroVideo ? 'opacity-0' : 'opacity-100'
+              }`}
           />
+          {showHeroVideo ? (
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 hidden h-full w-full object-cover pointer-events-none transition-opacity duration-700 ease-out sm:block ${videoReady ? 'opacity-100' : 'opacity-0'
+                }`}
+              src={HERO_VIDEO_SRC}
+              poster={HERO_VIDEO_POSTER}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-hidden
+            />
+          ) : null}
           <div className="absolute inset-0 bg-black/50" />
         </div>
 
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-pink-original/10 blur-3xl animate-pulse" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           <div
-            className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-mint-bright/10 blur-3xl animate-pulse"
-            style={{ animationDelay: '1s' }}
+            className="absolute top-[20%] left-[10%] h-[min(24rem,70vw)] w-[min(24rem,70vw)]"
+            style={{
+              background:
+                'radial-gradient(circle, color-mix(in srgb, var(--pink-punk) 16%, transparent) 0%, transparent 72%)',
+            }}
+          />
+          <div
+            className="absolute bottom-[20%] right-[10%] h-[min(24rem,70vw)] w-[min(24rem,70vw)]"
+            style={{
+              background:
+                'radial-gradient(circle, color-mix(in srgb, var(--mint-bright) 16%, transparent) 0%, transparent 72%)',
+            }}
           />
         </div>
 
