@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import useEmblaCarousel from 'embla-carousel-react'
 import Image from 'next/image'
 import Link from "next/link"
@@ -45,8 +45,10 @@ export default function CarouselSection({
     return photoUrl
   }
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop })
+  const sectionRef = useRef<HTMLElement>(null)
   const [canScrollPrev, setCanScrollPrev] = useState(false)
   const [canScrollNext, setCanScrollNext] = useState(false)
+  const [isInView, setIsInView] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [pendingProduct, setPendingProduct] = useState<{ productId: string; quantity: number } | null>(null)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
@@ -82,12 +84,24 @@ export default function CarouselSection({
   }, [emblaApi])
 
   useEffect(() => {
-    if (!emblaApi || !autoplayInterval) return
+    const section = sectionRef.current
+    if (!section) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '80px 0px', threshold: 0.05 },
+    )
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!emblaApi || !autoplayInterval || !isInView) return
     const interval = setInterval(() => {
       emblaApi.scrollNext()
     }, autoplayInterval)
     return () => clearInterval(interval)
-  }, [emblaApi, autoplayInterval])
+  }, [emblaApi, autoplayInterval, isInView])
 
   // Автоматическое отображение ошибки из корзины
   useEffect(() => {
@@ -187,8 +201,10 @@ export default function CarouselSection({
     `lg:${getFlexClass(slidesToShow.desktop)}`,
   ].join(' ')
 
+  const eagerSlideCount = Math.max(slidesToShow.mobile, slidesToShow.tablet, slidesToShow.desktop)
+
   return (
-    <section className={`relative py-20 md:py-25 ${className}`}>
+    <section ref={sectionRef} className={`relative py-20 md:py-25 ${className}`}>
       <div className="w-[96vw] mx-auto py-2 flex items-center justify-between">
         <h1 className=" text-2xl md:text-4xl  text-start font-blauer-nue font-bold text-white cursor-default">
           {title}
@@ -228,8 +244,9 @@ export default function CarouselSection({
                       alt={product.name}
                       fill
                       sizes={`(max-width: 768px) 100vw, (max-width: 1024px) ${Math.ceil(100 / slidesToShow.tablet * 1.5)}vw, ${Math.ceil(100 / slidesToShow.desktop * 1.5)}vw`}
-                      className="object-cover transition-opacity duration-100"
-                      priority={idx === 0}
+                      className="object-cover"
+                      priority={idx < eagerSlideCount}
+                      loading="eager"
                       quality={95}
                     />
                     {/* hover image (second) */}
@@ -240,6 +257,7 @@ export default function CarouselSection({
                         fill
                         sizes={`(max-width: 768px) 100vw, (max-width: 1024px) ${Math.ceil(100 / slidesToShow.tablet * 1.5)}vw, ${Math.ceil(100 / slidesToShow.desktop * 1.5)}vw`}
                         className="object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                        loading="lazy"
                         quality={95}
                       />
                     )}

@@ -35,12 +35,12 @@ export default function Home() {
   const [hasMounted, setHasMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [showCatalogCarousel, setShowCatalogCarousel] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const { products, getProducts } = useProductsStore()
   const typewriterEnabled = hasMounted && !isMobile
   const displayedText = useTypewriter(HERO_TYPEWRITER_TEXT, typewriterEnabled)
   const heroSubtext = !hasMounted ? '' : isMobile ? HERO_TYPEWRITER_TEXT : displayedText
-  const showHeroVideo = hasMounted && !isMobile
 
   const markVideoReady = useCallback(() => {
     setVideoReady(true)
@@ -56,11 +56,6 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (!showHeroVideo) {
-      setVideoReady(false)
-      return
-    }
-
     const video = videoRef.current
     if (!video) return
 
@@ -76,7 +71,7 @@ export default function Home() {
       video.removeEventListener('canplaythrough', handleReady)
       video.removeEventListener('playing', handleReady)
     }
-  }, [markVideoReady, showHeroVideo])
+  }, [markVideoReady])
 
   useEffect(() => {
     getProducts(false)
@@ -90,6 +85,12 @@ export default function Home() {
     product => product.photos && product.photos.length > 0 && product.isActive
   )
 
+  useEffect(() => {
+    if (filteredProducts.length > 0) {
+      setShowCatalogCarousel(true)
+    }
+  }, [filteredProducts.length])
+
   const handleLoginClick = () => {
     if (user._id) {
       router.push('/user_profile')
@@ -102,7 +103,6 @@ export default function Home() {
     <div className="relative cursor-default">
       <section className="relative h-screen w-full overflow-hidden">
         <div className="absolute inset-0 w-full h-full">
-          {/* Mobile: только постер — без декодирования видео */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={HERO_VIDEO_POSTER}
@@ -110,34 +110,22 @@ export default function Home() {
             aria-hidden
             fetchPriority="high"
             decoding="async"
-            className="absolute inset-0 h-full w-full object-cover pointer-events-none sm:hidden"
-          />
-          {/* Desktop: постер → видео */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={HERO_VIDEO_POSTER}
-            alt=""
-            aria-hidden
-            fetchPriority="high"
-            decoding="async"
-            className={`absolute inset-0 hidden h-full w-full object-cover blur-sm scale-105 transition-opacity duration-700 ease-out pointer-events-none sm:block ${videoReady && showHeroVideo ? 'opacity-0' : 'opacity-100'
+            className={`absolute inset-0 h-full w-full object-cover blur-sm scale-105 transition-opacity duration-700 ease-out pointer-events-none ${videoReady ? 'opacity-0' : 'opacity-100'
               }`}
           />
-          {showHeroVideo ? (
-            <video
-              ref={videoRef}
-              className={`absolute inset-0 hidden h-full w-full object-cover pointer-events-none transition-opacity duration-700 ease-out sm:block ${videoReady ? 'opacity-100' : 'opacity-0'
-                }`}
-              src={HERO_VIDEO_SRC}
-              poster={HERO_VIDEO_POSTER}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              aria-hidden
-            />
-          ) : null}
+          <video
+            ref={videoRef}
+            className={`absolute inset-0 h-full w-full object-cover pointer-events-none transition-opacity duration-700 ease-out ${videoReady ? 'opacity-100' : 'opacity-0'
+              }`}
+            src={HERO_VIDEO_SRC}
+            poster={HERO_VIDEO_POSTER}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden
+          />
           <div className="absolute inset-0 bg-black/50" />
         </div>
 
@@ -215,7 +203,7 @@ export default function Home() {
         onClose={() => setIsLoginModalOpen(false)}
       />
 
-      {!hasMounted || filteredProducts.length === 0 ? (
+      {!hasMounted || !showCatalogCarousel ? (
         <CarouselSectionSkeleton
           title="КАТАЛОГ"
           viewAllLink="/catalog"
