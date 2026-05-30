@@ -25,8 +25,12 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    // Отключаем оптимизацию полностью для избежания timeout ошибок
-    unoptimized: true,
+    // Оптимизация включена: каталог/карусель отдают лёгкие версии под размер экрана,
+    // что убирает повторное декодирование тяжёлых картинок на мобильных.
+    // Компоненты, которым нужен оригинал, по-прежнему ставят unoptimized точечно.
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 31536000,
+    qualities: [75, 95],
     dangerouslyAllowSVG: true,
   },
   webpack(config) {
