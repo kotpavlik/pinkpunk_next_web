@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useMemo, useState } from 'react'
+import { STORE_ADDRESS, STORE_COORDINATES } from '@/constants/storeLocation'
 
 interface YandexMapAPIProps {
     address?: string
@@ -26,9 +27,9 @@ declare global {
 }
 
 const YandexMapAPI = React.memo(function YandexMapAPI({
-    address = "г.Минск ул.Мясникова 76",
+    address = STORE_ADDRESS,
     className = "",
-    coordinates = [27.541278, 53.894522]
+    coordinates = STORE_COORDINATES,
 }: YandexMapAPIProps) {
     const mapRef = useRef<HTMLDivElement>(null)
     const mapInstance = useRef<unknown>(null)

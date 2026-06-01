@@ -2,6 +2,12 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
+import {
+    STORE_ADDRESS,
+    STORE_HOURS_MONDAY,
+    STORE_HOURS_SHOWROOM,
+    YANDEX_ROUTE_URL,
+} from '@/constants/storeLocation'
 
 interface CustomMapMarkerProps {
     title?: string
@@ -20,7 +26,7 @@ export default function CustomMapMarker({
         <>
             {/* Кнопка "Построить маршрут" слева от маркера */}
             <a
-                href="https://yandex.ru/maps/?rtext=~53.894522,27.541278&rtt=auto"
+                href={YANDEX_ROUTE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -162,11 +168,14 @@ export default function CustomMapMarker({
                         />
                     </div>
                     <div style={{ fontSize: '12px', marginBottom: '4px', color: 'rgb(39 28 46)', fontWeight: 'bold' }}>
-                        каждый день: 13:00 - 20:00
+                        {STORE_HOURS_SHOWROOM}
+                    </div>
+                    <div style={{ fontSize: '12px', marginBottom: '4px', color: 'rgb(39 28 46)', fontWeight: 'bold' }}>
+                        {STORE_HOURS_MONDAY}
                     </div>
 
                     <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(39 28 46 / 0.5)', fontWeight: 'bold' }}>
-                        г.Минск ул.Мясникова 76, 1 подъезд,помещение 14,последний этаж
+                        {STORE_ADDRESS}
                     </div>
                 </div>
 

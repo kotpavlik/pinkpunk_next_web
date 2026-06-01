@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Modal from '@/features/modal/Modal'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { STORE_HOURS_MONDAY, STORE_HOURS_SHOWROOM } from '@/constants/storeLocation'
 
 /** PNG из `public/images/alfa_icons/` (white-07 в каталоге нет) */
 const ALFA_ICONS: string[] = [
@@ -77,7 +78,8 @@ export const CompanyRequisitesBlock = memo(function CompanyRequisitesBlock() {
                 </div>
                 <div>
                     <div className="font-semibold text-gray-400">Режим работы:</div>
-                    <div>ежедневно с 13:00 до 20:00</div>
+                    <div>{STORE_HOURS_SHOWROOM}</div>
+                    <div>{STORE_HOURS_MONDAY}</div>
                 </div>
             </div>
         </div>
