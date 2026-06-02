@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import {
     ShoppingBagIcon,
     VideoCameraIcon,
     UserGroupIcon,
-    CurrencyDollarIcon,
     ChartBarIcon,
     ShieldExclamationIcon,
 } from '@heroicons/react/24/outline'
@@ -33,8 +33,24 @@ const SECTION_ICONS = {
     shop: ShoppingBagIcon,
     reels: VideoCameraIcon,
     referral: UserGroupIcon,
-    donate: CurrencyDollarIcon,
+    donate: TonCoinIcon,
 } as const
+
+const MINI_APP_REFERRAL_URL = 'https://t.me/PinkPunk_Brand_Bot?startapp=6399340874'
+
+function TonCoinIcon(props: React.ComponentProps<'svg'>) {
+    const { className } = props
+    return (
+        <Image
+            src="/images/ton_svg/ton.svg"
+            alt=""
+            aria-hidden
+            width={20}
+            height={20}
+            className={className}
+        />
+    )
+}
 
 const revealTransition = (delay = 0) => ({
     duration: 0.55,
@@ -86,9 +102,16 @@ function RuleCard({ section, index }: { section: LoyaltyRuleSection; index: numb
                     <Icon className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
-                    <h3 className="text-lg md:text-xl font-bold text-white font-blauer-nue leading-tight">
-                        {section.title}
-                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg md:text-xl font-bold text-white font-blauer-nue leading-tight">
+                            {section.title}
+                        </h3>
+                        {section.id === 'donate' && (
+                            <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/45">
+                                в разработке
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -106,18 +129,73 @@ function RuleCard({ section, index }: { section: LoyaltyRuleSection; index: numb
             )}
 
             {section.rewards && section.rewards.length > 0 && (
-                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                     {section.rewards.map((reward) => (
                         <div
                             key={reward.label}
-                            className="rounded-xl border border-[var(--mint-bright)]/25 bg-[var(--mint-bright)]/8 px-4 py-3"
+                            className="rounded-xl border border-[var(--mint-bright)]/25 bg-[var(--mint-bright)]/8 px-3 py-2"
                         >
-                            <p className="text-[11px] uppercase tracking-wide text-white/50 mb-1">{reward.label}</p>
-                            <p className="text-xl font-bold tabular-nums text-[var(--mint-bright)] font-blauer-nue">
+                            <p className="text-[10px] uppercase tracking-wide text-white/50 mb-0.5">{reward.label}</p>
+                            <p className="text-lg font-bold tabular-nums text-[var(--mint-bright)] font-blauer-nue">
                                 {reward.value}
                             </p>
                         </div>
                     ))}
+
+                    {section.id === 'donate' && (
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#229ED9]/45 bg-[#229ED9]/14 px-3 py-2 text-sm font-semibold text-[#7FD8FF]/80 opacity-70 grayscale-[0.2] cursor-not-allowed"
+                            >
+                                <Image
+                                    src="/images/ton_svg/ton.svg"
+                                    alt=""
+                                    aria-hidden
+                                    width={16}
+                                    height={16}
+                                    className="opacity-90"
+                                />
+                                <span className="flex flex-col items-start leading-tight">
+                                    <span>Задонатить</span>
+                                    <span className="text-[11px] font-medium text-white/45">в разработке</span>
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center gap-2 rounded-xl border border-[var(--pink-punk)]/45 bg-[var(--pink-punk)]/14 px-3 py-2 text-sm font-semibold text-[var(--pink-punk)]/80 opacity-70 grayscale-[0.2] cursor-not-allowed"
+                            >
+                                <span role="img" aria-label="unicorn">🦄</span>
+                                <span className="flex flex-col items-start leading-tight">
+                                    <span>Наши мечты</span>
+                                    <span className="text-[11px] font-medium text-white/45">в разработке</span>
+                                </span>
+                            </button>
+                        </div>
+                    )}
+
+                    {section.id === 'referral' && (
+                        <a
+                            href={MINI_APP_REFERRAL_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl border border-[#229ED9]/45 bg-[#229ED9]/14 px-3 py-2 text-xs font-semibold text-[#7FD8FF] transition-colors hover:bg-[#229ED9]/22"
+                        >
+                            <span className="relative h-8 w-8 overflow-hidden rounded-full border-2 border-[#229ED9]/70">
+                                <Image
+                                    src="/images/pink_punk_mini_app_logo/pp_dap.jpg"
+                                    alt="Pink Punk mini app"
+                                    fill
+                                    sizes="32px"
+                                    className="object-cover"
+                                />
+                            </span>
+                            <span>PINK PUNK MINI APP</span>
+                        </a>
+                    )}
                 </div>
             )}
 
@@ -135,6 +213,7 @@ function RuleCard({ section, index }: { section: LoyaltyRuleSection; index: numb
                     {section.bonus}
                 </p>
             )}
+
         </motion.article>
     )
 }

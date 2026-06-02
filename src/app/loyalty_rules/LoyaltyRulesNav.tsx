@@ -1,19 +1,32 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
     ShoppingBagIcon,
     VideoCameraIcon,
     UserGroupIcon,
-    CurrencyDollarIcon,
 } from '@heroicons/react/24/outline'
 import type { LoyaltyRuleSectionId } from '@/app/loyalty_rules/loyaltyRulesContent'
+
+function TonCoinIcon({ className }: { className?: string }) {
+    return (
+        <Image
+            src="/images/ton_svg/ton.svg"
+            alt=""
+            aria-hidden
+            width={16}
+            height={16}
+            className={className}
+        />
+    )
+}
 
 const SECTION_ICONS = {
     shop: ShoppingBagIcon,
     reels: VideoCameraIcon,
     referral: UserGroupIcon,
-    donate: CurrencyDollarIcon,
+    donate: TonCoinIcon,
 } as const
 
 export type LoyaltyRulesNavItem = {
