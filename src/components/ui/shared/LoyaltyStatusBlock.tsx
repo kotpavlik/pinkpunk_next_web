@@ -582,6 +582,8 @@ function LoyaltyLevelsGrid({
 const LOYALTY_DRAWER_TRANSITION_MS = 320
 const GIFT_TERMINAL_MESSAGE =
     'ты знаешь, что с этим делать , беги за белым кроликом и покажи это сообщение там'
+const GIFT_TERMINAL_ISSUED_MESSAGE = 'тебе это пригодиться на следующем уровне'
+const GIFT_TERMINAL_ISSUED_IMAGE = '/images/regular_img/tenis_balls_web.png'
 const GIFT_TERMINAL_RABBIT = '🐇'
 const GIFT_TERMINAL_STATUS_LABEL = 'подарок ожидает получения'
 const TERMINAL_BLINK_MS = 480
@@ -764,7 +766,10 @@ function LoyaltyGiftTerminal({
         onDeclineCatch?.()
     }, [confirmBusy, onDeclineCatch])
 
-    const showMessageLine = phase === 'typing' || phase === 'typed' || phase === 'status' || phase === 'rabbit'
+    const giftIssuedView = claim.status === 'issued' && rabbitFlowEnabled
+    const showMessageLine =
+        !giftIssuedView &&
+        (phase === 'typing' || phase === 'typed' || phase === 'status' || phase === 'rabbit')
     const showGiftStatus = phase === 'status' || phase === 'rabbit'
     const showRabbit = phase === 'rabbit' && rabbitFlowEnabled
     const showRabbitInteractive = showRabbit && interactive && claim.status !== 'issued'
@@ -802,24 +807,43 @@ function LoyaltyGiftTerminal({
                     </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-hidden py-0.5">
-                    {phase === 'blink' && (
-                        <p className="text-[10px] leading-relaxed">
-                            <span
-                                className="inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle transition-opacity duration-75"
-                                style={{ opacity: cursorVisible ? 1 : 0 }}
-                                aria-hidden
-                            />
-                        </p>
-                    )}
-
-                    {showMessageLine && (
-                        <p className="line-clamp-3 text-[10px] leading-relaxed whitespace-pre-wrap break-words">
-                            {typedText}
-                            {phase === 'typing' && (
-                                <span className="loyalty-terminal-cursor ml-px inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle" />
+                <div
+                    className={`min-h-0 flex-1 py-0.5 ${giftIssuedView ? 'flex flex-col gap-1 overflow-hidden' : 'overflow-hidden'}`}
+                >
+                    {giftIssuedView ? (
+                        <>
+                            <p className="w-full shrink-0 px-0.5 text-center text-[9px] font-medium leading-snug text-[#5cb88a]">
+                                {GIFT_TERMINAL_ISSUED_MESSAGE}
+                            </p>
+                            <div className="flex min-h-0 flex-1 items-center justify-center">
+                                <img
+                                    src={GIFT_TERMINAL_ISSUED_IMAGE}
+                                    alt=""
+                                    className="loyalty-terminal-gift-reward-img h-full w-full max-h-full max-w-full object-contain"
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {phase === 'blink' && (
+                                <p className="text-[10px] leading-relaxed">
+                                    <span
+                                        className="inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle transition-opacity duration-75"
+                                        style={{ opacity: cursorVisible ? 1 : 0 }}
+                                        aria-hidden
+                                    />
+                                </p>
                             )}
-                        </p>
+
+                            {showMessageLine && (
+                                <p className="line-clamp-3 text-[10px] leading-relaxed whitespace-pre-wrap break-words">
+                                    {typedText}
+                                    {phase === 'typing' && (
+                                        <span className="loyalty-terminal-cursor ml-px inline-block h-[0.95em] w-[0.5em] -translate-y-px bg-[#439f76] align-middle" />
+                                    )}
+                                </p>
+                            )}
+                        </>
                     )}
                 </div>
 

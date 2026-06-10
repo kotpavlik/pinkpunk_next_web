@@ -558,6 +558,10 @@ body::before {
   opacity: 1;
 }
 
+.loyalty-terminal-gift-reward-img {
+  animation: loyalty-terminal-gift-blink 1.1s step-end infinite;
+}
+
 .loyalty-gift-terminal-shell {
   min-height: 12.75rem;
   height: 12.75rem;
