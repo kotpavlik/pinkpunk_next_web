@@ -6,6 +6,7 @@ import { LOYALTY_LADDER } from '@/utils/loyaltyLevelTheme'
 
 const GIFT_ICON_COLOR_ISSUED = '#5cb88a'
 const GIFT_ICON_COLOR_REQUESTED = '#fbbf24'
+const GIFT_ICON_COLOR_AVAILABLE = '#ffffff'
 const GIFT_ICON_COLOR_IDLE = 'rgba(255,255,255,0.28)'
 
 function resolveCrmGiftIconColor(
@@ -17,6 +18,7 @@ function resolveCrmGiftIconColor(
     const status = gifts?.[giftLevelId]?.status
     if (status === 'issued') return GIFT_ICON_COLOR_ISSUED
     if (status === 'requested') return GIFT_ICON_COLOR_REQUESTED
+    if (status === 'available') return GIFT_ICON_COLOR_AVAILABLE
     return GIFT_ICON_COLOR_IDLE
 }
 
