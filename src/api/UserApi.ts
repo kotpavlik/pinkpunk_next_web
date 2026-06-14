@@ -5,6 +5,8 @@ import {
     type LoyaltyGiftClaimResponse,
     type LoyaltyGiftLevelId,
     type LoyaltyStatus,
+    type LeaderboardResponse,
+    normalizeLeaderboardResponse,
     normalizeLoyaltyGiftClaimResponse,
     normalizeLoyaltyStatus,
     parseLoyaltyApiResponse,
@@ -316,6 +318,16 @@ export const UserApi = {
             throw new Error('Неожиданный формат ответа loyalty');
         }
         return status;
+    },
+
+    /** GET /loyalty/leaderboard — публичный топ-10 (+ currentUser при валидном Bearer). */
+    async getLeaderboard(): Promise<LeaderboardResponse> {
+        const { data } = await instance.get<unknown>('loyalty/leaderboard');
+        const parsed = normalizeLeaderboardResponse(data);
+        if (!parsed) {
+            throw new Error('Неожиданный формат ответа leaderboard');
+        }
+        return parsed;
     },
 
     /** POST /user/loyalty/gifts/:levelId/claim — запросить офлайн-подарок (идемпотентно при requested). */

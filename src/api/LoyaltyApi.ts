@@ -443,6 +443,89 @@ export function formatExpPoints(n: number): string {
     return n.toLocaleString('ru-RU')
 }
 
+export type LeaderboardLevel = {
+    id: LoyaltyLevelId | string
+    label: string
+}
+
+export type LeaderboardEntry = {
+    rank: number
+    displayName: string
+    level: LeaderboardLevel
+    expPoints: number
+}
+
+export type LeaderboardCurrentUser = LeaderboardEntry & {
+    inTop: boolean
+}
+
+export type LeaderboardResponse = {
+    leaders: LeaderboardEntry[]
+    totalParticipants: number
+    currentUser?: LeaderboardCurrentUser
+}
+
+function normalizeLeaderboardLevel(raw: unknown): LeaderboardLevel | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const id = typeof o.id === 'string' ? o.id : ''
+    const label = typeof o.label === 'string' ? o.label : ''
+    if (!id || !label) return null
+    return { id, label }
+}
+
+function normalizeLeaderboardEntry(raw: unknown): LeaderboardEntry | null {
+    if (!raw || typeof raw !== 'object') return null
+    const o = raw as Record<string, unknown>
+    const rank = typeof o.rank === 'number' && Number.isFinite(o.rank) ? o.rank : null
+    const displayName = typeof o.displayName === 'string' ? o.displayName.trim() : ''
+    const expPoints =
+        typeof o.expPoints === 'number' && Number.isFinite(o.expPoints) ? o.expPoints : null
+    const level = normalizeLeaderboardLevel(o.level)
+    if (rank == null || !displayName || expPoints == null || !level) return null
+    return { rank, displayName, level, expPoints }
+}
+
+function normalizeLeaderboardCurrentUser(raw: unknown): LeaderboardCurrentUser | null {
+    const entry = normalizeLeaderboardEntry(raw)
+    if (!entry || !raw || typeof raw !== 'object') return null
+    const inTop = (raw as Record<string, unknown>).inTop === true
+    return { ...entry, inTop }
+}
+
+function leaderboardPayloadCandidates(data: unknown): unknown[] {
+    if (data == null || typeof data !== 'object') return []
+    const o = data as Record<string, unknown>
+    const candidates: unknown[] = []
+    if (o.data != null && typeof o.data === 'object') candidates.push(o.data)
+    candidates.push(o)
+    return candidates
+}
+
+/** Разбор GET /loyalty/leaderboard. */
+export function normalizeLeaderboardResponse(data: unknown): LeaderboardResponse | null {
+    for (const candidate of leaderboardPayloadCandidates(data)) {
+        if (!candidate || typeof candidate !== 'object') continue
+        const o = candidate as Record<string, unknown>
+        if (!Array.isArray(o.leaders)) continue
+
+        const leaders = o.leaders
+            .map(normalizeLeaderboardEntry)
+            .filter((e): e is LeaderboardEntry => e != null)
+
+        const totalParticipants =
+            typeof o.totalParticipants === 'number' && Number.isFinite(o.totalParticipants)
+                ? o.totalParticipants
+                : leaders.length
+
+        const currentUser =
+            o.currentUser != null ? normalizeLeaderboardCurrentUser(o.currentUser) ?? undefined : undefined
+
+        return { leaders, totalParticipants, currentUser }
+    }
+    return null
+}
+
 /** Прогресс внутри текущего уровня до порога nextLevel (0–100). */
 export function resolveLoyaltyProgressPercent(status: LoyaltyStatus): number {
     if (!status.nextLevel) return 100
